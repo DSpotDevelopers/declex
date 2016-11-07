@@ -11,7 +11,7 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
-* Place the following lines in your project build.graddle, in the repositories section of all projects.
+* Place the following lines in your project build.gradle, in the repositories section of all projects.
 
 ```gradle
     maven {
@@ -32,7 +32,7 @@ allprojects {
 }
 ```
 
-* Place the following lines in your app module build.graddle file:
+* Place the following lines in your app module build.gradle file:
 
 ```gradle
 apply plugin: 'android-apt'
