@@ -34,7 +34,7 @@ allprojects {
 
 * Place the following lines in your app module build.graddle file:
 
-```graddle
+```gradle
 apply plugin: 'com.neenbedankt.android-apt'
 
 buildscript {
@@ -58,7 +58,7 @@ You should replace "YOUR PROJECT PACKAGE" by your project package name (Ex. com.
 
 * And finally add to your dependencies the framework libraries:
 
-```graddle
+```gradle
 dependencies {
     compile 'com.dspot:declex-api:1.0'
     apt 'com.dspot:declex:1.0'
