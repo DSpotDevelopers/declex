@@ -45,8 +45,8 @@ You should replace "YOUR PROJECT PACKAGE" by your project package name (Ex. com.
 
 ```graddle
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    apt files('compile-libs/declex-v1.0.jar')
+    compile 'com.dspot:declex-api:1.0'
+    apt 'com.dspot:declex:1.0'
     
     ...
 ```
