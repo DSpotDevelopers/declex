@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2016 DSpot Sp. z o.o
+
+    Licensed under the Apache License, Version 2.0 (the "License"); you may not
+    use this file except in compliance with the License. You may obtain a copy of
+    the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed To in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+    License for the specific language governing permissions and limitations under
+    the License.
+
+-->
+
+<project name="declex-api" default="jar">
+    
+    <property name="project.version" value="1.0"/>
+    
+    <property environment="env"/>
+    <property name="target" value="1.7"/>
+    <property name="source" value="1.7"/>
+    
+    <property name="project.path" location="."/>
+    
+    <property name="declex.processor.path" value="${project.path}/../declex/bin/declex-v${project.version}.jar;${project.path}/resources"/>
+    <property name="class.path" value="${project.path}/libs/adroid-support-v4.jar;${project.path}/libs/android.jar;${project.path}/target/classes"/>
+    
+    <property name="processed" location="target/processed"/>
+    <property name="generated-src" location="target/generated-src"/>
+        
+    <target name="jar">
+        
+        <propertyfile file="resources/${ant.project.name}.properties">
+			<entry  key="version" value="${project.version}"/>
+		</propertyfile>
+		
+        <delete dir="${processed}" />
+        <delete dir="${generated-src}" />
+        <mkdir dir="${processed}" />
+        <mkdir dir="${generated-src}" />
+        
+        <echo>Compiling Built-In Actions ${class.path}</echo>
+        <javac srcdir="src/com/dspot/declex/api/action/builtin" 
+               destdir="${processed}"
+               classpath="${class.path}"
+               debug="on"
+               source="1.7"
+               target="1.7">
+            <compilerarg line="-processorpath ${declex.processor.path}"/>
+            <compilerarg line="-s ${generated-src}"/>
+            <compilerarg line="-XprintProcessorInfo"/>
+            <compilerarg line="-XprintRounds"/>
+            <compilerarg line="-Ainternal=true"/>
+        </javac>
+		
+        <!-- This is only for local testing, the generated file should not be distributed -->
+        <jar destfile="bin/${ant.project.name}.jar" filesetmanifest="mergewithoutmain">
+            
+            <fileset dir="target/classes" excludes="**/action/builtin/**"/>
+            <fileset dir="target/processed"/>      
+            <fileset dir="resources"/>
+            
+            <zipfileset excludes="META-INF/**" src="libs/eventbus-3.0.0.jar"/>
+            <zipfileset excludes="META-INF/**" src="libs/okhttp-3.4.1.jar"/>
+            <zipfileset excludes="META-INF/**" src="libs/okio-1.9.0.jar"/>
+            <zipfileset excludes="META-INF/**" src="libs/picasso-2.5.2.jar"/>
+        </jar>
+        
+        <!-- To copy the file to the test environment -->
+        <!-- 
+        <copy 
+            file="bin/${ant.project.name}.jar" 
+            todir="C:\Dropbox\Work\ManifestMedia\TeacherBox\teacherbox\app\libs"/>
+        <copy 
+            file="bin/${ant.project.name}.jar" 
+            todir="C:\Dropbox\Work\Horeko\hpa-android\app\libs"/>
+        <copy 
+            file="bin/${ant.project.name}.jar" 
+            todir="C:\Dropbox\Work\Plantao\plantao\app\libs"/>
+        <copy 
+            file="bin/${ant.project.name}.jar" 
+            todir="C:\Dropbox\Android\DecleX\Examples\Expenses Tracker\ExpensesManager\app\libs"/>
+        -->
+    </target>
+
+</project>

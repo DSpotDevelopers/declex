@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>declex-api</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.jdt.core.javabuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.m2e.core.maven2Builder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.m2e.core.maven2Nature</nature>
+		<nature>org.eclipse.jdt.core.javanature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>ActiveAndroid</name>
+			<type>2</type>
+			<locationURI>WORKSPACE_LOC/Dependencies/ActiveAndroid/src</locationURI>
+		</link>
+		<link>
+			<name>androidannotations-api</name>
+			<type>2</type>
+			<locationURI>WORKSPACE_LOC/Dependencies/androidannotations/AndroidAnnotations/androidannotations-core/androidannotations-api/src/main/java</locationURI>
+		</link>
+		<link>
+			<name>saripaar</name>
+			<type>2</type>
+			<locationURI>WORKSPACE_LOC/Dependencies/saripaar/saripaar/src/main/java</locationURI>
+		</link>
+	</linkedResources>
+</projectDescription>
