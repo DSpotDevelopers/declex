@@ -24,10 +24,10 @@ The section will look like this:
 ```gradle
 allprojects {
     repositories {
-        jcenter()
         maven {
             url 'https://dspot.bintray.com/declex'
         }
+        jcenter()
     }
 }
 ```
