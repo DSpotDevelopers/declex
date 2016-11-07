@@ -60,8 +60,8 @@ You should replace "YOUR PROJECT PACKAGE" by your project package name (Ex. com.
 
 ```gradle
 dependencies {
-    compile 'com.dspot:declex-api:1.0'
-    apt 'com.dspot:declex:1.0'
+    compile 'com.dspot:declex-api:1.0.1'
+    apt 'com.dspot:declex:1.0.1'
     
     ...
 ```
