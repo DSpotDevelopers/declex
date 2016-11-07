@@ -47,7 +47,6 @@ import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.eventbus.UseEventBus;
-import com.dspot.declex.event.holder.ClickHolder;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
@@ -203,25 +202,20 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 				referecedId = referencedIdEnumerated;
 			}
 			
-			String idQualifiedName = getEnvironment().getRClass().get(Res.ID).getIdQualifiedName(referecedId);
-			if (idQualifiedName == null && !viewsHolder.layoutContainsId(referecedId)) {
-				//Check if it is an event
-				if (referecedId.startsWith("on")) {
-					String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
-					
-					if (eventClassName != null) {
-						JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-						method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder));
-						return null;
-					}
-				}
+			//Check if it is an event
+			if (referecedId.startsWith("on")) {
+				String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
 				
-				methodHandler(elementClass, referecedId, element, viewsHolder);
-				return null;
+				if (eventClassName != null) {
+					JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
+					method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder));
+					return null;
+				}
 			}
 			
-			//Fallback as Click
-			return holder.getPluginHolder(new ClickHolder(holder));
+			//Fallback as Method call
+			methodHandler(elementClass, referecedId, element, viewsHolder);
+			return null;
 		}		
 	}
 	
@@ -290,6 +284,10 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder) {
 		final EComponentWithViewSupportHolder holder = viewsHolder.holder();
 		
+		if (holder.getGeneratedClass().fullName().endsWith("AddCardFragment_")) {
+			System.out.println(holder.getGeneratedClass().fullName() + ": Checking method for " + elementName);
+		}
+		
 		//See if the method exists in the holder
 		final String methodName = "get" + elementName.substring(0, 1).toUpperCase() + elementName.substring(1);
     	
@@ -315,7 +313,7 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 					}
 				}					
 			}
-		}
+		} 
     	
     	if (holderMethod != null) {
     		try {
@@ -338,6 +336,11 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 			}
     	}
     	
+    	if (element instanceof ExecutableElement) {
+    		//The same method invocating itself is handled in a different
+    		//handler (Ex. ActionHandler)
+    		return true;
+    	}
     	
 		//Search coinciding methods
     	//TODO recursive search in all the methods of the super classes 
@@ -356,11 +359,11 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 					TypeMirror resultType = executableElem.getReturnType();
 					
 					JMethod method = viewsHolder.getGeneratedClass().method(
-							JMod.PUBLIC, getJClass(resultType.toString()), executableElem.getSimpleName().toString()
+							JMod.PUBLIC, getJClass(resultType.toString()), elementName
 						);
 					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder));
 					
-					JInvocation superInvoke = invoke(_super(), executableElem.getSimpleName().toString());
+					JInvocation superInvoke = invoke(_super(), elementName);
 					for (VariableElement param : parameters) {
 						method.param(getJClass(param.asType().toString()), param.getSimpleName().toString());
 						superInvoke = superInvoke.arg(ref(param.getSimpleName().toString()));

@@ -19,7 +19,7 @@
 
 <project name="declex-api" default="jar">
     
-    <property name="project.version" value="1.0.1"/>
+    <property name="project.version" value="1.0.2"/>
     
     <property environment="env"/>
     <property name="target" value="1.7"/>
@@ -70,7 +70,7 @@
             <zipfileset excludes="META-INF/**" src="libs/okio-1.9.0.jar"/>
             <zipfileset excludes="META-INF/**" src="libs/picasso-2.5.2.jar"/>
         </jar>
-        
+      	
     </target>
 
 </project>

@@ -175,27 +175,24 @@ public class ActionHandler extends BaseEventHandler {
 	
 	@Override
 	protected IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder) {
+
+		if (element instanceof ExecutableElement) {
+			final String methodName = element.getSimpleName().toString();
+			
+			JInvocation invoke = JExpr.invoke(methodName);
+			
+			ExecutableElement exeElem = (ExecutableElement) element;
+			for (VariableElement param : exeElem.getParameters()) {
+				final String paramName = param.getSimpleName().toString();
+				ParamUtils.injectParam(paramName, invoke, viewsHolder);
+			}
+			
+			return invoke;
+		}
 		
 		//This is an Action of Declex v0.9
 		if (isAction(element)) {
-			
-			if (element instanceof ExecutableElement) {
-				final String methodName = element.getSimpleName().toString();
-				
-				JInvocation invoke = JExpr.invoke(methodName);
-				
-				ExecutableElement exeElem = (ExecutableElement) element;
-				for (VariableElement param : exeElem.getParameters()) {
-					final String paramName = param.getSimpleName().toString();
-					ParamUtils.injectParam(paramName, invoke, viewsHolder);
-				}
-				
-				return invoke;
-
-			} else {
-				return ref(element.getSimpleName().toString()).invoke("fire");
-			}
-			
+			return ref(element.getSimpleName().toString()).invoke("fire");
 		};
 		
 		for (ActionPlugin plugin : plugins) 
@@ -214,6 +211,12 @@ public class ActionHandler extends BaseEventHandler {
 			isAction = true;
 			super.process(element, holder);
 			isAction = false;
+			return;
+		} 		
+		
+		//Action methods that were not process as DecleX Actions
+		if (element instanceof ExecutableElement) {
+			super.process(element, holder);
 			return;
 		}
 		
@@ -234,9 +237,6 @@ public class ActionHandler extends BaseEventHandler {
 				params = new String[]{};
 			} 
 		} else {
-			//Don't process action methods.
-			if (element instanceof ExecutableElement) return;
-			
 			params = actionAnnotation.value();
 		}
 		
