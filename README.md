@@ -11,45 +11,58 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
-Download the library jar files from [here](https://github.com/smaugho/declex/releases/tag/v1.0):
+* Place the following lines in your project build.gradle, in the repositories section of all projects.
 
-* Place the core processor declex-v1.0.jar in a folder named compile-libs in your project.
+```gradle
+    maven {
+            url 'https://dspot.bintray.com/declex'
+    }
+````
 
-* Place the API file declex-api.jar in a folder named libs in your project.
+The section will look like this:
 
-* Place the following lines in your build.graddle file:
+```gradle
+allprojects {
+    repositories {
+        maven {
+            url 'https://dspot.bintray.com/declex'
+        }
+        jcenter()
+    }
+}
+```
 
-```graddle
-apply plugin: 'com.neenbedankt.android-apt'
+* Place the following lines in your app module build.gradle file:
+
+```gradle
+apply plugin: 'android-apt'
 
 buildscript {
     repositories {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.4'
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
     }
 }
 
 apt {
     arguments {
-        androidManifestFile variant.outputs[0].processResources.manifestFile
-        resourcePackageName 'YOUR PROJECT PACKAGE'
+        // you should set your package name here if you are using different application IDs
+        // resourcePackageName "YOUR PACKAGE NAME HERE"
+
+        // You can set optional annotation processing options here, like these commented options:
+        // logLevel 'INFO'
     }
 }
 
-```
-You should replace "YOUR PROJECT PACKAGE" by your project package name (Ex. com.company.example).
-
-* And finally add to your dependencies the framework libraries:
-
-```graddle
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    apt files('compile-libs/declex-v1.0.jar')
-    
-    ...
+    compile 'com.dspot:declex-api:1.0.2'
+    apt 'com.dspot:declex:1.0.2'
+}
+
 ```
+
 
 And that's it!...
 
