@@ -11,28 +11,7 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
-* Place the following lines in your project build.gradle, in the repositories section of all projects.
-
-```gradle
-    maven {
-            url 'https://dspot.bintray.com/declex'
-    }
-````
-
-The section will look like this:
-
-```gradle
-allprojects {
-    repositories {
-        maven {
-            url 'https://dspot.bintray.com/declex'
-        }
-        jcenter()
-    }
-}
-```
-
-* Place the following lines in your app module build.gradle file:
+Place the following lines in your app module build.gradle file:
 
 ```gradle
 apply plugin: 'android-apt'
