@@ -19,7 +19,7 @@
 
 <project name="declex-api" default="jar">
     
-    <property name="project.version" value="1.0"/>
+    <property name="project.version" value="1.0.1"/>
     
     <property environment="env"/>
     <property name="target" value="1.7"/>
@@ -71,21 +71,6 @@
             <zipfileset excludes="META-INF/**" src="libs/picasso-2.5.2.jar"/>
         </jar>
         
-        <!-- To copy the file to the test environment -->
-        <!-- 
-        <copy 
-            file="bin/${ant.project.name}.jar" 
-            todir="C:\Dropbox\Work\ManifestMedia\TeacherBox\teacherbox\app\libs"/>
-        <copy 
-            file="bin/${ant.project.name}.jar" 
-            todir="C:\Dropbox\Work\Horeko\hpa-android\app\libs"/>
-        <copy 
-            file="bin/${ant.project.name}.jar" 
-            todir="C:\Dropbox\Work\Plantao\plantao\app\libs"/>
-        <copy 
-            file="bin/${ant.project.name}.jar" 
-            todir="C:\Dropbox\Android\DecleX\Examples\Expenses Tracker\ExpensesManager\app\libs"/>
-        -->
     </target>
 
 </project>

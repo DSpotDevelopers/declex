@@ -229,8 +229,7 @@ public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGene
 			} catch (Throwable e) {
 				LOGGER.error(
 					"FTL PROCESSING ERROR", 
-					element, 
-					element.getAnnotation(targetAnnotation)
+					e
 				);
 				
 				break;

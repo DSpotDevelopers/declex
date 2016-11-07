@@ -5,7 +5,7 @@
 	
 	<groupId>com.dspot</groupId>
 	<artifactId>declex-api</artifactId>
-	<version>1.0</version>
+	<version>1.0.1</version>
 	<name>DecleX API</name>
 	<description>DecleX Framework API</description>
 
@@ -30,9 +30,9 @@
 				<configuration>
 					<source>1.7</source>
 					<target>1.7</target>
-					<excludes>
+					<!-- excludes>
 						<exclude>**/action/builtin/**</exclude>
-					</excludes>
+					</excludes>-->
 				</configuration>
 			</plugin>
 

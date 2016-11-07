@@ -19,7 +19,7 @@
 
 <project basedir="." default="jar" name="declex">
     
-    <property name="project.version" value="1.0"/>
+    <property name="project.version" value="1.0.1"/>
     
     <property environment="env"/>
     <property name="debuglevel" value="source,lines,vars"/>
@@ -60,27 +60,9 @@
             <zipfileset excludes="META-INF/**" src="libs/jcodemodel-2.8.0.jar"/>
             
             <fileset dir="${declex-api.location}/target/classes"/>
+            <fileset dir="${declex-api.location}/target/processed"/>
             
         </jar>
         
-        <!-- To copy the file to the test environment -->
-        <!-- 
-        <copy 
-            file="bin/${ant.project.name}-v${project.version}.jar" 
-            todir="C:\Dropbox\Work\ManifestMedia\TeacherBox\teacherbox\app\compile-libs"/>
-        <copy 
-            file="bin/${ant.project.name}-v${project.version}.jar" 
-            todir="C:\Dropbox\Work\Horeko\hpa-android\app\compile-libs"/>
-        <copy 
-            file="bin/${ant.project.name}-v${project.version}.jar" 
-            todir="C:\Dropbox\Work\Plantao\plantao\app\compile-libs"/>
-        <copy 
-            file="bin/${ant.project.name}-v${project.version}.jar" 
-            todir="C:\Dropbox\Android\DecleX\Examples\Expenses Tracker\ExpensesManager\app\compile-libs"/>
-        
-        <exec executable="taskkill">
-        	<arg line="/im java.exe /f /t"/>
-    	</exec>
-    	 -->
     </target>
 </project>
