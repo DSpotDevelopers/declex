@@ -11,13 +11,28 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
-Download the library jar files from [here](https://github.com/smaugho/declex/releases/tag/v1.0):
+* Place the following lines in your project build.graddle, in the repositories section of all projects.
 
-* Place the core processor declex-v1.0.jar in a folder named compile-libs in your project.
+```gradle
+    maven {
+            url 'https://dspot.bintray.com/declex'
+    }
+````
 
-* Place the API file declex-api.jar in a folder named libs in your project.
+The section will look like this:
 
-* Place the following lines in your build.graddle file:
+```gradle
+allprojects {
+    repositories {
+        jcenter()
+        maven {
+            url 'https://dspot.bintray.com/declex'
+        }
+    }
+}
+```
+
+* Place the following lines in your app module build.graddle file:
 
 ```graddle
 apply plugin: 'com.neenbedankt.android-apt'
