@@ -37,6 +37,8 @@ public class ToastActionHolder {
     Context context;
 
     Runnable Shown;
+    
+    int duration = Toast.LENGTH_LONG;
 
     void init(@FormattedExpression String text) {
         this.text = text;
@@ -56,9 +58,9 @@ public class ToastActionHolder {
 			@Override
 			public void run() {
 				if (text != null) {
-		            Toast.makeText(context, text, Toast.LENGTH_LONG).show();
+		            Toast.makeText(context, text, duration).show();
 		        } else {
-		            Toast.makeText(context, res, Toast.LENGTH_LONG).show();
+		            Toast.makeText(context, res, duration).show();
 		        }
 		        if (Shown != null) Shown.run();
 			}
@@ -73,4 +75,15 @@ public class ToastActionHolder {
 		}
         
     }
+    
+    public ToastActionHolder shortLength() {
+    	duration = Toast.LENGTH_SHORT;
+    	return this;
+    }
+    
+    public ToastActionHolder longLength() {
+    	duration = Toast.LENGTH_LONG;
+    	return this;
+    }
+
 }

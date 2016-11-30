@@ -4,6 +4,7 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 
 import java.util.Arrays;
 
@@ -39,6 +40,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private JMethod initMethod;
 	private JFieldVar containerField;
 	private JFieldVar transactionField;
+	private JFieldVar transactionMethodField;
 	
 	public FragmentActionHolder(EFragmentHolder holder) {
 		super(holder);
@@ -78,6 +80,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 				setInit(actionInfo);
 				setContainer(actionInfo);
 				setTransaction(actionInfo);
+				setTransactionMethods(actionInfo);
 				
 				setBuild(actionInfo);
 				setExecute(actionInfo);
@@ -105,7 +108,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		JVar containerParam = containerMethod.param(getCodeModel().INT, containerName);
 		containerMethod.body().assign(_this().ref(containerField), containerParam);
 		containerMethod.body()._return(_this());
-		actionInfo.addMethod(containerName, getCodeModel().INT.fullName());
+		actionInfo.addMethod(containerName, FragmentAction.fullName());
 	}
 	
 	private void setTransaction(ActionInfo actionInfo) {
@@ -144,7 +147,21 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		JMethod transactionMethodMethod = FragmentAction.method(JMod.PUBLIC, FragmentTransaction, "transaction");
 		transactionMethodMethod.body()._return(transactionField);
-		actionInfo.addMethod("transaction", holder().getBuilderClass().fullName());
+		actionInfo.addMethod("transaction", FragmentTransaction.fullName());
+	}
+	
+	private void setTransactionMethods(ActionInfo actionInfo) {
+		final String replaceName = "replace";
+		JMethod replaceMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, replaceName);
+		replaceMethod.body().assign(_this().ref(transactionMethodField), lit(0));
+		replaceMethod.body()._return(_this());
+		actionInfo.addMethod(replaceName, FragmentAction.fullName());
+
+		final String addName = "add";
+		JMethod addMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, addName);
+		addMethod.body().assign(_this().ref(transactionMethodField), lit(1));
+		addMethod.body()._return(_this());
+		actionInfo.addMethod(addName, FragmentAction.fullName());
 	}
 
 	private void setFields() {
@@ -153,6 +170,8 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		startedField = FragmentAction.field(JMod.PRIVATE, getJClass(Runnable.class), "Started");
 		builderField = FragmentAction.field(JMod.PRIVATE, holder().getBuilderClass(), "builder");
+		
+		transactionMethodField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, "transactionMethod", lit(0));
 	}
 	
 	private void setInit(ActionInfo actionInfo) {
@@ -179,11 +198,18 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private void setExecute(ActionInfo actionInfo) {
 		final String executeName = "execute";
 		JMethod executeMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, executeName);
-						
-		JInvocation transactionInvoke = transactionField.invoke("replace").arg(containerField)
-											.arg(builderField.invoke("build"))
-											.invoke("commit"); 
-		executeMethod.body().add(transactionInvoke);
+
+		JInvocation transactionReplaceInvoke = transactionField.invoke("replace").arg(containerField)
+				.arg(builderField.invoke("build"))
+				.invoke("commit"); 
+
+		JInvocation transactionAddInvoke = transactionField.invoke("add").arg(containerField)
+				.arg(builderField.invoke("build"))
+				.invoke("commit"); 
+		
+		JConditional ifReplace = executeMethod.body()._if(transactionMethodField.eq(lit(0)));
+		ifReplace._then().add(transactionReplaceInvoke);
+		ifReplace._elseif(transactionMethodField.eq(lit(1)))._then().add(transactionAddInvoke);
 		
 		executeMethod.body()._if(startedField.ne(_null()))._then().invoke(startedField, "run");
 		
@@ -192,9 +218,10 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	private void setAddToBackStack(ActionInfo actionInfo) {
 		final String addToBackStack = "addToBackStack";
-		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, getCodeModel().VOID, addToBackStack);
+		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, addToBackStack);
 		addToBackStackMethod.body().invoke(transactionField, "addToBackStack").arg(_null());
-		actionInfo.addMethod(addToBackStack, getCodeModel().VOID.fullName());
+		addToBackStackMethod.body()._return(_this());
+		actionInfo.addMethod(addToBackStack, FragmentAction.fullName());
 	}
 	
 	private void setBuilder(ActionInfo actionInfo) {

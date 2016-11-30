@@ -5,7 +5,7 @@
 
 	<groupId>com.dspot</groupId>
 	<artifactId>declex</artifactId>
-	<version>1.0.2</version>
+	<version>1.1</version>
 	<name>DecleX</name>
 	<description>DecleX - The ultimate framework for Android Development </description>
 
@@ -63,6 +63,13 @@
 			<id>bintray-declex</id>
 			<url>https://api.bintray.com/maven/dspot/declex/declex/;publish=1</url>
 		</repository>
+		
+		<snapshotRepository>
+	        <id>snapshots</id>
+	        <name>oss-jfrog-artifactory-snapshots</name>
+	        <url>https://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+    	</snapshotRepository>
+    
 	</distributionManagement>
 
 	<dependencies>

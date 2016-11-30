@@ -20,6 +20,7 @@ import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.action.ActionHandler;
@@ -28,6 +29,7 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.ParamUtils;
+import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -63,9 +65,11 @@ public class BaseViewListenerHandler extends ActionHandler {
 						}
 						
 						boolean castNeeded = false;
-						if (!className.endsWith("_")) {
-							className = className + "_";
-							castNeeded = true;
+						if (!className.endsWith(ModelConstants.generationSuffix())) {
+							if (SharedRecords.getModel(className, getEnvironment()) != null) {
+								className = className + ModelConstants.generationSuffix();
+								castNeeded = true;
+							}
 						}
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						

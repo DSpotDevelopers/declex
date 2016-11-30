@@ -19,7 +19,7 @@
 
 <project name="declex-api" default="jar">
     
-    <property name="project.version" value="1.0.2"/>
+    <property name="project.version" value="1.1"/>
     
     <property environment="env"/>
     <property name="target" value="1.7"/>

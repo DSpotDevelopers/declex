@@ -422,7 +422,7 @@ public class ViewsHolder extends
 				if (id.equals(elemName) || normalizedId.equals(elemName)) {
 					fields.put(completeElemName, new IdInfoHolder(originalId,
 							elem, elem.asType(), idClass,
-							new LinkedList<String>()));
+							new ArrayList<String>(0)));
 				}
 			}
 
@@ -442,10 +442,10 @@ public class ViewsHolder extends
 					}
 
 					TypeMirror paramType = null;
-					if (!getter) {
-						paramType = exeElem.getParameters().get(0).asType();
-					} else {
+					if (getter) {
 						paramType = exeElem.getReturnType();
+					} else {
+						paramType = exeElem.getParameters().get(0).asType();
 					}
 
 					methods.put(completeElemName, new IdInfoHolder(originalId,

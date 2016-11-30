@@ -17,6 +17,9 @@ package com.dspot.declex.api.action.builtin;
 
 import org.androidannotations.annotations.EBean;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
@@ -27,6 +30,7 @@ import com.dspot.declex.api.action.processor.GetModelActionProcessor;
 public class GetModelActionHolder {
 
 	private Runnable AfterLoad;
+	private boolean keepAsync;
 	
     void init(@Field Object object) {
     }
@@ -43,7 +47,30 @@ public class GetModelActionHolder {
     	this.AfterLoad = AfterLoad;
     }
     
-    Runnable getAfterLoad() {
+    public GetModelActionHolder keepAsync() {
+    	keepAsync = true; //This will keep the Action in the thread that is executed, after finalization
+    	return this;
+    }
+    
+    Runnable getAfterLoad() {    	
+    	if (!keepAsync && this.AfterLoad != null) {
+    		
+    		//Return to the main thread    		
+			return new Runnable() {
+				
+				@Override
+				public void run() {
+					if(Looper.myLooper() == Looper.getMainLooper()) {
+						AfterLoad.run();;
+					} else {
+						Handler handler = new Handler(Looper.getMainLooper());
+						handler.post(AfterLoad);	
+					}					
+				}
+			};
+			
+    	}
+    	
     	return this.AfterLoad;
     }
 

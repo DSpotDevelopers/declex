@@ -41,6 +41,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
@@ -52,6 +53,7 @@ import com.dspot.declex.model.ModelHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
@@ -317,9 +319,11 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 		
 		boolean castNeeded = false;
 		String className = element.asType().toString();
-		if (!className.endsWith("_")) {
-			className = className + "_";
-			castNeeded = true;
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
+			if (SharedRecords.getModel(className, getEnvironment()) != null) {
+				className = className + ModelConstants.generationSuffix();
+				castNeeded = true;
+			}
 		}
 		
 		IJExpression assignRef = castNeeded ? cast(getJClass(className), ref(fieldName)) : ref(fieldName);

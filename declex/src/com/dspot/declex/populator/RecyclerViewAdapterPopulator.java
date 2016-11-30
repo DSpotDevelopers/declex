@@ -31,6 +31,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
@@ -44,6 +45,7 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.SharedRecords;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJAssignmentTarget;
@@ -234,10 +236,12 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		onBindMethodBody.decl(getClasses().VIEW, "rootView", viewHolder.ref("itemView"));
 		
 		boolean castNeeded = false;
-		if (!modelClassName.endsWith("_") && !modelClassName.equals(String.class.getCanonicalName())) {
-			modelClassName = modelClassName + "_";
-			castNeeded = true;
-			Model = getJClass(modelClassName);
+		if (!modelClassName.endsWith(ModelConstants.generationSuffix())) {
+			if (SharedRecords.getModel(modelClassName, environment) != null) {
+				modelClassName = modelClassName + ModelConstants.generationSuffix();
+				castNeeded = true;
+				Model = getJClass(modelClassName);
+			}
 		}
 		
 		//Get the model

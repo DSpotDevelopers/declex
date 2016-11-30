@@ -14,12 +14,10 @@ import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,6 +69,7 @@ import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.SynchronizedTree;
@@ -116,12 +115,8 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	private List<String> currentAction = new LinkedList<>();
 	private List<JInvocation> currentBuildInvocation = new LinkedList<>();
 	private List<Map<String, ParamInfo>> currentBuildParams = new LinkedList<>(); 
-
-	private List<Integer> blockStatementsCount = new LinkedList<>();
-	private boolean decrementWithIdentifier = false;
 	
 	private Map<Integer, JBlock> additionalBlocks = new HashMap<>();
-	private Set<Integer> decrementPreviousBlock = new HashSet<>();
 	
 	private EComponentHolder holder;
 	private APTCodeModelHelper codeModelHelper;
@@ -130,6 +125,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	private List<? extends ImportTree> imports;
 	
 	private boolean ignoreActions;
+	private ClassTree anonymousClassTree;
 	private boolean processStarted = false;
 	
 	public static boolean processActions(Element element, EComponentHolder holder) {
@@ -150,7 +146,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	            	TreePathScanner<Boolean, Trees> scanner = new TreePathScanner<Boolean, Trees>() {
 	            		@Override
 	            		public Boolean visitIdentifier(IdentifierTree id,
-	            				Trees arg1) {
+	            				Trees trees) {
 	            			
 	            			String name = id.getName().toString();	            			
 	            			if (ActionForHandler.getActionNames().containsKey(name)) {
@@ -158,7 +154,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	            				throw new IllegalStateException();
 	            			}
 	            			
-	            			return super.visitIdentifier(id, arg1);
+	            			return super.visitIdentifier(id, trees);
 	            		}
 	            	};
 	            	scanner.scan(treePath, tree);
@@ -186,19 +182,29 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		
 		this.element = element;
 		this.holder = holder;
-		this.codeModelHelper = new DeclexAPTCodeModelHelper(holder.getEnvironment());;
+		this.codeModelHelper = new DeclexAPTCodeModelHelper(holder.getEnvironment());
 		
-		blocks.add(initialBlock);
-		parallelBlock.add(blocks.get(0));
+		pushBlock(initialBlock, null);
 		
 		imports = treePath.getCompilationUnit().getImports();
 
 	}
 	
 	private String debugPrefix() {
-		String prefix = "(" + blocks.size() + ", " + (blockStatementsCount.size()==0?0:blockStatementsCount.get(0)) + "): ";
-		
+		String prefix = "";
 		return prefix + debugIndex;
+	}
+	
+	private String parseForSpecials(String expression, boolean ignoreThis) {
+		String generatedClass = holder.getGeneratedClass().name();
+		String annotatedClass = holder.getAnnotatedElement().getSimpleName().toString();
+		
+		if (!ignoreThis) {
+			expression = expression.replaceAll("(?<![a-zA-Z_$.])this(?![a-zA-Z_$])", generatedClass + ".this");
+		}
+		
+		expression = expression.replaceAll("(?<![a-zA-Z_$.])" + annotatedClass + ".this(?![a-zA-Z_$])", generatedClass + ".this");
+		return expression;
 	}
 	
 	private void writeVariable(VariableTree variable, JBlock block, IJExpression initializer) {
@@ -269,7 +275,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		//Write all the variables till this point
 		for (VariableTree variable : variables) {
 			IJExpression initializer = variable.getInitializer() == null? 
-					                   null : direct(variable.getInitializer().toString());
+					                   null : direct(parseForSpecials(variable.getInitializer().toString(), false));
 			writeVariable(variable, block, initializer);
 		}
 		variables.clear();
@@ -277,7 +283,11 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		//Write all the statements till this point
 		for (ExpressionStatementTree statement : statements) {
 			if (DEBUG) System.out.println(debugPrefix() + "writeStatement: " + statement);
-			block.directStatement(statement.toString());
+			block.directStatement(parseForSpecials(
+					statement.toString(), 
+					statement instanceof StringExpressionStatement? 
+							((StringExpressionStatement)statement).ignoreThis() : false
+				));
 		}
 		statements.clear();
 	}
@@ -304,49 +314,6 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		}
 	}
 	
-	private void decrementBlockStatementsCount() {
-		//This will happen with identifiers prior to the main block (ex. Annotations)
-		if (!processStarted) return;
-		
-		int statementsCount = blockStatementsCount.get(0);
-		statementsCount--;
-		blockStatementsCount.set(0, statementsCount);
-		if (statementsCount == 0) {
-
-			writePreviousStatements();			
-			
-			blockStatementsCount.remove(0);
-
-			buildPreviousAction();
-			
-			currentAction.remove(0);
-			currentBuildInvocation.remove(0);
-			currentBuildParams.remove(0);
-			
-			if (DEBUG) {
-				debugIndex = debugIndex.substring(0, debugIndex.length()-4);
-				System.out.println(debugPrefix() + "end"  + " :" + blocks.get(0).hashCode());
-			}
-			
-			blocks.remove(0);
-			parallelBlock.remove(0);
-			
-			//If the method concluded, populate it
-			if (currentAction.size() == 0) {
-				delegatingMethodBody.add(initialBlock);
-			}
-			
-			if (decrementPreviousBlock.contains(blocks.size())) {
-				//If there's no extra blocks
-				if (!additionalBlocks.containsKey(blocks.size())) {
-					decrementPreviousBlock.remove(blocks.size());
-					decrementBlockStatementsCount();
-				}
-			}
-			
-		}
-	}
-	
 	@Override
 	public Boolean visitVariable(VariableTree variable, Trees trees) {
 		//Field action
@@ -360,10 +327,9 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		if (ignoreActions) return super.visitVariable(variable, trees);
 		
 		//Ignore variables out of the method
-		if (currentAction.size() == 0) return super.visitVariable(variable, trees);
+		if (!processStarted) return super.visitVariable(variable, trees);
 		
 		variables.add(variable);		
-		decrementBlockStatementsCount();
 		
 		visitingVariable = true;
 		Boolean result = super.visitVariable(variable, trees);
@@ -374,18 +340,120 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	
 	@Override
 	public Boolean visitExpressionStatement(
-			ExpressionStatementTree expr, Trees arg1) {
-		if (ignoreActions) return super.visitExpressionStatement(expr, arg1);
+			ExpressionStatementTree expr, Trees trees) {
+		if (ignoreActions) return super.visitExpressionStatement(expr, trees);
 		
 		statements.add(expr);
-		decrementWithIdentifier = true;
 		
-		return super.visitExpressionStatement(expr, arg1);
+		Boolean result = super.visitExpressionStatement(expr, trees);
+		
+		if (anonymousClassTree != null) {
+			statements.remove(statements.size()-1);
+			
+			final String exprString = expr.toString(); 
+			
+			System.out.println(anonymousClassTree.getSimpleName());
+			int anonymousStart = exprString.indexOf("new " + anonymousClassTree.getSimpleName());
+			String start = exprString.substring(0, anonymousStart);
+			
+			int anonymousEnd = 0;
+			String end = null;
+			
+			int curlyBracketCount = 0;
+			for (int i = anonymousStart; i < exprString.length(); i++) {
+				if (exprString.charAt(i) == '{') curlyBracketCount++;
+				
+				if (exprString.charAt(i) == '}') {
+					curlyBracketCount--;
+					
+					if (curlyBracketCount == 0) {
+						anonymousEnd = i+1;
+						end = exprString.substring(anonymousEnd);
+						break;
+					}
+				}				
+			}
+			
+			if (!start.equals("")) {
+				statements.add(new StringExpressionStatement(start));
+			}
+			
+			List<ExpressionStatementTree> anonymouseStatements = 
+					statementsFromCode(exprString.substring(anonymousStart, anonymousEnd));
+			for (ExpressionStatementTree statement : anonymouseStatements) {
+				((StringExpressionStatement)statement).setIgnoreThis();
+			}
+			
+			statements.addAll(anonymouseStatements);
+			if (!end.equals("")) {
+				statements.add(new StringExpressionStatement(end));
+			}
+			
+			anonymousClassTree = null;
+		}
+		
+		return result;
 	}
-	            		
+	
+	@Override
+	public Boolean visitReturn(ReturnTree returnTree, Trees trees) {
+		if (ignoreActions) return super.visitReturn(returnTree, trees);
+		
+		statements.add(new StringExpressionStatement(returnTree.toString()));
+		
+		Boolean result = super.visitReturn(returnTree, trees);
+		
+		if (anonymousClassTree != null) {
+			statements.remove(statements.size()-1);
+			
+			final String exprString = returnTree.toString(); 
+			
+			System.out.println(anonymousClassTree.getSimpleName());
+			int anonymousStart = exprString.indexOf("new " + anonymousClassTree.getSimpleName());
+			String start = exprString.substring(0, anonymousStart);
+			
+			int anonymousEnd = 0;
+			String end = null;
+			
+			int curlyBracketCount = 0;
+			for (int i = anonymousStart; i < exprString.length(); i++) {
+				if (exprString.charAt(i) == '{') curlyBracketCount++;
+				
+				if (exprString.charAt(i) == '}') {
+					curlyBracketCount--;
+					
+					if (curlyBracketCount == 0) {
+						anonymousEnd = i+1;
+						end = exprString.substring(anonymousEnd);
+						break;
+					}
+				}				
+			}
+			
+			if (!start.equals("")) {
+				statements.add(new StringExpressionStatement(start));
+			}
+			
+			List<ExpressionStatementTree> anonymouseStatements = 
+					statementsFromCode(exprString.substring(anonymousStart, anonymousEnd));
+			for (ExpressionStatementTree statement : anonymouseStatements) {
+				((StringExpressionStatement)statement).setIgnoreThis();
+			}
+			
+			statements.addAll(anonymouseStatements);
+			if (!end.equals("")) {
+				statements.add(new StringExpressionStatement(end));
+			}
+			
+			anonymousClassTree = null;
+		}
+		
+		return result;
+	}
+	
 	@Override
 	public Boolean visitIdentifier(IdentifierTree id,
-			Trees arg1) {
+			Trees trees) {
 		
 		//This will happen with identifiers prior to the main block (ex. Annotations)
 		if (!processStarted) return true;
@@ -416,8 +484,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 					if (param.name.equals(lastMemberIdentifier)) {
 						//If the block already exists, do not create a new Runnable 
 						if (paramInfo.runnableBlock != null) {
-							blocks.add(0, paramInfo.runnableBlock);
-							parallelBlock.add(0, blocks.get(0));
+							pushBlock(paramInfo.runnableBlock, null);
 						} else {
 							
 							JDefinedClass annonimousRunnable = getCodeModel().anonymousClass(param.clazz);
@@ -432,8 +499,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 								);
 							currentBuildParams.get(0).put(param.name, newParamInfo);
 							
-							blocks.add(0, annonimousRunnableRun.body());
-							parallelBlock.add(0, blocks.get(0));
+							pushBlock(annonimousRunnableRun.body(), null);
 						}
 						
 						break;            						
@@ -441,7 +507,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 				}
 
 				if (DEBUG) {
-					System.out.println(debugPrefix() + "newEvent: " + currentIfCondition + " :" + blocks.get(0).hashCode());
+					System.out.println(debugPrefix() + "newEvent: " + currentIfCondition);
 					debugIndex = debugIndex + "    ";
 				}
 				
@@ -466,11 +532,6 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 			throw new IllegalStateException();
 		}
 		
-		if (decrementWithIdentifier) {
-			decrementBlockStatementsCount();	
-			decrementWithIdentifier = false;
-		}
-		
 		subMethods.clear();		
 			
 		//Ensure import of all the identifiers
@@ -482,48 +543,49 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 			}
 		}
 		
-		return super.visitIdentifier(id, arg1);
+		return super.visitIdentifier(id, trees);
 	}
 	
 	@Override
-	public Boolean visitEmptyStatement(EmptyStatementTree arg0, Trees arg1) {
-		if (ignoreActions) return super.visitEmptyStatement(arg0, arg1);
+	public Boolean visitEmptyStatement(EmptyStatementTree arg0, Trees trees) {
+		if (ignoreActions) return super.visitEmptyStatement(arg0, trees);
 		
 		if (DEBUG) System.out.println(debugPrefix() + "empty");
-		decrementBlockStatementsCount();
-		return super.visitEmptyStatement(arg0, arg1);
+		return super.visitEmptyStatement(arg0, trees);
 	}
 	
 	@Override
 	public Boolean visitMemberSelect(MemberSelectTree member,
-			Trees arg1) { 
-		if (ignoreActions) return super.visitMemberSelect(member, arg1);
+			Trees trees) { 
+		if (ignoreActions) return super.visitMemberSelect(member, trees);
 		
 		lastMemberIdentifier = member.getIdentifier().toString();
-		return super.visitMemberSelect(member, arg1);
+		return super.visitMemberSelect(member, trees);
 	}
 	
 	@Override
-	public Boolean visitIf(IfTree ifTree, Trees arg1) {
-		if (ignoreActions) return super.visitIf(ifTree, arg1);
+	public Boolean visitIf(IfTree ifTree, Trees trees) {
+		if (ignoreActions) return super.visitIf(ifTree, trees);
+		
+		if (!ifTree.getThenStatement().getKind().equals(Kind.BLOCK)
+				|| (elseIfCondition != null && !elseIfCondition.getKind().equals(Kind.BLOCK))) {
+			//Run this kind of Ifs without Action processing
+			writeDirectStructure(ifTree.toString());
+			
+			ignoreActions = true;
+			Boolean result = super.visitIf(ifTree, trees);
+			ignoreActions = false;
+			
+			return result;
+		}
 		
 		visitingIfCondition = true;
 		currentIfCondition = ifTree.getCondition().toString();
 		elseIfCondition = ifTree.getElseStatement();
 		
-		if (!ifTree.getThenStatement().getKind().equals(Kind.BLOCK)
-			|| (elseIfCondition != null && !elseIfCondition.getKind().equals(Kind.BLOCK))) {
-			LOGGER.error(
-					"Action Ifs should be composed of blocks: if{}", 
-					element, currentIfCondition
-				);
-			throw new IllegalStateException();
-		}
-		
-		decrementPreviousBlock.add(blocks.size());
 		writePreviousStatements();    					
 		
-		return super.visitIf(ifTree, arg1);
+		return super.visitIf(ifTree, trees);
 	}
 			
 	@Override
@@ -565,12 +627,10 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 						currentAction.add(0, null);
 						currentBuildInvocation.add(0, null);
 						currentBuildParams.add(0, new LinkedHashMap<String, ParamInfo>());
-						blockStatementsCount.add(0, 1);
-						decrementWithIdentifier = true;
 						processStarted = true;
 						
 						if (DEBUG) {
-							System.out.println(debugPrefix() + "FieldStart:" + " :" + blocks.get(0).hashCode());
+							System.out.println(debugPrefix() + "FieldStart:");
 							debugIndex = debugIndex + "    ";				
 						}
 					}
@@ -712,9 +772,9 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 							
 							if (DEBUG) {
 								if (invoke != null) {
-									System.out.println(debugPrefix() + "writeAction: " + invoke + " :" + blocks.get(0).hashCode());
+									System.out.println(debugPrefix() + "writeAction: " + invoke);
 								} else {
-									System.out.println(debugPrefix() + "writeAction: " + methodSelect + " :" + blocks.get(0).hashCode());
+									System.out.println(debugPrefix() + "writeAction: " + methodSelect);
 								}
 								
 							}
@@ -731,17 +791,14 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 				
 				block.invoke(action, "execute");
 				block.directStatement("//============================================");
+				
+				if (invoke == null) {
+					finishBlock();
+					return true;
+				}
 			}
 			
 			subMethods.clear();
-		}
-		        		
-		if (invoke == null) {
-			if (decrementWithIdentifier) {
-				decrementBlockStatementsCount();	
-				decrementWithIdentifier = false;
-			}
-			return true;
 		}
 		
 		return super.visitMethodInvocation(invoke, trees);
@@ -751,7 +808,7 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 	public Boolean visitBlock(BlockTree blockTree, Trees tree) {
 		if (ignoreActions) return super.visitBlock(blockTree, tree);
 		
-		boolean newBlock = true;
+		boolean isParallelBlock = true;
 		
 		if (visitingIfCondition) {
 
@@ -765,25 +822,19 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 					additionalBlocks.put(blocks.size(), cond._else());
 				}				
 				
-				blocks.add(0, cond._then());
-				parallelBlock.add(0, blocks.get(0));
-
-				if (DEBUG) {
-					System.out.println(debugPrefix() + "newIf: " + currentIfCondition + " :" + blocks.get(0).hashCode());
-					debugIndex = debugIndex + "    ";
-				}
+				pushBlock(cond._then(), "newIf: " + currentIfCondition);
 			}
 
 			visitingIfCondition = false;
-			newBlock = false;
+			isParallelBlock = false;
 		} 
 	
-		if (currentAction.size() == 0) {
+		if (!processStarted) {
 			if (DEBUG) {
-				System.out.println(debugPrefix() + "MethodStart:" + " :" + blocks.get(0).hashCode());
+				System.out.println(debugPrefix() + "MethodStart:");
 				debugIndex = debugIndex + "    ";				
 			} 
-			newBlock = false;
+			isParallelBlock = false;
 		}
 		
 		//Current Action Information for the new Block
@@ -793,160 +844,180 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 
 		JBlock additionalBlock = additionalBlocks.get(blocks.size());
 		if (additionalBlock != null) {
-			
 			additionalBlocks.remove(blocks.size());
-			blocks.add(0, additionalBlock);
-			parallelBlock.add(0, blocks.get(0));
-			
-			if (DEBUG) {
-				System.out.println(debugPrefix() + "elseBlock" + " :" + blocks.get(0).hashCode());
-				debugIndex = debugIndex + "    ";
-			}
-			
-			newBlock = false;
+			pushBlock(additionalBlock, "elseBlock:");
+			isParallelBlock = false;
 		} 
 		
-		//The newBlocks are used for parallel execution of actions
-		if (newBlock) {			
-			decrementPreviousBlock.add(blocks.size());
+		//Used for execution of actions in parallel
+		if (isParallelBlock) {			
 			writePreviousStatements();
 			
 			JBlock block = parallelBlock.get(0);			
-			blocks.add(0, block.block());
-			parallelBlock.add(0, blocks.get(0));
-			
-			if (DEBUG) {
-				System.out.println(debugPrefix() + "newBlock:" + " :" + blocks.get(0).hashCode());
-				debugIndex = debugIndex + "    ";	
-			}
+			pushBlock(block.block(), "newBlock: ");
 		}
 		
-		blockStatementsCount.add(0, blockTree.getStatements().size());
 		processStarted = true;
 		
-		return super.visitBlock(blockTree, tree);
+		Boolean result = super.visitBlock(blockTree, tree); 
+		finishBlock();
+		return result;
+	}
+	
+	private void pushBlock(JBlock block, String blockName) {
+		blocks.add(0, block);
+		parallelBlock.add(0, block);
+		
+		if (DEBUG && blockName != null) {
+			System.out.println(debugPrefix() + blockName);
+			debugIndex = debugIndex + "    ";	
+		}
+	}
+	
+	private void popBlock() {
+		if (DEBUG) {
+			debugIndex = debugIndex.substring(0, debugIndex.length()-4);
+			System.out.println(debugPrefix() + "end");
+		}
+		
+		blocks.remove(0);
+		parallelBlock.remove(0);
+	}
+	
+	private void finishBlock() {
+		writePreviousStatements();						
+		buildPreviousAction();
+		
+		currentAction.remove(0);
+		currentBuildInvocation.remove(0);
+		currentBuildParams.remove(0);
+		
+		popBlock();
+		
+		//If the method concluded, populate it
+		if (currentAction.size() == 0) {
+			delegatingMethodBody.add(initialBlock);
+		}	
 	}
 
-	private void writeDirectStructure(String code) {
+	private List<ExpressionStatementTree> statementsFromCode(String code) {
+		List<ExpressionStatementTree> statements = new LinkedList<>();
 		
 		//Write line by line to format better the text
 		try {
 			BufferedReader bufReader = new BufferedReader(new StringReader(code));
 			
 			String line = null;
-			while((line=bufReader.readLine()) != null)
-			{
-				final String statementLine = line; 
-				statements.add(new ExpressionStatementTree() {
-					String line = statementLine;
-					
-					@Override
-					public Kind getKind() {
-						return null;
-					}
-					
-					@Override
-					public <R, D> R accept(TreeVisitor<R, D> arg0, D arg1) {
-						return null;
-					}
-					
-					@Override
-					public ExpressionTree getExpression() {
-						return null;
-					}
-					
-					@Override
-					public String toString() {
-						return line;
-					}
-				});
+			while((line=bufReader.readLine()) != null) {
+				statements.add(new StringExpressionStatement(line));
 			}
 		} catch (Exception e) {}
 		
-		decrementBlockStatementsCount();
+		return statements;
+	}
+	
+	private void writeDirectStructure(String code) {
+		statements.addAll(statementsFromCode(code));		
 	}
 	
 	@Override
-	public Boolean visitTry(TryTree tryTree, Trees arg1) {		
+	public Boolean visitTry(TryTree tryTree, Trees trees) {
+		if (ignoreActions) return super.visitTry(tryTree, trees);
+				
 		writeDirectStructure(tryTree.toString());
-		
+				
 		ignoreActions = true;
-		Boolean result = super.visitTry(tryTree, arg1);
+		Boolean result = super.visitTry(tryTree, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitSwitch(SwitchTree switchTree, Trees arg1) {
+	public Boolean visitSwitch(SwitchTree switchTree, Trees trees) {
+		if (ignoreActions) return super.visitSwitch(switchTree, trees);
+				
 		writeDirectStructure(switchTree.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitSwitch(switchTree, arg1);
+		Boolean result = super.visitSwitch(switchTree, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitForLoop(ForLoopTree forLoop, Trees arg1) {
+	public Boolean visitForLoop(ForLoopTree forLoop, Trees trees) {
+		if (ignoreActions) return super.visitForLoop(forLoop, trees);
+				
 		writeDirectStructure(forLoop.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitForLoop(forLoop, arg1);
+		Boolean result = super.visitForLoop(forLoop, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitEnhancedForLoop(EnhancedForLoopTree forLoop, Trees arg1) {
+	public Boolean visitEnhancedForLoop(EnhancedForLoopTree forLoop, Trees trees) {
+		if (ignoreActions) return super.visitEnhancedForLoop(forLoop, trees);
+				
 		writeDirectStructure(forLoop.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitEnhancedForLoop(forLoop, arg1);
+		Boolean result = super.visitEnhancedForLoop(forLoop, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitWhileLoop(WhileLoopTree whileLoop, Trees arg1) {
+	public Boolean visitWhileLoop(WhileLoopTree whileLoop, Trees trees) {
+		if (ignoreActions) return super.visitWhileLoop(whileLoop, trees);
+				
 		writeDirectStructure(whileLoop.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitWhileLoop(whileLoop, arg1);
+		Boolean result = super.visitWhileLoop(whileLoop, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitDoWhileLoop(DoWhileLoopTree doWhileLoop, Trees arg1) {
+	public Boolean visitDoWhileLoop(DoWhileLoopTree doWhileLoop, Trees trees) {
+		if (ignoreActions) return super.visitDoWhileLoop(doWhileLoop, trees);
+				
 		writeDirectStructure(doWhileLoop.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitDoWhileLoop(doWhileLoop, arg1);
+		Boolean result = super.visitDoWhileLoop(doWhileLoop, trees);
 		ignoreActions = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitClass(ClassTree cls, Trees arg1) {
-		LOGGER.error(
-				"Anonymouse classes are not supported yet in  Actions: {}", 
-				element, cls
-			);
-		throw new IllegalStateException();
+	public Boolean visitClass(ClassTree cls, Trees trees) {
+		if (ignoreActions) return super.visitClass(cls, trees); 
+				
+		ignoreActions = true;
+		anonymousClassTree = cls;
+		Boolean result = super.visitClass(cls, trees);
+		ignoreActions = false;
+		
+		return result;
 	}
 	
 	@Override
-	public Boolean visitSynchronized(SynchronizedTree sync, Trees arg1) {
+	public Boolean visitSynchronized(SynchronizedTree sync, Trees trees) {
+		if (ignoreActions) return super.visitSynchronized(sync, trees);
+				
 		writeDirectStructure(sync.toString());
 		
 		ignoreActions = true;
-		Boolean result = super.visitSynchronized(sync, arg1);
+		Boolean result = super.visitSynchronized(sync, trees);
 		ignoreActions = false;
 		
 		return result;
@@ -1070,6 +1141,45 @@ public class ActionScanner extends TreePathScanner<Boolean, Trees> {
 		
 	private JCodeModel getCodeModel() {
 		return holder.getEnvironment().getCodeModel();
+	}
+	
+	private class StringExpressionStatement implements ExpressionStatementTree {
+
+		String statement;
+		boolean ignoreThis;
+		
+		public StringExpressionStatement(String statement) {
+			this.statement = statement;
+		}
+		
+		public void setIgnoreThis() {
+			this.ignoreThis = true;
+		}
+		
+		public boolean ignoreThis() {
+			return this.ignoreThis;
+		}
+		
+		@Override
+		public Kind getKind() {
+			return null;
+		}
+		
+		@Override
+		public <R, D> R accept(TreeVisitor<R, D> arg0, D arg1) {
+			return null;
+		}
+		
+		@Override
+		public ExpressionTree getExpression() {
+			return null;
+		}
+		
+		@Override
+		public String toString() {
+			return statement;
+		}
+		
 	}
 	
 	private class ParamInfo {

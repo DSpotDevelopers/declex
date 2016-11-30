@@ -42,6 +42,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
@@ -544,9 +545,11 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		boolean castNeeded = false;
 		String className = element.asType().toString();
-		if (!className.endsWith("_")) {
-			className = className + "_";
-			castNeeded = true;
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
+			if (SharedRecords.getModel(className, getEnvironment()) != null) {
+				className = className + ModelConstants.generationSuffix();
+				castNeeded = true;
+			}
 		}
 		
 		IJExpression assignRef = castNeeded ? cast(getJClass(className), ref(fieldName)) : ref(fieldName);
@@ -608,6 +611,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		block = block._if(view.ne(_null()))._then();
 		
+		//If the method is declared with VOID, the first parameter is assumed to be the View component.
 		if (type.getKind().equals(TypeKind.VOID)) {
 			if (info.extraParams.size() > 0) {
 				assignRef = ((JInvocation)assignRef).arg(view);
