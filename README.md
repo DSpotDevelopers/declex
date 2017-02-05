@@ -11,6 +11,18 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
+Add the repository to your project .gradle file
+
+```gradle
+allprojects {
+    repositories {
+        jcenter()
+        //Add this line:
+        maven { url "http://dl.bintray.com/dspot-developers/declex" }
+    }
+}
+```
+
 Place the following lines in your app module build.gradle file:
 
 ```gradle
@@ -36,8 +48,8 @@ apt {
 }
 
 dependencies {
-    compile 'com.dspot:declex-api:1.0.2'
-    apt 'com.dspot:declex:1.0.2'
+    compile 'com.dspot:declex-api:1.2'
+    apt 'com.dspot:declex:1.2'
 }
 
 ```
