@@ -40,8 +40,8 @@ import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.plugin.BaseClassPlugin;
-import com.dspot.declex.populator.PopulatorHandler.OnEventMethods;
 import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.share.holder.ViewsHolder.ICreateViewListener;
 import com.dspot.declex.share.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
@@ -80,8 +80,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		this.adapterClassName = adapterClassName;
 		this.modelClassName = modelClassName;
 		this.viewsHolder = viewsHolder;
-		
-		
+
 	}
 		
 	@Override
@@ -148,20 +147,20 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		conditional._then()._return(inflater.invoke("inflate").arg(contentViewId).arg(_null()));
 		conditional._else()._return(convertView);
 
-		JVar rootView = methodBody.decl(
+		final JVar rootView = methodBody.decl(
 				getClasses().VIEW, 
 				"rootView",
 				_this().invoke("inflate").arg(position).arg(convertView).arg(inflater)
 			);
 		
-		JVar viewHolder = methodBody.decl(
+		final JVar viewHolder = methodBody.decl(
+				JMod.FINAL,
 				ViewHolderClass, 
-				"viewHolder",
-				_null()
+				"viewHolder"
 			);
 				
 		conditional = methodBody._if(rootView.ne(convertView));
-		JBlock createViewBody = conditional._then();
+		final JBlock createViewBody = conditional._then();
 		JBlock useConvertViewBody = conditional._else();		
 		createViewBody.assign(viewHolder, _new(ViewHolderClass));
 
@@ -222,8 +221,6 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			fieldNames.add(holderFieldName);
 		}	
 		
-		createViewBody.invoke(rootView, "setTag").arg(viewHolder);
-		
 		useConvertViewBody.assign(viewHolder, cast(ViewHolderClass, convertView.invoke("getTag")));
 		
 		
@@ -236,10 +233,39 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			}
 		}
 		
+		//Listener to create the findViewById for every created view
+		final JDefinedClass FinalViewHolderClass = ViewHolderClass;
+		viewsHolder.setCreateViewListener(new ICreateViewListener() {
+			
+			@Override
+			public JFieldRef createView(String viewId, String viewName, 
+					AbstractJClass viewClass, JBlock declBlock) {
+				
+				JVar viewField = FinalViewHolderClass.fields().get(viewName);
+				if (viewField == null) { 
+					AbstractJClass idNameClass = getJClass(viewsHolder.getClassNameFromId(viewId));	
+					JFieldRef idRef = environment.getRClass().get(Res.ID).getIdStaticRef(viewId, environment);
+					
+					viewField = FinalViewHolderClass.field(JMod.PUBLIC, idNameClass, viewName);
+					IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
+					if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+						findViewById = cast(idNameClass, findViewById);
+					
+					createViewBody.assign(viewHolder.ref(viewField), findViewById);
+				}
+				
+				return viewHolder.ref(viewField);
+			}
+		});
+		
 		//Get the model
+		JVar model = methodBody.decl(JMod.FINAL, Model, "model");
+		
+		//Synchronize reading the models 
+		JBlock syncBlock = methodBody.synchronizedBlock(models).body();
 		IJExpression modelAssigner = models.invoke("get").arg(position);
 		if (castNeeded) modelAssigner = cast(Model, models.invoke("get").arg(position));
-		JVar model = methodBody.decl(JMod.FINAL, Model, "model", modelAssigner);
+		syncBlock.assign(model, modelAssigner);
 		
 		if (modelClassName.equals(String.class.getCanonicalName())) {
 			String viewClass = viewsHolder.getClassNameFromId("text");
@@ -250,7 +276,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 				
 				handler.putAssignInBlock(
 					info, methodBody, view, model, element, viewsHolder, 
-					new OnEventMethods(null, null), listItemId
+					null, listItemId
 				);				
 			} else {
 				//TODO Assume the hole view it is the object to be assigned	
@@ -279,7 +305,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 			handler.putAssignInBlock(
 				info, checkForNull, view, methodsCall, element, viewsHolder, 
-				new OnEventMethods(null, null), listItemId
+				null, listItemId
 			);
 		}
 		
@@ -299,7 +325,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 			handler.putAssignInBlock(
 				info, checkForNull, view, methodsCall, element, viewsHolder, 
-				new OnEventMethods(null, null), listItemId
+				null, listItemId
 			);
 		}	
 
@@ -322,27 +348,15 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 					}
 				});
 				methodBody.add(eventsBlock);
-
-			
-				JVar viewField = ViewHolderClass.fields().get(viewId + DeclexConstant.VIEW);
-				if (viewField == null) { 
-					AbstractJClass idNameClass = getJClass(viewsHolder.getClassNameFromId(viewId));	
-					JFieldRef idRef = environment.getRClass().get(Res.ID).getIdStaticRef(viewId, environment);
-					
-					viewField = ViewHolderClass.field(JMod.PUBLIC, idNameClass, viewId + DeclexConstant.VIEW);
-					IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
-					if (!idNameClass.equals(CanonicalNameConstants.VIEW))
-						findViewById = cast(idNameClass, findViewById);
-					
-					createViewBody.assign(viewHolder.ref(viewField), findViewById);
-				}
 			}
 		}
 		
 		handler.callPopulatorMethod(fieldName, methodBody, viewHolder, fieldNames, element, viewsHolder);
 		
+		createViewBody.invoke(rootView, "setTag").arg(viewHolder);
 		methodBody._return(rootView);
 		
+		viewsHolder.setCreateViewListener(null);
 		viewsHolder.setDefLayoutId(defLayoutId);
 	}
 

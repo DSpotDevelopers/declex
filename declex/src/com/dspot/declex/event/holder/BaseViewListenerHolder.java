@@ -6,6 +6,7 @@ import static com.helger.jcodemodel.JExpr.ref;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +18,10 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.core.handler.AbstractViewListenerHandler;
 import org.androidannotations.plugin.PluginClassHolder;
 
+import com.dspot.declex.event.IStatementCreator;
 import com.dspot.declex.util.DeclexConstant;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JFieldRef;
@@ -43,6 +44,21 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 		if (listenerInfo == null) {
 			listenerInfo = new ListenerInfo();
 			listenerInfos.put(viewFieldName, listenerInfo);
+			
+			if (viewFieldName.contains(".")) {
+				String[] viewFields = viewFieldName.split("\\.");
+				ListenerInfo globalListenerInfo = listenerInfos.get(viewFields[viewFields.length-1]);
+				
+				//Add all the pre-added declarations
+				for (DeclData decl : globalListenerInfo.decls) {
+					addDecl(viewFieldName, decl.mods, decl.cls, decl.name, decl.expression);
+				}
+				
+				//Add all the pre-added statements
+				for (IStatementCreator statementCreator : globalListenerInfo.statementCreators) {
+					addStatement(viewFieldName, statementCreator);
+				}
+			}
 		}
 		
 		return listenerInfo;
@@ -54,7 +70,14 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 	
 	@Override
 	public Set<String> getViewFieldNames() {
-		return Collections.unmodifiableSet(listenerInfos.keySet());
+		Set<String> set = new HashSet<>();
+		
+		for (String viewFieldName : listenerInfos.keySet()) {			
+			String[] viewFields = viewFieldName.split("\\.");
+			set.add(viewFields[viewFields.length-1]);
+		}
+		
+		return Collections.unmodifiableSet(set);
 	}
 
 	@Override
@@ -72,33 +95,30 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 	}
 	
 	@Override
-	public void addStatement(String viewFieldName, IJStatement statement) {
+	public void addStatement(String viewFieldName, IStatementCreator statementCreator) {
 		ListenerInfo listenerInfo = getListenerInfo(viewFieldName);
 		
-		listenerInfo.statements.add(statement);
+		listenerInfo.statementCreators.add(statementCreator);
 		
 		//If the listener block was already created, simply add the statement
 		if (listenerInfo.block != null) {
-			listenerInfo.block.add(statement);
+			listenerInfo.block.add(statementCreator.getStatement());
 		}
 	}
 
 	@Override
 	public JBlock createListener(String viewFieldName, JBlock block) {
-				
+		
 		String[] viewFields = viewFieldName.split("\\.");
 		JFieldRef view = null;
 		for (String viewField : viewFields) {
 			if (view == null) view = ref(viewField);
 			else view = view.ref(viewField);
-			
-			//viewFieldName will have the last field name
-			viewFieldName = viewField;
 		}
 
 		if (viewFieldName.endsWith(DeclexConstant.VIEW)) 
 			viewFieldName = viewFieldName.substring(0, viewFieldName.length() - DeclexConstant.VIEW.length());
-		
+				
 		ListenerInfo listenerInfo = getListenerInfo(viewFieldName);
 		if (listenerInfo.block == null) {
 			
@@ -126,8 +146,8 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 			}
 			
 			//Add all the pre-added statements
-			for (IJStatement statement : listenerInfo.statements) {
-				listenerInfo.block.add(statement);
+			for (IStatementCreator statementCreator : listenerInfo.statementCreators) {
+				listenerInfo.block.add(statementCreator.getStatement());
 			}
 		}		
 		
@@ -135,7 +155,7 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 	}
 	
 	private class ListenerInfo {
-		List<IJStatement> statements = new LinkedList<>();
+		List<IStatementCreator> statementCreators = new LinkedList<>();
 		List<DeclData> decls = new LinkedList<>();
 		JBlock block; 
 	}

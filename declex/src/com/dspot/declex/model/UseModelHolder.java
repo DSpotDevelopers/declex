@@ -1,7 +1,6 @@
 package com.dspot.declex.model;
 
 import static com.helger.jcodemodel.JExpr._new;
-import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.lit;
@@ -24,7 +23,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.holder.BaseGeneratedClassHolder;
@@ -32,19 +30,19 @@ import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.api.action.Action;
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.server.ServerModel;
-import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JForLoop;
-import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
@@ -61,8 +59,10 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private JBlock getModelUseBlock;
 	private JBlock getModelBlock;
 	
+	
 	private JMethod getModelListMethod;
 	private JBlock getModelListInitBlock;
+	private JVar getModelInitBlockOnFailed;
 	private JBlock getModelListUseBlock;
 	private JBlock getModelListBlock;
 	
@@ -281,6 +281,33 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		return getModelInitBlock;
 	}
 	
+	public JVar getGetModelInitBlockOnFailed() {
+		
+		if (getModelInitBlockOnFailed == null) {
+			
+			JDefinedClass anonymousRunnable = getCodeModel().anonymousClass(OnFailedRunnable.class);
+			JMethod anonymousRunnableRun = anonymousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+			anonymousRunnableRun.annotate(Override.class);
+			anonymousRunnableRun.body()._throw(_new(getJClass(RuntimeException.class)).arg(ref("e")));
+
+			JBlock block = getGetModelInitBlock();
+			getModelInitBlockOnFailed = block.decl(
+					getJClass(OnFailedRunnable.class), 
+					"onFailed",
+					_new(anonymousRunnable)
+				);			
+			
+			block = getGetModelListInitBlock();
+			block.decl(
+					getJClass(OnFailedRunnable.class), 
+					"onFailed",
+					_new(anonymousRunnable)
+				);
+		}
+		
+		return getModelInitBlockOnFailed;
+	}
+	
 	public JBlock getGetModelUseBlock() {
 		if (getModelUseBlock == null) {
 			setGetModel();
@@ -369,6 +396,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		JVar context = getModelMethod.param(CONTEXT, "context");
 		getModelMethod.param(STRING, "query");
 		getModelMethod.param(STRING, "orderBy");
+		getModelMethod.param(STRING, "fields");
 
 		JVar useModel = getModelMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelInitBlock = getModelMethod.body().block();
@@ -389,6 +417,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, "modelInit_");
 		modelInitMethod.param(STRING, "query");
 		modelInitMethod.param(STRING, "orderBy");
+		modelInitMethod.param(STRING, "fields");
 	}
 	
 	private void setGetModelList() {
@@ -397,6 +426,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		JVar context = getModelListMethod.param(CONTEXT, "context");
 		JVar query = getModelListMethod.param(STRING, "query");
 		getModelListMethod.param(STRING, "orderBy");
+		getModelListMethod.param(STRING, "fields");
 		JVar useModel = getModelListMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelListInitBlock = getModelListMethod.body().block();
 		
@@ -446,6 +476,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, "putModel_");
 		putModelMethod.param(STRING, "query");
 		putModelMethod.param(STRING, "orderBy");
+		putModelMethod.param(STRING, "fields");
 		
 		JBlock putModelMethodBody = putModelMethod.body(); 
 		JVar result = putModelMethodBody.decl(OBJECT, "result", _new(OBJECT));

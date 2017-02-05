@@ -44,10 +44,12 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.internal.process.ProcessHolder.Classes;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.populator.Populator;
@@ -68,7 +70,9 @@ import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JCatchBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
@@ -77,6 +81,7 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
 public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
@@ -301,12 +306,14 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		//Create the populate method
-		JMethod populateMethod = viewsHolder.getGeneratedClass().getMethod(
+		JMethod populateFieldMethod = viewsHolder.getGeneratedClass().getMethod(
 				"_populate_" + fieldName,
-				new AbstractJType[] {}
+				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
 			);
-		if (populateMethod == null) {
-			populateMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_populate_" + fieldName);
+		if (populateFieldMethod == null) {
+			populateFieldMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_populate_" + fieldName);
+			populateFieldMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterPopulate");
+			populateFieldMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		}
 			
 		Model model = element.getAnnotation(Model.class); 
@@ -326,10 +333,10 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 				methodBody = annonimousRunnableRun.body();
 			} 
 			
-			methodBody.invoke(populateMethod);
+			methodBody.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
 		}
 		
-		return new OnEventMethods(loadOnEventMethod, populateMethod);
+		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, getClasses());
 	}
 	
 	private void processPrimitive(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
@@ -351,17 +358,25 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			viewsHolder.getClassNameFromId(fieldName), new LinkedList<String>()
 		);
 
-		JBlock block = onEventMethods.populateMethod.body().block();
+		JBlock block = onEventMethods.populateFieldMethodBody.block();
 		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods);	
 		
-		SharedRecords.priorityAdd(viewsHolder.holder().getOnViewChangedBody(), JExpr.invoke(onEventMethods.populateMethod), uniquePriorityCounter);
+		SharedRecords.priorityAdd(
+				viewsHolder.holder().getOnViewChangedBody(), 
+				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+				uniquePriorityCounter
+			);
 	}
 	
 	private void processList(String className, Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
 		final String fieldName = element.getSimpleName().toString();
-		this.processList(viewsHolder.getClassNameFromId(fieldName), fieldName, className, ref(fieldName), onEventMethods.populateMethod.body(), element, viewsHolder, onEventMethods);
+		this.processList(viewsHolder.getClassNameFromId(fieldName), fieldName, className, ref(fieldName), onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);
 		
-		SharedRecords.priorityAdd(viewsHolder.holder().getOnViewChangedBody(), JExpr.invoke(onEventMethods.populateMethod), uniquePriorityCounter);
+		SharedRecords.priorityAdd(
+				viewsHolder.holder().getOnViewChangedBody(), 
+				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+				uniquePriorityCounter
+			);
 	}
 	
 	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, final JBlock block, 
@@ -380,7 +395,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		JFieldRef view = viewsHolder.createAndAssignView(fieldName, new IWriteInBloc() {
 			@Override
 			public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
-				if (onEventMethods.loadOnEventMethod == null) {
+				if (onEventMethods != null) {
 					JBlock notifyBlock = ifNotifBlock._else()._if(view.ne(_null()))._then();
 					
 					if (!annotation.custom()) {
@@ -417,7 +432,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 			
 		
-		if (onEventMethods.loadOnEventMethod != null) {
+		if (onEventMethods != null && onEventMethods.loadOnEventMethod != null) {
 			if (foundAdapterDeclaration && annotation.custom()) {
 				onEventMethods.loadOnEventMethod.body().assign(adapter, _new(AdapterClass).arg(assignRef));			
 				onEventMethods.loadOnEventMethod.body().invoke(view, "setAdapter").arg(adapter);
@@ -447,11 +462,12 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		try {
 			
-			RecyclerViewAdapterClassCreator classCreator = new RecyclerViewAdapterClassCreator(modelClassName, adapterClassName, element, viewsHolder.holder());
-						
 			RecyclerViewAdapterPopulator adapterPopulator = new RecyclerViewAdapterPopulator(this, fieldName, adapterClassName, modelClassName, viewsHolder);
-			classCreator.addPlugin(adapterPopulator);
-			
+
+			List<JClassPlugin> plugins = new LinkedList<>(adapterPlugins);
+			plugins.add(plugins.size()-1, adapterPopulator); //Insert before the AdapterClass plugin
+
+			RecyclerViewAdapterClassCreator classCreator = new RecyclerViewAdapterClassCreator(modelClassName, adapterClassName, element, viewsHolder.holder(), plugins);
 			classCreator.getDefinedClass();
 			
 		} catch (JClassAlreadyExistsException e) {
@@ -535,7 +551,11 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		//Call _populate_ method after setting everything
-		SharedRecords.priorityAdd(viewsHolder.holder().getOnViewChangedBody(), JExpr.invoke(onEventMethods.populateMethod), uniquePriorityCounter);
+		SharedRecords.priorityAdd(
+				viewsHolder.holder().getOnViewChangedBody(), 
+				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+				uniquePriorityCounter
+			);
 	}
 	
 	private void injectAndAssignField(IdInfoHolder info, String methodName,  
@@ -590,7 +610,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		JFieldRef view = viewsHolder.createAndAssignView(info.idName);
 		
 		putAssignInBlock(info, changedBlock, view, methodsCall, element, viewsHolder, onEventMethods);
-		onEventMethods.populateMethod.body().add(checkForNull);
+		onEventMethods.populateFieldMethodBody.add(checkForNull);
 	}
 	
 	private void putAssignInBlock(IdInfoHolder info, JBlock block, JFieldRef view, 
@@ -617,7 +637,8 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 				assignRef = ((JInvocation)assignRef).arg(view);
 				
 				for (int i = 1; i < info.extraParams.size(); i++) {
-					assignRef = ((JInvocation)assignRef).arg(ref(info.extraParams.get(i)));
+					final String viewId = info.extraParams.get(i);
+					assignRef = ParamUtils.injectParam(viewId, (JInvocation) assignRef, viewsHolder);
 				}
 				
 				block.add((JInvocation)assignRef);
@@ -627,7 +648,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		if (assignRef instanceof JInvocation) {
 			for (String param : info.extraParams) {
-				assignRef = ((JInvocation)assignRef).arg(ref(param));
+				assignRef = ParamUtils.injectParam(param, (JInvocation) assignRef, viewsHolder);
 			}
 		}
 		
@@ -768,12 +789,37 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	
 	public static class OnEventMethods {
 		JMethod loadOnEventMethod;
-		JMethod populateMethod;
+		JMethod populateFieldMethod;
+		JBlock populateFieldMethodBody;
 		
-		public OnEventMethods(JMethod loadOnEventMethod, JMethod populateMethod) {
+		public OnEventMethods(JMethod loadOnEventMethod, JMethod populateFieldMethod, Classes classes) {
 			super();
 			this.loadOnEventMethod = loadOnEventMethod;
-			this.populateMethod = populateMethod;
+			this.populateFieldMethod = populateFieldMethod;
+			
+			if (populateFieldMethod != null) {
+				JTryBlock tryBlock = populateFieldMethod.body()._try();
+				{//Catch block
+					JCatchBlock catchBlock = tryBlock._catch(classes.THROWABLE);
+					JVar caughtException = catchBlock.param("e");
+								
+					IJStatement uncaughtExceptionCall = classes.THREAD 
+							.staticInvoke("getDefaultUncaughtExceptionHandler") 
+							.invoke("uncaughtException") 
+							.arg(classes.THREAD.staticInvoke("currentThread")) 
+							.arg(caughtException);
+					
+					JFieldRef onFailed = ref("onFailed");
+					JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
+					ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+					ifOnFailedAssigned._else().add(uncaughtExceptionCall);
+				}
+				this.populateFieldMethodBody = tryBlock.body().block();
+				
+				JFieldRef afterPopulate = ref("afterPopulate");
+				tryBlock.body()._if(afterPopulate.ne(_null()))._then()
+				               .invoke(afterPopulate, "run");
+			}
 		}	
 	}
 }

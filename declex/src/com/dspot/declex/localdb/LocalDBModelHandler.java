@@ -23,10 +23,14 @@ import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,9 +44,8 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
-import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EComponentHolder;
 import org.atteo.evo.inflector.English;
 
 import com.dspot.declex.api.extension.Extension;
@@ -59,9 +62,7 @@ import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JMethod;
 
-import freemarker.template.SimpleSequence;
-
-public class LocalDBModelHandler extends BaseTemplateHandler {
+public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	
 	private Map<String, String> columnFields = new LinkedHashMap<String, String>();
 	private List<String> isList = new ArrayList<String>();
@@ -70,15 +71,21 @@ public class LocalDBModelHandler extends BaseTemplateHandler {
 		super(LocalDBModel.class, environment, 
 				"com/dspot/declex/localdb/", "LocalDBModel.ftl.java");
 	}
+	
+	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					UseModel.class
+			   ));
+	}
 
 	@Override
 	protected void setTemplateDataModel(Map<String, Object> rootDataModel,
-			Element element, BaseGeneratedClassHolder holder) {
+			Element element, EComponentHolder holder) {
 		super.setTemplateDataModel(rootDataModel, element, holder);
 		
-		rootDataModel.put("columns", new SimpleSequence(columnFields.keySet()));
-		rootDataModel.put("types", new SimpleSequence(columnFields.values()));
-		rootDataModel.put("isList", new SimpleSequence(isList));
+		rootDataModel.put("columnFields", columnFields);
+		rootDataModel.put("isList", isList);
 		
 		UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
 		rootDataModel.put("fullInitVar", useModelHolder.getFullInitVar().name());
@@ -94,9 +101,6 @@ public class LocalDBModelHandler extends BaseTemplateHandler {
 			
 			return;
 		}
-		
-		validatorHelper.typeHasAnnotation(EBean.class, element, valid);
-		validatorHelper.typeHasAnnotation(UseModel.class, element, valid);
 		
 		validatorHelper.extendsType(element, "com.activeandroid.Model", valid);
 		
@@ -174,7 +178,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler {
 	}
 
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, EComponentHolder holder) {
 		
 		if (element.getKind().isField()) return;
 		if (element instanceof ExecutableElement) return;

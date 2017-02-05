@@ -66,7 +66,7 @@ public class FormatsUtils {
 		
 		return lit(value);
 	}
-		
+	
 	public static String fieldToGetter(String name) {
 		Matcher matcher = Pattern.compile("_(\\w)").matcher(name);
 		while (matcher.find()) {

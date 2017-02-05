@@ -27,8 +27,10 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -53,7 +55,7 @@ import com.dspot.declex.util.FileUtils;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 
-public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGeneratedClassHolder> {
+public abstract class BaseTemplateHandler<T extends BaseGeneratedClassHolder> extends BaseAnnotationHandler<T> {
 	
 	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTemplateHandler.class);
 	
@@ -63,6 +65,8 @@ public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGene
 	private List<String> alreadyWritedTemplates = new ArrayList<>();
 	
 	protected Class<? extends Annotation> targetAnnotation;
+	
+	protected Map<T, Set<String>> processedHolders = new HashMap<>();
 	
 	public BaseTemplateHandler(Class<?> targetClass, AndroidAnnotationsEnvironment environment, 
 			String templatePath, String templateName) {
@@ -74,9 +78,12 @@ public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGene
 		this.templateName = templateName;
 	}
 	
-	protected void setTemplateDataModel(Map<String, Object> rootDataModel, Element element, BaseGeneratedClassHolder holder) {
+	protected void setTemplateDataModel(Map<String, Object> rootDataModel, Element element, T holder) {
 		rootDataModel.put("className", holder.getGeneratedClass().name());
 		rootDataModel.put("fromClass", element.getSimpleName().toString());
+		
+		rootDataModel.put("classNameFull", holder.getGeneratedClass().fullName());
+		rootDataModel.put("fromClassFull", element.asType().toString());
         
         if (element.getKind() == ElementKind.CLASS) {
         	if (element.getAnnotation(EActivity.class) != null) {
@@ -95,22 +102,33 @@ public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGene
         rootDataModel.put("packageName", getEnvironment().getAndroidManifest().getApplicationPackage());
         
         //Transforms
-        rootDataModel.put("holder_method", new HolderMethodTransform(holder));
-        rootDataModel.put("class_head", new ClassHeadTransform(holder));
-        rootDataModel.put("class_fields", new ClassFieldsTransform(holder));
-        rootDataModel.put("class_footer", new ClassFooterTransform(holder));
+        rootDataModel.put("holder_method", new HolderMethodTransform<T>(holder));
+        rootDataModel.put("class_head", new ClassHeadTransform<T>(holder));
+        rootDataModel.put("class_fields", new ClassFieldsTransform<T>(holder));
+        rootDataModel.put("class_footer", new ClassFooterTransform<T>(holder));
 	}
 	
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, T holder) {
+		
+		//This permits to process efficiently abstract classes
+		Set<String> targets = processedHolders.get(holder);
+		if (targets == null) {
+			targets = new HashSet<>();
+			processedHolders.put(holder, targets);
+		}
+		
+		if (targets.contains(getTarget())) return;
+		targets.add(getTarget());
+		
 		Boolean isCustom = false;
 		try {
 			Method customMethod = targetAnnotation.getMethod("custom", new Class[] {});
-			isCustom = (Boolean) customMethod.invoke(element.getAnnotation(targetAnnotation), new Object[] {});
+			isCustom = (Boolean) customMethod.invoke(adiHelper.getAnnotation(element, targetAnnotation), new Object[] {});
 		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | 
 				 IllegalArgumentException | InvocationTargetException e1) {
 			LOGGER.warn(
-				"Annotation implementation does not includes a \"custom\" method", 
+				"Annotation {} implementation does not includes a \"custom\" method", 
 				element, 
 				element.getAnnotation(targetAnnotation)
 			);
@@ -128,7 +146,7 @@ public abstract class BaseTemplateHandler extends BaseAnnotationHandler<BaseGene
 				//Get the file from the package
 				URL url = getClass().getClassLoader().getResource(ftlFile);
 				if (url == null) {
-					throw new IllegalStateException(ftlFile + "not found, execute ant on the project to generated");
+					throw new IllegalStateException(ftlFile + " not found, execute ant on the project to generate it");
 				}
 				
 				String outputDirPath = getProcessingEnvironment().getOptions().get("ftl_source_path");

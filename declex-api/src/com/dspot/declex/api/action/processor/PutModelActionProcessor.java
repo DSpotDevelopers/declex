@@ -15,10 +15,11 @@
  */
 package com.dspot.declex.api.action.processor;
 
-import static com.helger.jcodemodel.JExpr.direct;
 import static com.helger.jcodemodel.JExpr.invoke;
 
 import javax.lang.model.element.Element;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
@@ -39,40 +40,50 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 		ActionMethod init = getActionMethod("init");
 		ActionMethod query = getActionMethod("query");
 		ActionMethod orderBy = getActionMethod("orderBy");
-		
-		IJExpression queryExp = null;
-		if (query.metaData != null) {
-			queryExp = direct((String) query.params.get(0).metaData.get("value"));
-		}
-		
-		IJExpression orderByExp = null;
-		if (orderBy.metaData != null) {
-			orderByExp = direct((String) orderBy.params.get(0).metaData.get("value"));
-		}
+		ActionMethod fields = getActionMethod("fields");
 				
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
 			Object holder = actionInfo.metaData.get("holder");
 			JVar action = (JVar) actionInfo.metaData.get("action");
-			
-			if (field != null && holder != null && action != null) {
+						
+			if (field != null && action != null) {
 				Model modelAnnotation = field.getAnnotation(Model.class);
 				if (modelAnnotation != null) {
+			
+					Boolean validating = (Boolean) actionInfo.metaData.get("validating");
+					if (validating) return;
 					
 					JMethod putModelMethod = ActionProcessorUtil.getMethodInHolder(
 							"getPutModelMethod", holder, "com.dspot.declex.model.ModelHolder", field
 						);
 					
-					if (queryExp==null) 
+					IJExpression queryExp = null;
+					if (query.metaData == null) {
 						queryExp = FormatsUtils.expressionFromString(modelAnnotation.query());
+					} else {
+						queryExp = action.invoke("getQuery");
+					}
 					
-					if (orderByExp==null) 
+					IJExpression orderByExp = null;
+					if (orderBy.metaData == null) {
 						orderByExp = FormatsUtils.expressionFromString(modelAnnotation.orderBy());
+					} else {
+						orderByExp = action.invoke("getOrderBy");
+					}
 
+					IJExpression fieldsExp = null;
+					if (fields.metaData == null) {
+						fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
+					} else {
+						fieldsExp = action.invoke("getFields");
+					}
+					
 					JInvocation invoke = invoke(putModelMethod)
-											.arg(queryExp).arg(orderByExp)
-							                .arg(action.invoke("getAfterPut"));
+											.arg(queryExp).arg(orderByExp).arg(fieldsExp)
+							                .arg(action.invoke("getAfterPut"))
+							                .arg(action.invoke("getFailed"));
 					
 					addPostBuildBlock(invoke);
 					

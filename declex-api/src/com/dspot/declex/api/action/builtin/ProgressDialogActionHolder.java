@@ -22,10 +22,12 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.StopOn;
 
 @EBean
 @ActionFor("ProgressDialog")
@@ -43,15 +45,29 @@ public class ProgressDialogActionHolder {
     }
     
 	//Here you can infer any parameter, the first parameter is the next listener 
-    void build(Runnable Shown, final Runnable Dismissed) {
+    void build(
+    		final Runnable Shown, 
+    		final Runnable Canceled, 
+    		final Runnable Dismissed) {
+    	
     	this.Shown = Shown;
+    	
+    	if (Canceled != null) {
+    		dialog.setOnCancelListener(new OnCancelListener() {
+				
+				@Override
+				public void onCancel(DialogInterface arg0) {
+					Canceled.run();
+				}
+			});
+    	}
     	
     	if (Dismissed != null) {
     		 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
 				
 				@Override
 				public void onDismiss(DialogInterface arg0) {
-					if (Dismissed != null) Dismissed.run();
+					Dismissed.run();
 				}
 			});
     	}
@@ -63,8 +79,21 @@ public class ProgressDialogActionHolder {
 		if (Shown != null) Shown.run();
 	}
 
+    /**
+     * @return Internal Android Dialog instance.
+     */
+    @StopOn("show")
     public Dialog dialog() {
         return this.dialog;
+    }
+    
+    /**
+     * Assigns the Internal Android Dialog instance.
+     * 
+     * @param dialog The variable to which the dialog is going to be assigned
+     */
+    public ProgressDialogActionHolder dialog(@Assignable("dialog") Dialog dialog) {
+    	return this;
     }
 
     public ProgressDialogActionHolder title(@FormattedExpression String title) {
@@ -75,10 +104,6 @@ public class ProgressDialogActionHolder {
     public ProgressDialogActionHolder message(@FormattedExpression String message) {
         dialog.setMessage(message);
         return this;
-    }
-
-    public ProgressDialogActionHolder into(@Assignable("dialog") Dialog dialog) {
-    	return this;
     }
 
 }

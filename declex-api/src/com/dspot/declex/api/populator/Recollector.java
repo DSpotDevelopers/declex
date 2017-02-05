@@ -24,5 +24,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Recollector {
 	boolean validate() default false;
+	boolean validateAutoMessage() default true;
 	boolean debug() default false;
 }

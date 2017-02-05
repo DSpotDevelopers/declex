@@ -17,20 +17,29 @@ package com.dspot.declex.api.action.builtin;
 
 import java.util.Calendar;
 
-import org.androidannotations.annotations.EBean;
 import org.androidannotations.annotations.RootContext;
 
 import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.widget.TimePicker;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.StopOn;
 
-@EBean
+/**
+ * An Action representing a dialog that prompts the user for the time of day using a
+ * {@link TimePicker}.
+ *
+ * <p>
+ * See the <a href="{@docRoot}guide/topics/ui/controls/pickers.html">Pickers</a>
+ * guide.
+ */
+
 @ActionFor("TimeDialog")
 public class TimeDialogActionHolder {
 
@@ -42,12 +51,31 @@ public class TimeDialogActionHolder {
     private TimeSetRunnable TimeSet;
     
     void init() {
-        // Use the current time as the default values for the picker
-        final Calendar c = Calendar.getInstance();
-        int hour = c.get(Calendar.HOUR);
-        int minute = c.get(Calendar.MINUTE);
+    	init(null);
+    }
+    
+    /**
+     * @param calendar A Calendar object containing the initial hour and minute
+     * for the time picker.
+     */
+    void init(Calendar calendar) {
+    	if (calendar == null) {
+            // Use the current time as the default values for the picker
+            calendar = Calendar.getInstance();    		
+    	}
+        
+        final int hour = calendar.get(Calendar.HOUR);
+        final int minute = calendar.get(Calendar.MINUTE);
 
-        // Create a new instance of TimePickerDialog and return it
+        init(hour, minute);
+    }
+    
+    /**
+     * @param hour The initial hour of the dialog.
+     * @param minute The initial minute of the dialog.
+     */
+    void init(int hour, int minute) {
+    	// Create a new instance of TimePickerDialog and return it
         dialog = new TimePickerDialog(
             context,
             new TimePickerDialog.OnTimeSetListener() {
@@ -61,9 +89,35 @@ public class TimeDialogActionHolder {
         );
     }
     
-	//Here you can infer any parameter, the first parameter is the next listener 
-    void build(TimeSetRunnable TimeSet, final Runnable Dismissed) {
+    /**
+     * @param TimeSet <i><b>(default)</b></i> This Action Selector will be executed when the Time is set.
+     * <br><br>Parameters
+     * <ul>
+     * <li>datePicker - The DatePicker View associated with this listener.</li>
+     * <li>hour - The hour that was set.</li>
+     * <li>minute - The minute that was set.</li>
+     * </ul>  
+     * 
+     * @param Canceled This Action Selector will be invoked when the dialog is canceled.
+     * 
+     * @param Dismissed This Action Selector will be invoked when the dialog is dismissed.
+     */
+    void build(
+    		final TimeSetRunnable TimeSet, 
+    		final Runnable Canceled, 
+    		final Runnable Dismissed) {
+    	
     	this.TimeSet = TimeSet;
+    	
+    	if (Canceled != null) {
+    		dialog.setOnCancelListener(new OnCancelListener() {
+				
+				@Override
+				public void onCancel(DialogInterface arg0) {
+					Canceled.run();
+				}
+			});
+    	}
     	
     	if (Dismissed != null) {
     		 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
@@ -81,8 +135,21 @@ public class TimeDialogActionHolder {
 		dialog.show();
 	}
 
+    /**
+     * @return Internal Android Dialog instance.
+     */
+    @StopOn("show")
     public Dialog dialog() {
         return this.dialog;
+    }
+    
+    /**
+     * Assigns the Internal Android Dialog instance.
+     * 
+     * @param dialog The variable to which the dialog is going to be assigned
+     */
+    public TimeDialogActionHolder dialog(@Assignable("dialog") Dialog dialog) {
+    	return this;
     }
 
     public TimeDialogActionHolder title(@FormattedExpression String title) {
@@ -93,10 +160,6 @@ public class TimeDialogActionHolder {
     public TimeDialogActionHolder message(@FormattedExpression String message) {
         dialog.setMessage(message);
         return this;
-    }
-
-    public TimeDialogActionHolder into(@Assignable("dialog") Dialog dialog) {
-    	return this;
     }
 
     public static abstract class TimeSetRunnable implements Runnable, TimePickerDialog.OnTimeSetListener {

@@ -20,6 +20,8 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.lit;
 
+import java.util.List;
+
 import javax.lang.model.element.Element;
 
 import org.androidannotations.holder.GeneratedClassHolder;
@@ -36,20 +38,30 @@ import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
 public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
-	final AbstractJClass RecyclerViewAdapter;
+	
+	AbstractJClass RecyclerViewAdapter;
+	
 	final AbstractJClass RecyclerViewHolder;
 	final AbstractJClass Model;
 	
 	final String className;
 	
 	public RecyclerViewAdapterClassCreator(String modelClassName, String className, Element element, 
-			GeneratedClassHolder holder) {
+			GeneratedClassHolder holder, List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
 		
 		RecyclerViewHolder = getJClass(className + "ViewHolder");
 		RecyclerViewAdapter = getJClass("android.support.v7.widget.RecyclerView.Adapter").narrow(RecyclerViewHolder);
 		Model = getJClass(modelClassName);
 		this.className = className;
+		
+		for (JClassPlugin plugin : adapterPlugins) {
+			AbstractJClass newBaseAdapter = plugin.getBaseAdapter(element);
+			if (newBaseAdapter != null) {
+				RecyclerViewAdapter = newBaseAdapter.narrow(RecyclerViewHolder);
+			}
+			this.addPlugin(plugin);
+		}
 	}
 
 	@Override
@@ -74,6 +86,11 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 		getItemCountMethod.annotate(Override.class);
 		getItemCountMethod.body()._if(models.eq(_null()))._then()._return(lit(0));
 		
+		//inflate() METHOD
+		JMethod inflateMethod = AdapterClass.method(JMod.PUBLIC, getClasses().VIEW, "inflate");
+		inflateMethod.param(getCodeModel().INT, "viewType");
+		inflateMethod.param(getClasses().LAYOUT_INFLATER, "inflater");
+				
 		JMethod onBindViewHolderMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "onBindViewHolder");
 		onBindViewHolderMethod.annotate(Override.class);
 		onBindViewHolderMethod.param(RecyclerViewHolder, "viewHolder");
@@ -82,9 +99,9 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 		JMethod onCreateViewHolderMethod = AdapterClass.method(JMod.PUBLIC, RecyclerViewHolder, "onCreateViewHolder");
 		onCreateViewHolderMethod.annotate(Override.class);
 		JVar parent = onCreateViewHolderMethod.param(JMod.FINAL, getClasses().VIEW_GROUP, "parent");
-		onCreateViewHolderMethod.param(JMod.FINAL, getCodeModel().INT, "position");
+		onCreateViewHolderMethod.param(JMod.FINAL, getCodeModel().INT, "viewType");
 		
-		//Declare a inflater
+		//Declare an inflater
 		onCreateViewHolderMethod.body().decl(
 				JMod.FINAL, 
 				getJClass("android.view.LayoutInflater"), 

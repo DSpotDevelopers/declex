@@ -21,6 +21,7 @@ package com.dspot.declex.localdb;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,12 +31,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.activeandroid.Model;
+import com.dspot.declex.api.server.ServerJsonParseException;
+import com.dspot.declex.api.server.ServerResponseException;
 import com.dspot.declex.api.util.CastUtility;
 import com.google.gson.FieldAttributes;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
@@ -59,7 +63,8 @@ public class User extends Model {
 	//						@ServerModel
 	//============================================================
 
-	private static String requestToServer(String query, String orderBy, ${className} inst) {
+	<#if !offline>
+	private static String requestToServer(String query, String orderBy, String fields, ${className} inst) {
 		
 		Matcher matcher = Pattern.compile("@(\\w+)\\(([^)]+)\\)").matcher(query);
 		while (matcher.find()) {
@@ -79,12 +84,14 @@ public class User extends Model {
 		
 		Response response = null;
 		Request request = null;
-		String json, mock;
+		String json<#if hasMock>, mock</#if>;
 		
 		try {
-			mock = getMock(query, orderBy, inst);
+			<#if hasMock>
+			mock = getMock(query, orderBy, fields, inst);
 			if (mock == null) {
-				request = getRequest(query, orderBy, inst);
+			</#if>
+				request = getRequest(query, orderBy, fields, inst);
 				if (request == null) 
 					if (orderBy.equals("")) return "";
 					else return null;
@@ -102,17 +109,24 @@ public class User extends Model {
 	    			</#list>
 				);
 	            </#if>
+	            <#if !processUnsuccessful>
 	            
-			    if (!response.isSuccessful()) return null;
+			    if (!response.isSuccessful()) {
+			    	throw new ServerResponseException(response);
+			    }
+			    </#if>
 			
 				json = response.body().string();
+			<#if hasMock>
 			} else {
 				json = mock;
 			}
+			</#if>
 					
-			return processResponse(json, query, orderBy, inst);			
+			return processResponse(json, query, orderBy, fields, inst);			
 		
-		} catch (<#if avoidExceptions>java.io.IO</#if>Exception e) {
+		} catch (java.io.IOException e) {
+			
 			<#if response!="">
 	    	${response}(
     			<#list responseParams as param>
@@ -120,19 +134,29 @@ public class User extends Model {
     			</#list>
 			);
             </#if>
-			e.printStackTrace();
+			throw new RuntimeException(e);
+			
+		} catch (JsonParseException e) {
+			
+			<#if response!="">
+	    	${response}(
+    			<#list responseParams as param>
+    			${param}<#if param_has_next>,</#if>
+    			</#list>
+			);
+            </#if>
+			throw new ServerJsonParseException(response);
+			
 		}
 		
-		return null;
 	}
 	
-	private static ${className} getServerModel(Context context, String query, String orderBy) {
-		String json = requestToServer(query, orderBy, null);
+	private static ${className} getServerModel(Context context, String query, String orderBy, String fields) {
+		String json = requestToServer(query, orderBy, fields, null);
 		if (json == null) return null;
 		
-		<#if !avoidExceptions>
 		try {
-		</#if>
+		
 			JsonElement elem = new JsonParser().parse(json);
 			if (elem.isJsonArray()) {
 				if (elem.getAsJsonArray().size() == 0) return null;
@@ -145,122 +169,78 @@ public class User extends Model {
 	        if (instance!= null) {
 	            instance.rebind(context);
 	        }
-	        
+			
 	        return instance;
 	        
-        <#if !avoidExceptions>
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (JsonParseException e) {
+			throw new ServerJsonParseException(json, e);
 		}
-		
-		return null;
-		</#if>
+        	        
 	}
 	
-	private ${className} putServerModel(String query, String orderBy) {
+	private ${className} putServerModel(String query, String orderBy, String fields) {
 		if (query.equals("server-ignore")) return this;
 		
-		String json = requestToServer(query, orderBy, this);
+		String json = requestToServer(query, orderBy, fields, this);
 		if (json == null) return null;
 		
 		return this;
 	}
 	
-	private static java.util.List<${className}> getServerModels(Context context, String query, String orderBy) {
-		String json = requestToServer(query, orderBy, null);
+	private static java.util.List<${className}> getServerModels(Context context, String query, String orderBy, String fields) {
+		String json = requestToServer(query, orderBy, fields, null);
 		if (json == null) return new ArrayList<${className}>();
 		
-		JsonElement elem = new JsonParser().parse(json);
-		if (elem.isJsonObject()) {
-			java.util.List<${className}> models = new ArrayList<${className}>();
+		try {
 			
-			${className} instance = getGson().fromJson(elem, ${className}.class);
-	        if (instance!= null) {
-	            instance.rebind(context);
-	        }
+			JsonElement elem = new JsonParser().parse(json);
+			if (elem.isJsonObject()) {
+				java.util.List<${className}> models = new ArrayList<${className}>();
+				
+				${className} instance = getGson().fromJson(elem, ${className}.class);
+		        if (instance!= null) {
+		            instance.rebind(context);
+		        }
+		        
+				models.add(instance);
+				return models;
+			}
+			
+			if (!elem.isJsonArray()) return new ArrayList<${className}>();
 	        
-			models.add(instance);
-			return models;
+			Type listType = new TypeToken<java.util.List<${className}>>(){}.getType();
+			java.util.List<${className}> models = getGson().fromJson(elem, listType);
+			
+			//Rebind each model to the current context
+			for (${className} model : models) {
+	            model.rebind(context);
+	        }
+			
+	        return models;
+	        
+		} catch (JsonParseException e) {
+			throw new ServerJsonParseException(json, e);
 		}
-		
-		if (!elem.isJsonArray()) return new ArrayList<${className}>();
-        
-		Type listType = new TypeToken<java.util.List<${className}>>(){}.getType();
-		java.util.List<${className}> models = getGson().fromJson(elem, listType);
-		
-		
-		//Rebind each model to the current context
-		for (${className} model : models) {
-            model.rebind(context);
-        }
-		
-        return models;
 	}
 
-	private java.util.Map<String, String> getAllFields() {
-        java.util.Map<String, String> fields = new java.util.HashMap<>();
+	private java.util.Map<String, String> getAllFields(String fields) {
+        java.util.Map<String, String> allFields = new java.util.HashMap<>();
 		
 		try {
-			JsonElement elem = getGson().toJsonTree(this);
+			JsonElement elem = getGson(this, fields).toJsonTree(this);
 			for (Entry<String, JsonElement> entry : elem.getAsJsonObject().entrySet()) {
 				String value = entry.getValue().toString();
 				if (value.startsWith("\"")) value = value.substring(1, value.length()-1);
-				fields.put(entry.getKey(), value);
+				allFields.put(entry.getKey(), value);
 			}
 		} catch(Exception e) {
-			
+			throw new RuntimeException(e);
 		}
 		
-		return fields;
+		return allFields;
 	}
 	
-	public String toJson() {
-		return getGson(this).toJson(this);
-	}
-	
-	private static Gson getGson() {
-		return getGson(null);
-	}
-	
-	private static Gson getGson(${className} inst) {
-		return new GsonBuilder()
-						.addSerializationExclusionStrategy(new ModelExclusionStrategy(inst))
-						.excludeFieldsWithModifiers(java.lang.reflect.Modifier.FINAL, java.lang.reflect.Modifier.STATIC, java.lang.reflect.Modifier.TRANSIENT)
-						.serializeNulls()
-						.create();		
-	}
-	
-	private static class ModelExclusionStrategy implements ExclusionStrategy {
-
-		private ${className} inst;
-		
-		public ModelExclusionStrategy(${className} inst) {
-			this.inst = inst;
-		}
-		
-		@Override
-		public boolean shouldSkipClass(Class<?> arg0) {
-			return false;
-		}
-
-		@Override
-		public boolean shouldSkipField(FieldAttributes field) {
-			//Exclude from serialization any generated class fields (ending with "_") and 
-			//Active Android Model fields, if any
-			
-			<#if (serializeCondition?size > 0)>
-			<#list serializeCondition as cond>
-			if ("${serializeConditionField[cond?index]}".equals(field.getName())<#if cond!="!(false)"> && (${cond})</#if>) return true;
-			</#list>
-            </#if>
-			
-			return field.getDeclaringClass().getName().endsWith("_") ||
-					field.getDeclaringClass().getCanonicalName().equals(com.activeandroid.Model.class.getCanonicalName()) ||
-					field.hasModifier(java.lang.reflect.Modifier.FINAL) || field.hasModifier(java.lang.reflect.Modifier.STATIC) ||
-					field.hasModifier(java.lang.reflect.Modifier.ABSTRACT) || field.hasModifier(java.lang.reflect.Modifier.TRANSIENT);
-		}
-		
-	}	
+	</#if>
 <@class_footer>	
 }
 </@class_footer>

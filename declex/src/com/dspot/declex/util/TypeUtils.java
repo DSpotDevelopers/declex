@@ -18,6 +18,7 @@ package com.dspot.declex.util;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,7 +40,8 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.internal.model.AnnotationElements;
 
-import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.JVar;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.util.TreePath;
@@ -47,6 +49,50 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
 public class TypeUtils {
+	
+	public static void annotateVar(JVar var, AnnotationMirror annotationMirror, AndroidAnnotationsEnvironment env) {
+		JAnnotationUse fieldAnnotation = var.annotate(env.getJClass(annotationMirror.getAnnotationType().toString()));
+
+		Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = annotationMirror.getElementValues();
+		for (Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValues.entrySet()) {
+			String name = entry.getKey().getSimpleName().toString();
+			Object value = entry.getValue().getValue();
+			
+			if (value instanceof Boolean)
+				fieldAnnotation.param(name, (Boolean)value);
+			
+			if (value instanceof Byte)
+				fieldAnnotation.param(name, (Byte)value);
+			
+			if (value instanceof Character)
+				fieldAnnotation.param(name, (Character)value);
+			
+			if (value instanceof Class<?>)
+				fieldAnnotation.param(name, (Class<?>)value);
+			
+			if (value instanceof Double)
+				fieldAnnotation.param(name, (Double)value);
+			
+			if (value instanceof Enum<?>)
+				fieldAnnotation.param(name, (Enum<?>)value);
+			
+			if (value instanceof Float)
+				fieldAnnotation.param(name, (Float)value);
+			
+			if (value instanceof Integer)
+				fieldAnnotation.param(name, (Integer)value);
+			
+			if (value instanceof Long)
+				fieldAnnotation.param(name, (Long)value);
+			
+			if (value instanceof Short)
+				fieldAnnotation.param(name, (Short)value);
+			
+			if (value instanceof String)
+				fieldAnnotation.param(name, (String)value);
+		}
+	}
+	
 	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
 		return typeFromTypeString(type, environment, true);
 	}
@@ -121,8 +167,8 @@ public class TypeUtils {
 					final StringBuilder resultBuilder = new StringBuilder();
 					
 					//Try to get the value using Compiler API Tree
-					Trees tree = Trees.instance(environment.getProcessingEnvironment());
-		        	TreePath treePath = tree.getPath(element);
+					Trees trees = Trees.instance(environment.getProcessingEnvironment());
+		        	TreePath treePath = trees.getPath(element);
 		        	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
 		        		
 		        		private Pattern pattern = Pattern.compile("value\\s*=\\s*([a-zA-Z_][a-zA-Z_0-9.]+)\\.class$");
@@ -148,7 +194,7 @@ public class TypeUtils {
 		        		
 		        	};
 		        	
-		        	scanner.scan(treePath, tree);
+		        	scanner.scan(treePath, trees);
 		        	result = resultBuilder.toString();
 				}
 				

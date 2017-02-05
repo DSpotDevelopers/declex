@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public class ActionInfo {
 	public Map<String, Object> metaData;
@@ -29,9 +30,32 @@ public class ActionInfo {
 	public Map<String, List<ActionMethod>> methods = new HashMap<>();
 	
 	public String holderClass;
+	public String references;
+	
+	public boolean generated;
 	
 	public ActionInfo(String holderClass) {
 		this.holderClass = holderClass;
+		this.generated = true;
+	}
+	
+	public void clearMetaData() {
+		this.metaData = new HashMap<>();
+		
+		for (Entry<String, List<ActionMethod>> methodList : methods.entrySet()) {
+			for (ActionMethod method : methodList.getValue()) {
+				method.metaData = null;
+				
+				for (ActionMethodParam param : method.params) {
+					param.metaData = null;
+				}
+				
+			}
+		}
+	}
+	
+	public void setReferences(String references) {
+		this.references = references;
 	}
 	
 	public void addMethod(String name, String resultClass) {
@@ -41,9 +65,13 @@ public class ActionInfo {
 	public void addMethod(String name, String resultClass, List<ActionMethodParam> params) {
 		addMethod(name, resultClass, params, new ArrayList<Annotation>(0));
 	}
-	
+
 	public void addMethod(String name, String resultClass, List<ActionMethodParam> params, List<Annotation> annotations) {
-		ActionMethod actionMethod = new ActionMethod(name, resultClass, params, annotations);
+		addMethod(name, resultClass, null, params, annotations);
+	}
+	
+	public void addMethod(String name, String resultClass, String javaDoc, List<ActionMethodParam> params, List<Annotation> annotations) {
+		ActionMethod actionMethod = new ActionMethod(name, resultClass, javaDoc, params, annotations);
 		
 		List<ActionMethod> methodList = methods.get(name);
 		if (methodList == null) {

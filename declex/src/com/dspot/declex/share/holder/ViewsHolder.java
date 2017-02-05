@@ -57,6 +57,8 @@ public class ViewsHolder extends
 	private IdAnnotationHelper annotationHelper;
 
 	private Map<String, ViewInfo> views = new HashMap<>();
+	
+	private ICreateViewListener createViewListener;
 
 	public ViewsHolder(EComponentWithViewSupportHolder holder,
 			IdAnnotationHelper annotationHelper) {
@@ -206,16 +208,11 @@ public class ViewsHolder extends
 
 	}
 
-	public void checkFieldNameInInvocation(String fieldName, JInvocation invocation) {
-		if (this.viewsDeclared(fieldName + DeclexConstant.VIEW)) {
-			invocation.arg(ref(fieldName + DeclexConstant.VIEW));
+	public JInvocation checkFieldNameInInvocation(String fieldName, JInvocation invocation) {
+		if (this.layoutContainsId(fieldName)) {
+			return invocation.arg(this.createAndAssignView(fieldName));
 		} else {
-			if (this.layoutContainsId(fieldName)) {
-				this.createAndAssignView(fieldName);
-				invocation.arg(ref(fieldName + DeclexConstant.VIEW));
-			} else {
-				ParamUtils.injectParam(fieldName, invocation);	
-			}
+			return ParamUtils.injectParam(fieldName, invocation);	
 		}
 	}
 	
@@ -271,20 +268,34 @@ public class ViewsHolder extends
 		return layoutObjects.get(layoutId);
 	}
 
+	public void setCreateViewListener(ICreateViewListener createViewListener) {
+		this.createViewListener = createViewListener;
+	}
+	
 	public JFieldRef createAndAssignView(String fieldName) {
 		return this.createAndAssignView(fieldName, null);
 	}
 
-	public JFieldRef createAndAssignView(String fieldName,
+	public JFieldRef createAndAssignView(final String fieldName,
 			IWriteInBloc writeInBlock) {
-		String viewName = fieldName + DeclexConstant.VIEW;
-		JFieldRef view = ref(viewName);
+		final String viewName = fieldName + DeclexConstant.VIEW;
+		final AbstractJClass viewClass = getJClass(getClassNameFromId(fieldName));
+		
+		if (createViewListener != null) {
+			final JBlock declBlock = writeInBlock==null? null : new JBlock();
+			final JFieldRef view = createViewListener.createView(fieldName, viewName, viewClass, declBlock);
+			
+			if (writeInBlock != null)
+				writeInBlock.writeInBlock(viewName, viewClass, view, declBlock);
+			
+			return view; 
+		}
 
-		JFieldRef idRef = environment().getRClass().get(Res.ID)
-				.getIdStaticRef(fieldName, environment());
-		AbstractJClass viewClass = getJClass(getClassNameFromId(fieldName));
-		FoundViewHolder foundViewHolder = holder().getFoundViewHolder(idRef,
-				viewClass);
+		final JFieldRef view = ref(viewName);		
+		final JFieldRef idRef = environment().getRClass().get(Res.ID)
+				                       .getIdStaticRef(fieldName, environment());
+
+		FoundViewHolder foundViewHolder = holder().getFoundViewHolder(idRef, viewClass);
 		JBlock body = foundViewHolder.getIfNotNullBlock();
 
 		if (!views.containsKey(viewName)) {
@@ -493,6 +504,10 @@ public class ViewsHolder extends
 		public T getResult() {
 			return result;
 		}
+	}
+	
+	public interface ICreateViewListener {
+		public JFieldRef createView(String viewId, String viewName, AbstractJClass viewClass, JBlock declBlock);
 	}
 
 	private class ViewInfo {

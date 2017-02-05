@@ -36,7 +36,6 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.internal.model.AnnotationElements;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.helger.jcodemodel.IJStatement;
@@ -255,91 +254,6 @@ public class SharedRecords {
 				for (String model : models) {
 					if (!data.equals("")) data = data + "\r\n";
 					data = data + model;
-				}				
-			}
-			
-			out.write(data);
-			out.close();
-		} catch (IOException e) {
-		}
-	}
-
-	//=====================================ACTIONS===========================
-	
-	public static Collection<String> getActionsGeneratedClasses(AndroidAnnotationsEnvironment environment) {
-		final AnnotationElements validatedElements = environment.getValidatedElements(); 
-		final ProcessingEnvironment processingEnv = environment.getProcessingEnvironment();
-		
-		//Get all the events from the event file
-		if (actions == null) {
-			actions = new TreeSet<>();
-			
-			File outputEventsDir = FileUtils.getConfigFile("action", processingEnv);
-			File eventsFile = new File(outputEventsDir.getAbsolutePath() + File.separator + "action.txt");
-			
-			try {
-				InputStream in = new FileInputStream(eventsFile);
-				byte[] data = new byte[(int) eventsFile.length()];
-				in.read(data);
-				in.close();	
-				
-				String[] actionsArray = new String(data, "UTF-8").split("\r\n");
-				
-				//Check if the event is valid
-				for (String action : actionsArray) {
-					if (action.trim().equals("")) continue;
-					
-					actions.add(action);
-				}
-				
-			} catch (IOException e) {
-			}
-			
-			Set<? extends Element> annotatedElements = validatedElements.getRootAnnotatedElements(EBean.class.getCanonicalName());
-			for (Element elem : annotatedElements) {
-				if (elem.getAnnotation(ActionFor.class) != null) {
-					if (actions.contains(elem.toString())) continue;
-					actions.add(elem.toString());
-				}
-			}
-		} 
-		
-		return actions;
-	}
-	
-	public static String getAction(String className,  AndroidAnnotationsEnvironment environment) {
-		if (className == null) return null;
-		
-		if (className.endsWith(ModelConstants.generationSuffix())) className = className.substring(0, className.length()-1);
-		
-		final Collection<String> actionClassNames = getActionsGeneratedClasses(environment);
-		
-		for (String action : actionClassNames) {
-			if (action.equals(className) || (!className.contains(".") && action.endsWith("."+className)))
-				return action;
-		}
-		
-		return null;
-	}
-	
-	public static void addActionGeneratedClass(String className, AndroidAnnotationsEnvironment environment) {
-		final Collection<String> eventClassNames = getActionsGeneratedClasses(environment);
-		
-		eventClassNames.add(className);		
-	}
-	
-	public static void writeActions(ProcessingEnvironment processingEnv) {
-		//Write all the events to the event file
-		try {
-			File outputActionsDir = FileUtils.getConfigFile("actions", processingEnv);
-			File actionsFile = new File(outputActionsDir.getAbsolutePath() + File.separator + "actions.txt");
-			PrintWriter out = new PrintWriter(actionsFile);
-			
-			String data = "";
-			if (actions != null) {
-				for (String action : actions) {
-					if (!data.equals("")) data = data + "\r\n";
-					data = data + action;
 				}				
 			}
 			

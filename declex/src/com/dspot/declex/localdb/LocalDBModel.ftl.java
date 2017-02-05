@@ -109,10 +109,10 @@ public class User extends Model {
 		}
 		
 		try {
-			<#list columns as column>
+			<#list columnFields as column, type>
 			if (${column} != null)
 			<#if isList[column?index]=="true">
-				for(${types[column_index]} field : ${column}) {
+				for(${type} field : ${column}) {
 					field.save();
 				}
 			<#else>
@@ -121,8 +121,7 @@ public class User extends Model {
 			</#list>
 			this.save();
 		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
+			throw new RuntimeException(e);
 		}
 		
         return this;

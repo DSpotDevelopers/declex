@@ -18,17 +18,12 @@ package com.dspot.declex.override.handler;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.util.Arrays;
-
 import javax.lang.model.element.Element;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EFragmentHolder;
 
-import com.dspot.declex.action.ActionForHandler;
-import com.dspot.declex.api.action.process.ActionInfo;
-import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.override.holder.FragmentActionHolder;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
@@ -67,12 +62,5 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		JVar fieldMethodParam = fieldMethod.param(getJClass(className), fieldName);
 		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
 		fieldMethod.body()._return(_this());
-		
-		ActionInfo actionInfo = ActionForHandler.getActionInfos().get(FragmentAction.fullName());
-		actionInfo.addMethod(
-				fieldName, 
-				FragmentAction.fullName(), 
-				Arrays.asList(new ActionMethodParam(fieldName, getJClass(className)))
-			);
 	}
 }

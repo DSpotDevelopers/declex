@@ -26,13 +26,25 @@ public class ActionMethod {
 	public List<ActionMethodParam> params;
 	public List<Annotation> annotations; 
 	
+	public String javaDoc;
+	
 	public String resultClass;
 	
-	ActionMethod(String name, String resultClass, List<ActionMethodParam> params, List<Annotation> annotations) {
+	ActionMethod(String name, String resultClass, String javaDoc, List<ActionMethodParam> params, List<Annotation> annotations) {
 		super();
+		
+		if (name == null) {
+			throw new IllegalArgumentException("\"name\" cannot be null");
+		}
+		
+		if (resultClass == null) {
+			throw new IllegalArgumentException("\"resultClass\" cannot be null");
+		}
+		
 		this.name = name;
 		this.params = params;
 		this.annotations = annotations;
 		this.resultClass = resultClass;
+		this.javaDoc = javaDoc;
 	}
 }

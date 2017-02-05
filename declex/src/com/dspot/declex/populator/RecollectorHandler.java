@@ -22,15 +22,14 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -47,6 +46,8 @@ import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
+import com.dspot.declex.api.action.error.ValidationException;
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.populator.Recollector;
 import com.dspot.declex.model.ModelHolder;
@@ -58,15 +59,17 @@ import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JCatchBlock;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 import com.mobsandgeeks.saripaar.annotation.Order;
 import com.mobsandgeeks.saripaar.annotation.ValidateUsing;
@@ -141,18 +144,22 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 				
 		JMethod recollectModelMethod = holder.getGeneratedClass().method(JMod.PRIVATE, getCodeModel().VOID, "_recollect_" + fieldName);
 		JVar afterRecollect = recollectModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
+		JVar onFailed = recollectModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		
 		final Model annotation = element.getAnnotation(Model.class);
 		if (annotation != null) {
 			final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));
 			JBlock putModelMethodBlock = modelHolder.getPutModelMethodBlock(element);
 			putModelMethodBlock.removeAll();
-			putModelMethodBlock.invoke(recollectModelMethod).arg(ref("putModelRunnable"));
+			putModelMethodBlock.invoke(recollectModelMethod)
+				.arg(ref("putModelRunnable"))
+				.arg(ref("onFailed"));
 		} 
 		
 		JBlock recollectBlock;
 		JAnonymousClass ValidatorListenerClass = null;
-		if (element.getAnnotation(Recollector.class).validate()) {
+		Recollector recollector = element.getAnnotation(Recollector.class);
+		if (recollector.validate()) {
 			AbstractJClass Validator = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator");
 			AbstractJClass ValidatorListener = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator.ValidationListener");
 			AbstractJClass ValidatorError = getEnvironment().getJClass("com.mobsandgeeks.saripaar.ValidationError");
@@ -167,22 +174,34 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 			if (context == _this()) {
 				context = holder.getGeneratedClass().staticRef("this");
 			}
-			
+
+			JVar messages = onValidationFailed.body().decl(getClasses().STRING, "messages", lit(""));
 			JBlock forEach = onValidationFailed.body().forEach(ValidatorError, "error", errors).body();
 			JFieldRef error = ref("error");
-			JVar view = forEach.decl(getClasses().VIEW, "view", error.invoke("getView"));
 			JVar message = forEach.decl(getClasses().STRING, "message", error.invoke("getCollatedErrorMessage").arg(context));
+			forEach.assign(messages, message.plus(message).plus(" "));
 			
-			AbstractJClass EditText = getJClass("android.widget.EditText");
-			AbstractJClass Toast = getJClass("android.widget.Toast");
-			JConditional conditional = forEach._if(view._instanceof(EditText));
-			conditional._then().invoke(cast(EditText, view), "setError").arg(message);
-			conditional._else().add(
-					Toast.staticInvoke("makeText").arg(context)
-					     .arg(message)
-					     .arg(Toast.staticRef("LENGTH_SHORT"))
-					     .invoke("show")
-			     );
+			if (recollector.validateAutoMessage()) {
+				JVar view = forEach.decl(getClasses().VIEW, "view", error.invoke("getView"));
+				
+				AbstractJClass EditText = getJClass("android.widget.EditText");
+				AbstractJClass Toast = getJClass("android.widget.Toast");
+				JConditional conditional = forEach._if(view._instanceof(EditText));
+				conditional._then().invoke(cast(EditText, view), "setError").arg(message);
+				conditional._else().add(
+						Toast.staticInvoke("makeText").arg(context)
+						     .arg(message)
+						     .arg(Toast.staticRef("LENGTH_SHORT"))
+						     .invoke("show")
+				     );
+			}
+			
+			//Call onFailed if assigned
+			IJExpression validationException = _new(getJClass(ValidationException.class))
+					 								.arg(messages);
+			onValidationFailed.body()._if(onFailed.ne(_null()))._then()
+			   						 .invoke(onFailed, "onFailed").arg(validationException);
+			                         
 			
 			JMethod onValidationSucceeded = ValidatorListenerClass.method(JMod.PUBLIC, getCodeModel().VOID, "onValidationSucceeded");
 			onValidationSucceeded.annotate(Override.class);
@@ -197,6 +216,24 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 		} else {
 			recollectBlock = recollectModelMethod.body();
 		}
+		
+		JTryBlock tryBlock = recollectBlock._try();
+		{//Catch block
+			JCatchBlock catchBlock = tryBlock._catch(getClasses().THROWABLE);
+			JVar caughtException = catchBlock.param("e");
+						
+			IJStatement uncaughtExceptionCall = getClasses().THREAD 
+					.staticInvoke("getDefaultUncaughtExceptionHandler") 
+					.invoke("uncaughtException") 
+					.arg(getClasses().THREAD.staticInvoke("currentThread")) 
+					.arg(caughtException);
+			
+			JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
+			ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+			ifOnFailedAssigned._else().add(uncaughtExceptionCall);
+		}
+		
+		recollectBlock = tryBlock.body();
 		
 		//Check if the field is a primitive or a String
 		if (element.asType().getKind().isPrimitive() || 
@@ -437,47 +474,8 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 								view
 							);						
 					}
-					
-					JAnnotationUse fieldAnnotation = field.annotate(getJClass(annotation.getAnnotationType().toString()));
-					
-					Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = annotation.getElementValues();
-					for (Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValues.entrySet()) {
-						String name = entry.getKey().getSimpleName().toString();
-						Object value = entry.getValue().getValue();
-						
-						if (value instanceof Boolean)
-							fieldAnnotation.param(name, (Boolean)value);
-						
-						if (value instanceof Byte)
-							fieldAnnotation.param(name, (Byte)value);
-						
-						if (value instanceof Character)
-							fieldAnnotation.param(name, (Character)value);
-						
-						if (value instanceof Class<?>)
-							fieldAnnotation.param(name, (Class<?>)value);
-						
-						if (value instanceof Double)
-							fieldAnnotation.param(name, (Double)value);
-						
-						if (value instanceof Enum<?>)
-							fieldAnnotation.param(name, (Enum<?>)value);
-						
-						if (value instanceof Float)
-							fieldAnnotation.param(name, (Float)value);
-						
-						if (value instanceof Integer)
-							fieldAnnotation.param(name, (Integer)value);
-						
-						if (value instanceof Long)
-							fieldAnnotation.param(name, (Long)value);
-						
-						if (value instanceof Short)
-							fieldAnnotation.param(name, (Short)value);
-						
-						if (value instanceof String)
-							fieldAnnotation.param(name, (String)value);
-					}
+				
+					TypeUtils.annotateVar(field, annotation, getEnvironment());
 				}
 			}
 		}

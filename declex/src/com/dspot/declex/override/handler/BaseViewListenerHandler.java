@@ -5,6 +5,8 @@ import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.io.StringWriter;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,13 +23,13 @@ import javax.lang.model.element.VariableElement;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.action.ActionHandler;
 import com.dspot.declex.api.populator.Populator;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
-import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
@@ -36,11 +38,12 @@ import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
+import com.helger.jcodemodel.JFormatter;
 import com.helger.jcodemodel.JInvocation;
 
-public class BaseViewListenerHandler extends ActionHandler {
+public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSupportHolder> {
 
-	public BaseViewListenerHandler(Class<?> targetClass, AndroidAnnotationsEnvironment environment) {
+	public BaseViewListenerHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
 	}
 	
@@ -170,12 +173,16 @@ public class BaseViewListenerHandler extends ActionHandler {
 		}						
 	}
 	
+	protected boolean isList() {
+		return false;
+	}
+	
 	@Override
-	protected IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder) {
+	public IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder, EComponentWithViewSupportHolder holder) {
 		
 		//The Field actions are executed by the ActionHandler
 		if (!(element instanceof ExecutableElement)) {
-			return super.getStatement(elementClass, element, viewsHolder);	
+			return super.getStatement(elementClass, element, viewsHolder, holder);	
 		}
     	
 		final String methodName = element.getSimpleName().toString();
@@ -193,11 +200,12 @@ public class BaseViewListenerHandler extends ActionHandler {
 				Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(paramType);
 				if (matcher.find()) {
 					if (TypeUtils.isSubtype(matcher.group(1), CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
-						
+												
 						String invocation = Arrays.class.getCanonicalName() + ".<" + matcher.group(1) + ">asList(";
 						List<String> names = getNames(element);
 						for (String name : names) {
-							invocation = invocation + name + DeclexConstant.VIEW + ",";
+							JFieldRef fieldRef = viewsHolder.createAndAssignView(name);
+							invocation = invocation + expressionToString(fieldRef) + ",";
 						}
 						invocation = invocation.substring(0, invocation.length() - 1) + ")";
 						
@@ -205,6 +213,38 @@ public class BaseViewListenerHandler extends ActionHandler {
 				
 						continue;
 					}
+				}				
+			}
+			
+			if (isList()) {
+				//Read the Layout from the XML file
+				org.w3c.dom.Element node = viewsHolder.getXMLElementFromId(methodName);
+				if (node != null && node.hasAttribute("tools:listitem")) {
+					final String defLayoutId = viewsHolder.getDefLayoutId();
+					
+					String listItem = node.getAttribute("tools:listitem");
+					String listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
+					
+					viewsHolder.addLayout(listItemId);
+					viewsHolder.setDefLayoutId(listItemId);
+					
+					if (viewsHolder.layoutContainsId(paramName)) {
+						final JFieldRef idRef = getEnvironment().getRClass().get(Res.ID)
+			                       .getIdStaticRef(paramName, getEnvironment());
+						
+						final String className = viewsHolder.getClassNameFromId(paramName);
+						if (className.equals(CanonicalNameConstants.VIEW)) {
+							invoke.arg(ref("view").invoke("findViewById").arg(idRef));
+						} else {
+							invoke.arg(cast(getJClass(className), ref("view").invoke("findViewById").arg(idRef)));
+						}
+						
+						viewsHolder.setDefLayoutId(defLayoutId);
+						continue;
+					};
+					
+					viewsHolder.setDefLayoutId(defLayoutId);
+					
 				}				
 			}
 			
@@ -230,6 +270,17 @@ public class BaseViewListenerHandler extends ActionHandler {
 	@Override
 	protected String getClassName(Element element) {
 		return null;
+	}
+	
+	private String expressionToString(IJExpression expression) {
+	    if (expression == null) {
+	        throw new IllegalArgumentException("Generable must not be null.");
+	    }
+	    final StringWriter stringWriter = new StringWriter();
+	    final JFormatter formatter = new JFormatter(stringWriter);
+	    expression.generate(formatter);
+	    
+	    return stringWriter.toString();
 	}
 	
 }

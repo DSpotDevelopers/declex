@@ -20,7 +20,9 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -36,6 +38,8 @@ import com.dspot.declex.api.model.AfterPut;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.server.ServerModel;
 import com.dspot.declex.util.ParamUtils;
+import com.dspot.declex.util.SharedRecords;
+import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JInvocation;
 
 public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
@@ -45,10 +49,20 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 	}
 
 	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					UseModel.class
+			   ));
+	}
+	
+	@Override
+	public Element dependentElement(Element element,
+			Class<? extends Annotation> dependency) {
+		return element.getEnclosingElement();
+	}
+	
+	@Override
 	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasAnnotation(
-				UseModel.class, element, valid, 
-				"The enclosing element should be annotated with @UseModel");
 		
 		ExecutableElement executableElement = (ExecutableElement) element;
 
@@ -72,13 +86,19 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 		
 		List<? extends VariableElement> parameters = afterPutMethod.getParameters();
 		
-		JInvocation invocation = useModelHolder.getPutModelInitBlock()
-				                               ._if(ref("result").ne(_null()))._then()
-				                               .invoke(afterPutMethod.getSimpleName().toString());
+		JBlock putModel = new JBlock();
+		JInvocation invocation = putModel._if(ref("result").ne(_null()))._then()
+				                         .invoke(afterPutMethod.getSimpleName().toString());
 		
 		for (VariableElement param : parameters) {
 			final String paramName = param.getSimpleName().toString();
 			ParamUtils.injectParam(paramName, invocation);
 		}
+		
+		SharedRecords.priorityAdd(
+				useModelHolder.getPutModelInitBlock(), 
+				putModel, 
+				10000
+			);
 	}
 }

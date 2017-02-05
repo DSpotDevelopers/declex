@@ -40,12 +40,14 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.HasOptionsMenu;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
+import com.dspot.declex.api.action.Action;
 import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
@@ -61,7 +63,7 @@ import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 
-public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
+public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseAnnotationHandler<T> {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseEventHandler.class);
 	
@@ -136,7 +138,7 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 	}	
 	
 	protected ViewListenerHolder getListenerHolder(String elementName, String elementClass, Map<AbstractJClass, IJExpression> declForListener, 
-			Element element, ViewsHolder viewsHolder, EComponentWithViewSupportHolder holder) {
+			Element element, ViewsHolder viewsHolder, T holder) {
 		
 		String elementNameAsClass = elementName; 
 		
@@ -163,14 +165,14 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 				}	
 				
 				JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-				method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder));
+				method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
 				return null;
 			}
 		
 		case 2:
 		case 3:
 			//reserved for methods
-			methodHandler(elementClass, referecedId, element, viewsHolder);
+			methodHandler(elementClass, referecedId, element, viewsHolder, holder);
 			return null;
 			
 		case 4:
@@ -178,8 +180,10 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 		case 6:
 		case 7:
 			//Menu
-			menuHandler(elementClass, referecedId, element, viewsHolder);
-			return null;
+			if (viewsHolder != null) {
+				menuHandler(elementClass, referecedId, element, viewsHolder, holder);
+				return null;				
+			}
 			
 		default:
 			String referencedIdEnumerated = null;
@@ -188,18 +192,20 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 				referencedIdEnumerated = match.group(1);
 			}
 			
-			//If detected as a menu, fall back as menuEvent
-			List<String> menuObjects = viewsHolder.getMenuObjects();
-			if (referencedIdEnumerated != null && menuObjects.contains(referencedIdEnumerated)) {
-				referecedId = referencedIdEnumerated;
-			}
-			if (menuObjects.contains(referecedId)) {
-				menuHandler(elementClass, referecedId, element, viewsHolder);
-				return null;
-			}
-			
-			if (referencedIdEnumerated != null && viewsHolder.layoutContainsId(referencedIdEnumerated)) {
-				referecedId = referencedIdEnumerated;
+			if (viewsHolder != null) {
+				//If detected as a menu, fall back as menuEvent
+				List<String> menuObjects = viewsHolder.getMenuObjects();
+				if (referencedIdEnumerated != null && menuObjects.contains(referencedIdEnumerated)) {
+					referecedId = referencedIdEnumerated;
+				}
+				if (menuObjects.contains(referecedId)) {
+					menuHandler(elementClass, referecedId, element, viewsHolder, holder);
+					return null;
+				}
+				
+				if (referencedIdEnumerated != null && viewsHolder.layoutContainsId(referencedIdEnumerated)) {
+					referecedId = referencedIdEnumerated;
+				}				
 			}
 			
 			//Check if it is an event
@@ -208,13 +214,13 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 				
 				if (eventClassName != null) {
 					JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-					method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder));
+					method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
 					return null;
 				}
 			}
 			
 			//Fallback as Method call
-			methodHandler(elementClass, referecedId, element, viewsHolder);
+			methodHandler(elementClass, referecedId, element, viewsHolder, holder);
 			return null;
 		}		
 	}
@@ -227,12 +233,16 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 	}
 
 	@Override
-	public void process(Element element, final EComponentWithViewSupportHolder holder) {
+	public void process(Element element, final T holder) {
 		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
-		
-		Map<AbstractJClass, IJExpression> declForListener = new HashMap<>();
-		String elementClass = getClassName(element);
+		ViewsHolder viewsHolder = null;
+		if (holder instanceof EComponentWithViewSupportHolder) {
+			viewsHolder = holder.getPluginHolder(
+					new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+				);		
+		}
+		final Map<AbstractJClass, IJExpression> declForListener = new HashMap<>();
+		final String elementClass = getClassName(element);
 		
 		for (final String elementName : getNames(element)) { 
 			
@@ -242,52 +252,47 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 					getListenerHolder(elementName, elementClass, declForListener, element, viewsHolder, holder);
 			if (listenerHolder == null) continue;
 			
-			for (AbstractJClass declClass : declForListener.keySet()) {
-				listenerHolder.addDecl(referecedId, JMod.FINAL, declClass, "model", declForListener.get(declClass));
-			}
+			if (viewsHolder != null) {
+				for (AbstractJClass declClass : declForListener.keySet()) {
+					listenerHolder.addDecl(referecedId, JMod.FINAL, declClass, "model", declForListener.get(declClass));
+				}
+				
+				listenerHolder.addStatement(
+						referecedId, 
+						new StatementCreator(elementClass==null ? null : getJClass(elementClass), element, viewsHolder, holder)
+					);
 			
-			listenerHolder.addStatement(
-					referecedId, 
-					getStatement(elementClass==null ? null : getJClass(elementClass), element, viewsHolder)
-				);
-			
-			//If it's found the the class associated layout, then process the event here			
-			if (viewsHolder.layoutContainsId(referecedId)) {				
-				viewsHolder.createAndAssignView(referecedId, new WriteInBlockWithResult<JBlock>() {
-	
-					@Override
-					public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
-						listenerHolder.createListener(viewName, block);
-					}
-				});
-								
-				continue;
+				//If it's found the the class associated layout, then process the event here	
+				if (viewsHolder.layoutContainsId(referecedId)) {				
+					viewsHolder.createAndAssignView(referecedId, new WriteInBlockWithResult<JBlock>() {
+		
+						@Override
+						public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
+							listenerHolder.createListener(viewName, block);
+						}
+					});
+				}				
 			}
 			
 		}
 	}
 	
-	private void menuHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder) {
-		final HasOptionsMenu holder = (HasOptionsMenu) viewsHolder.holder();
+	private void menuHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
+		final HasOptionsMenu hasOptionsMenuHolder = (HasOptionsMenu) viewsHolder.holder();
 		
 		JFieldRef idRef = getEnvironment().getRClass().get(Res.ID).getIdStaticRef(elementName, getEnvironment());
 
-		IJExpression ifExpr = holder.getOnOptionsItemSelectedItemId().eq(idRef);
+		IJExpression ifExpr = hasOptionsMenuHolder.getOnOptionsItemSelectedItemId().eq(idRef);
 
-		JBlock block = holder.getOnOptionsItemSelectedMiddleBlock();
+		JBlock block = hasOptionsMenuHolder.getOnOptionsItemSelectedMiddleBlock();
 		JBlock itemIfBody = block._if(ifExpr)._then();
 
-		itemIfBody.add(getStatement(getJClass(elementClass), element, viewsHolder));
+		itemIfBody.add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
 		itemIfBody._return(TRUE);
 	}
 	
-	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder) {
-		final EComponentWithViewSupportHolder holder = viewsHolder.holder();
-		
-		if (holder.getGeneratedClass().fullName().endsWith("AddCardFragment_")) {
-			System.out.println(holder.getGeneratedClass().fullName() + ": Checking method for " + elementName);
-		}
-		
+	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
+
 		//See if the method exists in the holder
 		final String methodName = "get" + elementName.substring(0, 1).toUpperCase() + elementName.substring(1);
     	
@@ -327,7 +332,7 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
     			}
     			
 				if (block != null) {
-					block.add(getStatement(getJClass(elementClass), element, viewsHolder));
+					block.add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
 					return true;
 				}
 			} catch (IllegalAccessException | IllegalArgumentException
@@ -337,6 +342,14 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
     	}
     	
     	if (element instanceof ExecutableElement) {
+    		//This give support to Override methods where
+    		if (element.getAnnotation(Action.class) != null) {
+    			if (elementName.endsWith("_")) {
+    				elementName = elementName.substring(0, elementName.length()-1);
+    				return methodHandler(elementClass, elementName, element, viewsHolder, holder);
+    			}			
+    		}
+    		
     		//The same method invocating itself is handled in a different
     		//handler (Ex. ActionHandler)
     		return true;
@@ -358,10 +371,10 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 					List<? extends VariableElement> parameters = executableElem.getParameters();
 					TypeMirror resultType = executableElem.getReturnType();
 					
-					JMethod method = viewsHolder.getGeneratedClass().method(
+					JMethod method = holder.getGeneratedClass().method(
 							JMod.PUBLIC, getJClass(resultType.toString()), elementName
 						);
-					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder));
+					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
 					
 					JInvocation superInvoke = invoke(_super(), elementName);
 					for (VariableElement param : parameters) {
@@ -384,6 +397,29 @@ public abstract class BaseEventHandler extends BaseAnnotationHandler<EComponentW
 		
 		return false;
 	}
+	
+	protected abstract IJStatement getStatement(AbstractJClass elementClass, Element element, 
+												ViewsHolder viewsHolder, T holder);
+	
+	protected class StatementCreator implements IStatementCreator {
+		
+		AbstractJClass elementClass;
+		Element element;
+		ViewsHolder viewsHolder;
+		T holder;
+		
+		public StatementCreator(AbstractJClass elementClass, Element element,
+				ViewsHolder viewsHolder, T holder) {
+			this.elementClass = elementClass;
+			this.element = element;
+			this.viewsHolder = viewsHolder;
+			this.holder = holder;
+		}
 
-	protected abstract IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder);
+		@Override
+		public IJStatement getStatement() {
+			return BaseEventHandler.this.getStatement(elementClass, element, viewsHolder, holder);
+		}
+		
+	}
 }

@@ -20,9 +20,13 @@ import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,6 +66,13 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 	}
 	
 	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					EBean.class
+			   ));
+	}
+	
+	@Override
 	public void validate(Element element, ElementValidation valid) {		
 		if (element.getKind().isField()) {
 			Model annotated = element.getAnnotation(Model.class);
@@ -71,8 +82,6 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 			
 			return;
 		}
-		
-		validatorHelper.typeHasAnnotation(EBean.class, element, valid);
 		
 		//Validate special methods
 		List<? extends Element> elems = element.getEnclosedElements();
@@ -135,8 +144,9 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		Map<String, String> methods = new HashMap<String, String>();		
 		getFieldsAndMethods(fields, methods, (TypeElement)element);
 		
-		if (element.getAnnotation(UseModel.class).debug())
-			LOGGER.warn("\nFields: " + fields + "\nMethods: " + methods, element, element.getAnnotation(UseModel.class));
+		UseModel useModel = adiHelper.getAnnotation(element, UseModel.class);
+		if (useModel.debug())
+			LOGGER.warn("\nFields: " + fields + "\nMethods: " + methods, element, useModel);
 		
 		generateGetterAndSetters(holder, fields, methods);
 		
@@ -146,8 +156,6 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		useModelHolder.getWriteObjectMethod();
 		useModelHolder.getReadObjectMethod();
 	}
-
-	
 	
 	private void generateGetterAndSetters(BaseGeneratedClassHolder holder, Map<String, String> fields, Map<String, String> methods) {
 		//Generate getter and setters 

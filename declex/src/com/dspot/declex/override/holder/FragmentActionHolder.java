@@ -5,21 +5,34 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
+import static org.androidannotations.helper.ModelConstants.generationSuffix;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+
+import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.RootContext;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EFragmentHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.action.ActionForHandler;
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JConditional;
@@ -33,6 +46,16 @@ import com.helger.jcodemodel.JVar;
 
 public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 
+	private final static String CONTAINER_NAME = "container";
+	private final static String TRANSACTION_NAME = "transaction";
+	private final static String REPLACE_NAME = "replace";
+	private final static String ADD_NAME = "add";
+	private final static String INIT_NAME = "init";
+	private final static String BUILD_NAME = "build";
+	private final static String EXECUTE_NAME = "execute";
+	private final static String ADD_TO_BACK_STACK_NAME = "addToBackStack";
+	private final static String BUILDER_NAME = "builder";
+	
 	public JDefinedClass FragmentAction;
 	private JFieldVar contextField;
 	private JFieldVar startedField;
@@ -44,6 +67,99 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	public FragmentActionHolder(EFragmentHolder holder) {
 		super(holder);
+	}
+	
+	public static void createInformationForActionHolder(Element element,
+			AndroidAnnotationsEnvironment env) {
+		
+		final String clsName = element.asType().toString();
+		final int index = clsName.lastIndexOf('.');
+		final String pkg = clsName.substring(0, index);
+		final String fragmentName = clsName.substring(index + 1);
+		final String actionName = pkg + "." + fragmentName + "ActionHolder";
+		
+		ActionInfo actionInfo = new ActionInfo(actionName);
+		
+		//This will avoid generation for parent classes, not used in the project
+		actionInfo.generated = false; 
+		
+		actionInfo.setReferences(JavaDocUtils.referenceFromClassName(clsName));
+		Actions.getInstance().addAction(fragmentName, actionName, actionInfo);
+		
+		actionInfo.addMethod(CONTAINER_NAME, actionName);
+		
+		//FragmentTransaction can change the package
+		actionInfo.addMethod(TRANSACTION_NAME, "android.app.FragmentTransaction");
+		
+		actionInfo.addMethod(REPLACE_NAME, actionName);
+		
+		actionInfo.addMethod(ADD_NAME, actionName);
+		
+		actionInfo.addMethod(INIT_NAME, env.getCodeModel().VOID.fullName());
+		
+		actionInfo.addMethod(
+				BUILD_NAME, 
+				env.getCodeModel().VOID.fullName(),
+				Arrays.asList(new ActionMethodParam("Started", env.getJClass(Runnable.class)))
+			);
+		
+		actionInfo.addMethod(EXECUTE_NAME, env.getCodeModel().VOID.fullName()); 
+		
+		actionInfo.addMethod(ADD_TO_BACK_STACK_NAME, actionName);
+		
+		actionInfo.addMethod(BUILDER_NAME, actionName + ".FragmentBuilder" + generationSuffix());
+		
+		addFragmentArgFieldsInformation(actionInfo, element, env);
+	}
+
+	private static void addFragmentArgFieldsInformation(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
+		List<Element> fragmentArgFields = new LinkedList<>();
+		findFragmentArgFields(element, fragmentArgFields, env.getProcessingEnvironment());
+		
+		for (Element fragmentArgField : fragmentArgFields) {
+			addFieldInformationToActionHolder(actionInfo, fragmentArgField, env);
+		}
+	}
+	
+	private static void addFieldInformationToActionHolder(
+			ActionInfo actionInfo, Element element,
+			AndroidAnnotationsEnvironment env) {
+		
+		final String clsName = element.getEnclosingElement().asType().toString();
+		final int index = clsName.lastIndexOf('.');
+		final String pkg = clsName.substring(0, index);
+		final String fragmentName = clsName.substring(index + 1);
+		final String actionName = pkg + "." + fragmentName + "ActionHolder";
+
+		ClassInformation classInformation = TypeUtils.getClassInformation(element, env);
+		final String className = classInformation.originalClassName;
+		final String fieldName = element.getSimpleName().toString();
+		
+		actionInfo.addMethod(
+				fieldName, 
+				actionName, 
+				Arrays.asList(new ActionMethodParam(fieldName, env.getJClass(className)))
+			);
+	}
+	
+	private static void findFragmentArgFields(Element element, List<Element> fragmentArgFields, ProcessingEnvironment env) {
+		
+		List<? extends Element> elems = element.getEnclosedElements();
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.FIELD) {
+				if (elem.getAnnotation(FragmentArg.class) != null) {
+					fragmentArgFields.add(elem);
+				}
+			}
+		}
+		
+		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			
+			findFragmentArgFields(superElement, fragmentArgFields, env);
+		}
+
 	}
 	
 	public JDefinedClass getFragmentAction() {
@@ -64,29 +180,28 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 			
 			FragmentAction = getCodeModel()._getClass(actionName);
 			if (FragmentAction == null) {
-				
-				//This will make that the Action class be generated in the next round
-				ActionForHandler.GENERATE_IN_ROUND = false;
-				ActionInfo actionInfo = new ActionInfo(actionName);
-				ActionForHandler.addAction(fragmentName, actionName, actionInfo);
-				
+
 				FragmentAction = getCodeModel()._class(actionName);
 				FragmentAction.annotate(EBean.class);
 				JAnnotationUse actionFor = FragmentAction.annotate(ActionFor.class);
 				actionFor.param("value", fragmentName);		
 				
+				ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(FragmentAction.fullName());
+				actionInfo.generated = true;
+				FragmentAction.javadoc().add(actionInfo.references);
+				
 				setFields();
 				
-				setInit(actionInfo);
-				setContainer(actionInfo);
-				setTransaction(actionInfo);
-				setTransactionMethods(actionInfo);
+				setInit();
+				setContainer();
+				setTransaction();
+				setTransactionMethods();
 				
-				setBuild(actionInfo);
-				setExecute(actionInfo);
+				setBuild();
+				setExecute();
 				
-				setBuilder(actionInfo);
-				setAddToBackStack(actionInfo);			
+				setBuilder();
+				setAddToBackStack();			
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -94,24 +209,21 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 
 	}
 	
-	private void setContainer(ActionInfo actionInfo) {
-		final String containerName = "container";
-		
-		JFieldRef containerRes = environment().getRClass().get(Res.ID).getIdStaticRef(containerName, environment());
+	private void setContainer() {
+		JFieldRef containerRes = environment().getRClass().get(Res.ID).getIdStaticRef(CONTAINER_NAME, environment());
 		if (containerRes != null) {
-			containerField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, containerName, containerRes);
+			containerField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, CONTAINER_NAME, containerRes);
 		} else {
-			containerField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, containerName);
+			containerField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, CONTAINER_NAME);
 		}	
 		
-		JMethod containerMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, containerName);
-		JVar containerParam = containerMethod.param(getCodeModel().INT, containerName);
+		JMethod containerMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, CONTAINER_NAME);
+		JVar containerParam = containerMethod.param(getCodeModel().INT, CONTAINER_NAME);
 		containerMethod.body().assign(_this().ref(containerField), containerParam);
 		containerMethod.body()._return(_this());
-		actionInfo.addMethod(containerName, FragmentAction.fullName());
 	}
 	
-	private void setTransaction(ActionInfo actionInfo) {
+	private void setTransaction() {
 		AbstractJClass ACTIVITY = environment().getClasses().ACTIVITY;
 		AbstractJClass FragmentTransaction =  getJClass("android.app.FragmentTransaction");
 		AbstractJClass AppCompatActivity = getJClass("android.support.v7.app.AppCompatActivity");
@@ -124,7 +236,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		if (TypeUtils.isSubtype(elementSuperClass, CanonicalNameConstants.SUPPORT_V4_FRAGMENT, environment().getProcessingEnvironment())) {
 			getFragmentManager = "getSupportFragmentManager";
 			FragmentTransaction = getJClass("android.support.v4.app.FragmentTransaction");
-		    transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, "transaction");
+		    transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, TRANSACTION_NAME);
 			
 			JConditional ifIsActivity = initMethod.body()._if(contextField._instanceof(AppCompatActivity));
 			ifIsActivity._then().assign(
@@ -136,7 +248,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 					invoke(cast(ActionBarActivity, contextField), getFragmentManager).invoke("beginTransaction")
 				);
 		} else {
-			transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, "transaction");
+			transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, TRANSACTION_NAME);
 					
 			JConditional ifIsActivity = initMethod.body()._if(contextField._instanceof(ACTIVITY));
 			ifIsActivity._then().assign(
@@ -145,23 +257,18 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 				);
 		}
 		
-		JMethod transactionMethodMethod = FragmentAction.method(JMod.PUBLIC, FragmentTransaction, "transaction");
+		JMethod transactionMethodMethod = FragmentAction.method(JMod.PUBLIC, FragmentTransaction, TRANSACTION_NAME);
 		transactionMethodMethod.body()._return(transactionField);
-		actionInfo.addMethod("transaction", FragmentTransaction.fullName());
 	}
 	
-	private void setTransactionMethods(ActionInfo actionInfo) {
-		final String replaceName = "replace";
-		JMethod replaceMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, replaceName);
+	private void setTransactionMethods() {
+		JMethod replaceMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, REPLACE_NAME);
 		replaceMethod.body().assign(_this().ref(transactionMethodField), lit(0));
 		replaceMethod.body()._return(_this());
-		actionInfo.addMethod(replaceName, FragmentAction.fullName());
 
-		final String addName = "add";
-		JMethod addMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, addName);
+		JMethod addMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_NAME);
 		addMethod.body().assign(_this().ref(transactionMethodField), lit(1));
 		addMethod.body()._return(_this());
-		actionInfo.addMethod(addName, FragmentAction.fullName());
 	}
 
 	private void setFields() {
@@ -174,30 +281,19 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		transactionMethodField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, "transactionMethod", lit(0));
 	}
 	
-	private void setInit(ActionInfo actionInfo) {
-		final String initName = "init";
-		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, initName);
+	private void setInit() {
+		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
 		initMethod.body().assign(builderField, getGeneratedClass().staticInvoke("builder"));
-		actionInfo.addMethod(initName, getCodeModel().VOID.fullName());
 	}
 	
-	private void setBuild(ActionInfo actionInfo) {
-		final String buildName = "build";
-		
-		JMethod buildMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, buildName);
+	private void setBuild() {
+		JMethod buildMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, BUILD_NAME);
 		JVar startedParam = buildMethod.param(getJClass(Runnable.class), "Started");
 		buildMethod.body().assign(_this().ref(startedField), startedParam);
-		
-		actionInfo.addMethod(
-				buildName, 
-				getCodeModel().VOID.fullName(),
-				Arrays.asList(new ActionMethodParam("Started", getJClass(Runnable.class)))
-			);
 	}
 	
-	private void setExecute(ActionInfo actionInfo) {
-		final String executeName = "execute";
-		JMethod executeMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, executeName);
+	private void setExecute() {
+		JMethod executeMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, EXECUTE_NAME);
 
 		JInvocation transactionReplaceInvoke = transactionField.invoke("replace").arg(containerField)
 				.arg(builderField.invoke("build"))
@@ -212,23 +308,17 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		ifReplace._elseif(transactionMethodField.eq(lit(1)))._then().add(transactionAddInvoke);
 		
 		executeMethod.body()._if(startedField.ne(_null()))._then().invoke(startedField, "run");
-		
-		actionInfo.addMethod(executeName, getCodeModel().VOID.fullName()); 	
 	}
 	
-	private void setAddToBackStack(ActionInfo actionInfo) {
-		final String addToBackStack = "addToBackStack";
-		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, addToBackStack);
+	private void setAddToBackStack() {
+		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
 		addToBackStackMethod.body().invoke(transactionField, "addToBackStack").arg(_null());
 		addToBackStackMethod.body()._return(_this());
-		actionInfo.addMethod(addToBackStack, FragmentAction.fullName());
 	}
 	
-	private void setBuilder(ActionInfo actionInfo) {
-		final String builderName = "builder";
-		JMethod builderMethodMethod = FragmentAction.method(JMod.PUBLIC, holder().getBuilderClass(), builderName);
+	private void setBuilder() {
+		JMethod builderMethodMethod = FragmentAction.method(JMod.PUBLIC, holder().getBuilderClass(), BUILDER_NAME);
 		builderMethodMethod.body()._return(builderField);
-		actionInfo.addMethod(builderName, holder().getBuilderClass().fullName());
 	}
 	
 }

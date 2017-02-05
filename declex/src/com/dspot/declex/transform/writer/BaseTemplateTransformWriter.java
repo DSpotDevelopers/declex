@@ -18,15 +18,15 @@ package com.dspot.declex.transform.writer;
 import java.io.IOException;
 import java.io.Writer;
 
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 
-public class BaseTemplateTransformWriter extends Writer {
-	protected BaseGeneratedClassHolder holder;
+public class BaseTemplateTransformWriter<T extends GeneratedClassHolder> extends Writer {
+	protected T holder;
 	
 	protected String strCode = "";
     private Writer out;
        
-    public BaseTemplateTransformWriter(Writer out, BaseGeneratedClassHolder holder) {
+    public BaseTemplateTransformWriter(Writer out, T holder) {
     	this.holder = holder;
         this.out = out;
     }

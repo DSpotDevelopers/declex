@@ -19,21 +19,21 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
 
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 
 import com.dspot.declex.transform.writer.BaseTemplateTransformWriter;
 
 import freemarker.template.TemplateModelException;
 
-public class ClassFooterTransform extends BaseTemplateTransform {
+public class ClassFooterTransform<T extends GeneratedClassHolder> extends BaseTemplateTransform<T> {
 
-	public ClassFooterTransform(BaseGeneratedClassHolder holder) {
+	public ClassFooterTransform(T holder) {
 		super(holder);
 	}
 
 	@Override
 	public Writer getWriter(Writer out, Map args)
 			throws TemplateModelException, IOException {
-		return new BaseTemplateTransformWriter(out, holder);
+		return new BaseTemplateTransformWriter<T>(out, holder);
 	}
 }

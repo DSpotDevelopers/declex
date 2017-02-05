@@ -7,16 +7,16 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.helger.jcodemodel.JInvocation;
 
 public class ParamUtils {
-	public static void injectParam(String paramName, JInvocation invocation) {
-		injectParam(paramName, invocation, null);
+	public static JInvocation injectParam(String paramName, JInvocation invocation) {
+		return injectParam(paramName, invocation, null);
 	}
 	
-	public static void injectParam(String paramName, JInvocation invocation, ViewsHolder viewsHolder) {
+	public static JInvocation injectParam(String paramName, JInvocation invocation, ViewsHolder viewsHolder) {
 		if (viewsHolder != null) {
-			viewsHolder.checkFieldNameInInvocation(paramName, invocation);
+			return viewsHolder.checkFieldNameInInvocation(paramName, invocation);
 		} else {
-			if (paramName.equals("$this")) invocation.arg(_this());
-			else invocation.arg(ref(paramName));
+			if (paramName.equals("$this")) return invocation.arg(_this());
+			return invocation.arg(ref(paramName));
 		}
 	}
 }

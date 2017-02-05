@@ -60,8 +60,6 @@ import java.lang.annotation.Target;
  *  ;instruction;	This executes the "instruction" code before the Action
  *  instruction; 	Executes the "instruction" code after the Action.
  * </pre>
- * 
- * @author Smaugh
  *
  */
 @Retention(RetentionPolicy.CLASS)

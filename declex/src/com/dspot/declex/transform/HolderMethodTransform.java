@@ -20,16 +20,16 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 
 import com.dspot.declex.transform.writer.BaseTemplateTransformWriter;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JMethod;
 
-public class HolderMethodTransform extends BaseTemplateTransform {
+public class HolderMethodTransform<T extends GeneratedClassHolder> extends BaseTemplateTransform<T> {
 	
-	public HolderMethodTransform(BaseGeneratedClassHolder holder) {
+	public HolderMethodTransform(T holder) {
 		super(holder);
 	}
 
@@ -37,11 +37,11 @@ public class HolderMethodTransform extends BaseTemplateTransform {
     	return new HolderMethodWriter(out, args.get("name").toString(), holder);
     }
 
-    private class HolderMethodWriter extends BaseTemplateTransformWriter {
+    private class HolderMethodWriter extends BaseTemplateTransformWriter<T> {
     	
     	private String name;
            
-        public HolderMethodWriter(Writer out, String name, BaseGeneratedClassHolder holder) {
+        public HolderMethodWriter(Writer out, String name, T holder) {
         	super(out, holder);
             this.name = name;
         }

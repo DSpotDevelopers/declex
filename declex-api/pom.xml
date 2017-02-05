@@ -5,7 +5,7 @@
 	
 	<groupId>com.dspot</groupId>
 	<artifactId>declex-api</artifactId>
-	<version>1.1</version>
+	<version>1.2</version>
 	<name>DecleX API</name>
 	<description>DecleX Framework API</description>
 
@@ -18,9 +18,15 @@
 
 			<!-- ANT Task should be run to insert here the Action classes files -->
 			<!-- TODO: Run the processor within maven -->
-			<resource>
+			<!--<resource>
 				<directory>target/processed</directory>
-			</resource>
+			</resource>  -->
+			<resource>
+				<directory>src</directory>
+				<includes>
+					<include>**/action/builtin/*.java</include>
+				</includes>
+			</resource>			
 		</resources>
 
 		<plugins>
@@ -30,9 +36,9 @@
 				<configuration>
 					<source>1.7</source>
 					<target>1.7</target>
-					<!-- excludes>
-						<exclude>**/action/builtin/**</exclude>
-					</excludes>-->
+					<!--excludes>
+						<exclude>**/action/builtin/*.java</exclude>
+					</excludes-->
 				</configuration>
 			</plugin>
 
@@ -62,7 +68,7 @@
 	<distributionManagement>
 		<repository>
 			<id>bintray-declex</id>
-			<url>https://api.bintray.com/maven/dspot/declex/declex-api/;publish=1</url>
+			<url>https://api.bintray.com/maven/dspot-developers/declex/declex-api/;publish=1</url>
 		</repository>
 		
 		<snapshotRepository>
@@ -99,6 +105,13 @@
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
 			<version>3.4.2</version>
+		</dependency>
+
+		<dependency>
+		  <groupId>org.apache.commons</groupId>
+		  <artifactId>commons-lang3</artifactId>
+		  <version>3.5</version>
+		  <scope>provided</scope>
 		</dependency>
 
 	</dependencies>

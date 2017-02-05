@@ -44,8 +44,12 @@ public class RecollectActionProcessor extends BaseActionProcessor {
 				Recollector recollectorAnnotation = field.getAnnotation(Recollector.class);
 				if (recollectorAnnotation != null) {
 					
+					Boolean validating = (Boolean) actionInfo.metaData.get("validating");
+					if (validating) return;
+					
 					JInvocation invoke = invoke("_recollect_" + field.getSimpleName().toString())
-											.arg(action.invoke("getDone"));
+											.arg(action.invoke("getDone"))
+											.arg(action.invoke("getFailed"));
 					addPostBuildBlock(invoke);
 					
 				} else {

@@ -15,10 +15,16 @@
  */
 package com.dspot.declex.eventbus;
 
+import static com.helger.jcodemodel.JExpr.ref;
+
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,27 +36,55 @@ import javax.lang.model.type.TypeKind;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
+import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.api.eventbus.Event;
 import com.dspot.declex.api.eventbus.UseEventBus;
+import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
-import com.dspot.declex.util.SharedRecords;
-import com.helger.jcodemodel.JClassAlreadyExistsException;
+import com.dspot.declex.util.JavaDocUtils;
+import com.dspot.declex.util.TypeUtils;
+import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
+import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 
-public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
-
-	public final static Map<String, Map<String, String>> roundGeneratedEvents = new HashMap<>();
+public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {	
 	
 	public EventHandler(AndroidAnnotationsEnvironment environment) {
 		super(Event.class, environment);
 	}
 	
 	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					UseEventBus.class
+			   ));
+	}
+	
+	@Override
+	public Element dependentElement(Element element,
+			Class<? extends Annotation> dependency) {
+		if (element instanceof ExecutableElement) {
+			return element.getEnclosingElement();
+		} else {
+			return null;
+		}
+	}
+	
+	@Override
 	protected void validate(Element element, ElementValidation valid) {
+		
+	    String className = element instanceof ExecutableElement ? 
+		           element.getSimpleName().toString().substring(2) : 
+	               element.asType().toString();
+        if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	        
+     
 		if (element instanceof ExecutableElement) {
 			ExecutableElement executableElement = (ExecutableElement) element;
 			
@@ -62,30 +96,22 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (!methodName.startsWith("on")) {
 				valid.addError("An event method name should start with \"on\"");	
 			}
-
-			if (methodName.toLowerCase().startsWith("onevent")) {
-				valid.addError("An event method name cannot start with \"onEvent\", this is reserved for the system");	
-			}
 			
 			if (methodName.length() <= 2) {
 				valid.addError("You should provide a name in your event, Ex: \"onMyEvent\"");				
 			}
 
-			UseEventBus annotation = element.getEnclosingElement().getAnnotation(UseEventBus.class);
+			UseEventBus annotation = adiHelper.getAnnotation(element.getEnclosingElement(), UseEventBus.class);
 			if (annotation == null) {
 				valid.addError("The enclosing class should be annotated with @UseEventBus");
 			}
+			
+			ActionsProcessor.validateActions(element, valid, getEnvironment());
 
 			if (!valid.isValid()) return;
 			
-			String className = methodName.substring(2);
-			className = DeclexConstant.EVENT_PATH + className;
-			
-			//Add to the Special Events in validation, so other validators will find this Event
-			SharedRecords.addEventGeneratedClass(className, getEnvironment());
-
-			Map<String, String> fields = new HashMap<>();
-			roundGeneratedEvents.put(className, fields);
+			className = DeclexConstant.EVENT_PATH + className;			
+			final Map<String, String> fields = new HashMap<>();
 			
 			List<? extends VariableElement> parameters = executableElement.getParameters();				
 			if (parameters.size() != 0) {
@@ -98,27 +124,17 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					
 					fields.put(paramName, paramType);
 				}	
-			}
-			return;
-		}
-		
-		String className = element.asType().toString();
-		if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);
-		
-		if (className.toLowerCase().startsWith("event")) {
-			valid.addError("An event class name cannot start with \"Event\" signature, this is reserved for the system");
+			}			
+			
+			EventUtils.registerEvent(className, fields, getEnvironment());
+			
 			return;
 		}
 		
 		className = DeclexConstant.EVENT_PATH + className;
-		
-		//Add to the Special Events in validation, so other validators will find this Event
-		SharedRecords.addEventGeneratedClass(className, getEnvironment());
-		
-		Map<String, String> fields = new HashMap<>();
-		roundGeneratedEvents.put(className, fields);
-		
 		Event eventAnnotation = element.getAnnotation(Event.class);
+		final Map<String, String> fields = new HashMap<>();
+		
 		for (String field : eventAnnotation.value()) {
 			Matcher matcher = Pattern.compile("\\s*(\\w+)\\s*:\\s*([A-Za-z_][A-Za-z0-9_.]+)").matcher(field);
 			if (matcher.find()) {
@@ -131,28 +147,83 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				fields.put(matcher.group(1), clazz);
 			}
 		}
+		
+		EventUtils.registerEvent(className, fields, getEnvironment());
 	}
 
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		
-		try {
-			String className = element instanceof ExecutableElement ? 
-					           element.getSimpleName().toString().substring(2) : 
-				               element.asType().toString();
-			if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);
+		String className = element instanceof ExecutableElement ? 
+		           element.getSimpleName().toString().substring(2) : 
+	               element.asType().toString();
+        if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
+        
+        AbstractJClass EventClass = EventUtils.createNewEvent(className, JavaDocUtils.referenceFromElement(element), getEnvironment());
+		Map<String, String> eventFields = EventUtils.eventsFields.get(EventClass.fullName());
+		
+		if (element instanceof ExecutableElement) {
+			final ViewsHolder viewsHolder;
+			if (holder instanceof EComponentWithViewSupportHolder) {
+				viewsHolder = holder.getPluginHolder(
+					new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+				);
+			} else {
+				viewsHolder = null;
+			}
 			
+			//Purge parameters
+			List<? extends VariableElement> parameters = ((ExecutableElement) element).getParameters();				
+			if (parameters.size() != 0) {
+				for (VariableElement param : parameters) {
+					final String paramName = param.getSimpleName().toString();
+					String paramType = param.asType().toString();
+					
+					if (!TypeUtils.isSubtype(paramType, CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
+						continue;
+					}
+					
+					if (viewsHolder.layoutContainsId(paramName)) {
+						eventFields.remove(paramName);
+					}
+				}	
+			}	
 			
-			JDefinedClass EventClass = EventUtils.createNewEvent(className, getEnvironment());
-			Map<String, String> eventFields = roundGeneratedEvents.get(EventClass.fullName());
+			ExecutableElement executableElement = (ExecutableElement) element;				
+			if (viewsHolder != null) {
+				ActionsProcessor.processActions(executableElement, viewsHolder.holder());
+			}
+			
+			EventUtils.getEventMethod(EventClass.fullName(), executableElement, holder, viewsHolder, getEnvironment());		
+		}
+				
+		//Create the fields for the event, if it is created here
+		if (EventClass instanceof JDefinedClass) {
+			
+			JMethod initMethod = null;
 			
 			for (Entry<String, String> field : eventFields.entrySet()) {
-				EventClass.field(JMod.NONE, getJClass(field.getValue()), field.getKey());
-			}
-						
-		} catch (JClassAlreadyExistsException e) {
+				
+				if (initMethod == null) {
+					initMethod = ((JDefinedClass) EventClass).method(
+							JMod.NONE, getEnvironment().getCodeModel().VOID, "init"
+						);
+				}
+				
+				final String fieldName = field.getKey();
+				final AbstractJClass fieldClass = getJClass(
+						TypeUtils.typeFromTypeString(field.getValue(), getEnvironment())
+					);
+				
+				((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);
+				initMethod.param(fieldClass, fieldName);
+				
+				initMethod.body().invoke("init");
+				initMethod.body().invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName));
+			}			
 		}
+		
 	}
 
 

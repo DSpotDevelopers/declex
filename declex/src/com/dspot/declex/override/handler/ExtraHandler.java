@@ -19,7 +19,6 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
 
 import javax.lang.model.element.Element;
 
@@ -30,9 +29,6 @@ import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
 
-import com.dspot.declex.action.ActionForHandler;
-import com.dspot.declex.api.action.process.ActionInfo;
-import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.override.holder.ActivityActionHolder;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
@@ -89,12 +85,5 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		JVar fieldMethodParam = fieldMethod.param(getJClass(className), fieldName);
 		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
 		fieldMethod.body()._return(_this());
-		
-		ActionInfo actionInfo = ActionForHandler.getActionInfos().get(ActivityAction.fullName());
-		actionInfo.addMethod(
-				fieldName, 
-				ActivityAction.fullName(), 
-				Arrays.asList(new ActionMethodParam(fieldName, getJClass(className)))
-			);
 	}
 }

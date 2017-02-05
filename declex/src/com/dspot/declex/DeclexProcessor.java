@@ -16,7 +16,6 @@
 package com.dspot.declex;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -26,10 +25,11 @@ import javax.lang.model.element.TypeElement;
 import org.androidannotations.internal.model.AnnotationElements;
 import org.androidannotations.internal.process.ModelProcessor.ProcessResult;
 import org.androidannotations.logger.Logger;
+import org.androidannotations.logger.LoggerContext;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
-import com.dspot.declex.action.ActionForHandler;
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.util.LayoutsParser;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.SharedRecords;
@@ -40,8 +40,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	
 	protected LayoutsParser layoutsParser;
 	protected MenuParser menuParser;
-		
-	public static final String INTERNAL = "internal";
+	protected Actions actions;
 	
 	@Override
 	protected AndroidAnnotationsPlugin getCorePlugin() {
@@ -50,19 +49,20 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	
 	@Override
 	public synchronized void init(ProcessingEnvironment processingEnv) {
-		if (processingEnv.getOptions().containsKey(INTERNAL)) {
-			System.out.println("Initializing DecleX for internal build");
-		} else {
-			try {
-				layoutsParser = new LayoutsParser(processingEnv, LOGGER);
-				menuParser = new MenuParser(processingEnv, LOGGER);
-			} catch (Throwable e) {
-				LOGGER.error("Cannot parse resources", e);
-				return;
-			}		
-		}
+		try {
+			layoutsParser = new LayoutsParser(processingEnv, LOGGER);
+			menuParser = new MenuParser(processingEnv, LOGGER);
+		} catch (Throwable e) {
+			LOGGER.error("Cannot parse resources", e);
+			
+			e.printStackTrace();
+			
+			return;
+		}	
 			
 		super.init(processingEnv);
+		
+		actions = new Actions(androidAnnotationsEnv);
 		
 	}
 	
@@ -71,13 +71,21 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			RoundEnvironment roundEnv) {
 		
 		LOGGER.info("Executing Declex");
-		
+				
 		try {
+			//Update actions information in each round
+			actions.getActionsInformation();
+			
 			return super.process(annotations, roundEnv);
 		} catch (Throwable e) {
 			LOGGER.error("An error occured", e);
+			LoggerContext.getInstance().close();
+			
+			e.printStackTrace();
+			
 			return false;
 		}
+		
 	}
 	
 	@Override
@@ -94,25 +102,14 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected void generateSources(ProcessResult processResult)
 			throws IOException {
 		
-		if (ActionForHandler.GENERATE_IN_ROUND) {
-			ActionForHandler.buildActionObject(androidAnnotationsEnv);
-		}
-		
+		//Generate Actions
+		actions.buildActionsObject();
+				
 		SharedRecords.writeEvents(processingEnv);
 		SharedRecords.writeModels(processingEnv);
-		SharedRecords.writeActions(processingEnv);
-		
-		//Generate Action in next round
-		ActionForHandler.GENERATE_IN_ROUND = true;
 		
 		super.generateSources(processResult);
-	}
-	
-	@Override
-	public Set<String> getSupportedOptions() {
-		Set<String> supportedOptions = new HashSet<>(super.getSupportedOptions());
-		supportedOptions.add(INTERNAL);
-		return supportedOptions;
+		
 	}
 	
 	public static void main(String[] args) {

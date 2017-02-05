@@ -13,8 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.action.model;
+package com.dspot.declex.api.json;
 
-public class PutModel extends BaseModelAction {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
+@Retention(RetentionPolicy.CLASS)
+@Target({ElementType.TYPE, ElementType.METHOD})
+public @interface JsonSerializedModel {
+	
+	boolean custom() default false;
 }

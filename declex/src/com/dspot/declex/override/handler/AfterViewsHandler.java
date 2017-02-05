@@ -23,7 +23,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.action.ActionScanner;
+import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
@@ -49,12 +49,14 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		validatorHelper.isNotPrivate(element, valid);
 
 		validatorHelper.doesntThrowException(executableElement, valid);
+		
+		ActionsProcessor.validateActions(element, valid, getEnvironment());
 	}
 
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) throws Exception {
 		
-		ActionScanner.processActions(element, holder);
+		ActionsProcessor.processActions(element, holder);
 		
 		uniquePriorityCounter++;
 		

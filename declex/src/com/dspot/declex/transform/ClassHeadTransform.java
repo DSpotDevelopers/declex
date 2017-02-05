@@ -28,9 +28,9 @@ import com.dspot.declex.transform.writer.BaseTemplateTransformWriter;
 
 import freemarker.template.TemplateModelException;
 
-public class ClassHeadTransform extends BaseTemplateTransform {
+public class ClassHeadTransform<T extends BaseGeneratedClassHolder> extends BaseTemplateTransform<T> {
 	
-	public ClassHeadTransform(BaseGeneratedClassHolder holder) {
+	public ClassHeadTransform(T holder) {
 		super(holder);
 	}
 
@@ -40,9 +40,9 @@ public class ClassHeadTransform extends BaseTemplateTransform {
 		return new ClassHeadWriter(out, holder);
 	}
 
-	private class ClassHeadWriter extends BaseTemplateTransformWriter {
+	private class ClassHeadWriter extends BaseTemplateTransformWriter<T> {
 		
-		public ClassHeadWriter(Writer out, BaseGeneratedClassHolder holder) {
+		public ClassHeadWriter(Writer out, T holder) {
 			super(out, holder);
 		}
 		

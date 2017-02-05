@@ -15,23 +15,51 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import org.androidannotations.annotations.EBean;
-
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.processor.RecollectActionProcessor;
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
-@EBean
+/**
+ * An Action to recollect a {@link com.dspot.declex.api.populator.Recollector @Recollector} 
+ * annotated field.
+ * 
+ * <br><br>
+ * The recollection process will link the user interface (layout) with the field, reading all
+ * the matching "ids" Views in the layout into the fields and methods in the Model. 
+ * 
+ * <br><br>
+ * <b>More Info in </b><a href="https://github.com/smaugho/declex/wiki/Recollecting%20Data">Recollecting Data</a>
+ *
+ * @see com.dspot.declex.Action.$Populate $Populate
+ * @see com.dspot.declex.Action.$GetModel $GetModel
+ * @see com.dspot.declex.Action.$PutModel $PutModel
+ */
+
 @ActionFor(value="Recollect", processors=RecollectActionProcessor.class)
 public class RecollectActionHolder {
 
 	private Runnable Done;
+	private OnFailedRunnable Failed;
 	
+	/**
+	 *@param field The field annotated with {@link com.dspot.declex.api.populator.Recollector @Recollector}.
+	 */
     void init(@Field Object object) {
     }
 
-    void build(Runnable Done) {
+    /**
+     * @param Done <i><b>(default)</b></i> It will be executed after the 
+     * {@link com.dspot.declex.api.populator.Recollector @Recollector}  annotated
+     * field is used to recollect from the user interface
+     * 
+     * @param Failed It will be executed if the 
+     * {@link com.dspot.declex.api.populator.Recollector @Recollector}  
+     * annotated field fails recollecting.
+     */
+    void build(Runnable Done, OnFailedRunnable Failed) {
     	this.Done = Done;
+    	this.Failed = Failed;
     }
 
     void execute() {
@@ -39,5 +67,9 @@ public class RecollectActionHolder {
     
     Runnable getDone() {
     	return this.Done;
+    }
+    
+    OnFailedRunnable getFailed() {
+    	return this.Failed;
     }
 }

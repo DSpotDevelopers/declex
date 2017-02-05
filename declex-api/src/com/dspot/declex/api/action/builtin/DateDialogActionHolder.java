@@ -17,20 +17,27 @@ package com.dspot.declex.api.action.builtin;
 
 import java.util.Calendar;
 
-import org.androidannotations.annotations.EBean;
 import org.androidannotations.annotations.RootContext;
 
 import android.app.DatePickerDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.widget.DatePicker;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.StopOn;
 
-@EBean
+/**
+ * An Action representing a simple dialog containing a {@link android.widget.DatePicker}.
+ *
+ * <p>See the <a href="{@docRoot}guide/topics/ui/controls/pickers.html">Pickers</a>
+ * guide.</p>
+ */
+
 @ActionFor("DateDialog")
 public class DateDialogActionHolder {
 
@@ -42,13 +49,35 @@ public class DateDialogActionHolder {
     private DateSetRunnable DateSet;
     
     void init() {
-        // Use the current time as the default values for the picker
-        final Calendar c = Calendar.getInstance();
-        final int day = c.get(Calendar.DATE);
-        int month = c.get(Calendar.MONTH);
-        int year = c.get(Calendar.YEAR);
+    	init(null);
+    }
+        
+    /**
+     * @param calendar A Calendar object containing the initial day, month and year
+     * for the date picker.
+     */
+    void init(Calendar calendar) {
+    	
+    	if (calendar == null) {
+	        // Use the current time as the default values for the picker
+	        calendar = Calendar.getInstance();
+    	}
+    	        
+        final int year = calendar.get(Calendar.YEAR);
+        final int month = calendar.get(Calendar.MONTH);
+        final int day = calendar.get(Calendar.DATE);
 
-        // Create a new instance of TimePickerDialog
+        init(year, month, day);
+    }
+    
+    /**
+     * @param year The initial year of the dialog.
+     * @param month The initial month of the dialog.
+     * @param day The initial day of the dialog.
+     */
+    void init(int year, int month, int day) {
+    	
+    	// Create a new instance of DatePickerDialog
         dialog = new DatePickerDialog(
             context,
             new DatePickerDialog.OnDateSetListener() {
@@ -60,18 +89,47 @@ public class DateDialogActionHolder {
             },
             year, month, day
         );
+        
     }
+
     
-	//Here you can infer any parameter, the first parameter is the next listener 
-    void build(DateSetRunnable DateSet, final Runnable Dismissed) {
+    /**
+     * @param DateSet <i><b>(default)</b></i> This Action Selector will be executed when the Date is set.
+     * <br><br>Parameters
+     * <ul>
+     * <li>datePicker - The DatePicker View associated with this listener.</li>
+     * <li>year - The year that was set.</li>
+     * <li>month - The month that was set (0-11) for compatibility with {@link java.util.Calendar}.</li>
+     * <li>day - The day of the month that was set.</li>
+     * </ul>  
+     * 
+     * @param Canceled This Action Selector will be invoked when the dialog is canceled.
+     * 
+     * @param Dismissed This Action Selector will be invoked when the dialog is dismissed.
+     */
+    void build(
+    		final DateSetRunnable DateSet, 
+    		final Runnable Canceled, 
+    		final Runnable Dismissed) {
+    	
     	this.DateSet = DateSet;
+    	
+    	if (Canceled != null) {
+    		dialog.setOnCancelListener(new OnCancelListener() {
+				
+				@Override
+				public void onCancel(DialogInterface arg0) {
+					Canceled.run();
+				}
+			});
+    	}
     	
     	if (Dismissed != null) {
     		 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
 				
 				@Override
 				public void onDismiss(DialogInterface arg0) {
-					if (Dismissed != null) Dismissed.run();
+					Dismissed.run();
 				}
 			});
     	}
@@ -82,8 +140,21 @@ public class DateDialogActionHolder {
 		dialog.show();
 	}
 
+    /**
+     * @return Internal Android Dialog instance to make further configurations.
+     */
+    @StopOn("show")
     public Dialog dialog() {
         return this.dialog;
+    }
+    
+    /**
+     * Assigns the Internal Android Dialog instance.
+     * 
+     * @param dialog The variable to which the dialog is going to be assigned
+     */
+    public DateDialogActionHolder dialog(@Assignable("dialog") Dialog dialog) {
+    	return this;
     }
 
     public DateDialogActionHolder title(@FormattedExpression String title) {
@@ -95,12 +166,6 @@ public class DateDialogActionHolder {
         dialog.setMessage(message);
         return this;
     }
-
-    public DateDialogActionHolder into(@Assignable("dialog") Dialog dialog) {
-    	return this;
-    }
-
-
 
     public static abstract class DateSetRunnable implements Runnable, DatePickerDialog.OnDateSetListener {
 

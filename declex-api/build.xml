@@ -19,7 +19,7 @@
 
 <project name="declex-api" default="jar">
     
-    <property name="project.version" value="1.1"/>
+    <property name="project.version" value="1.2"/>
     
     <property environment="env"/>
     <property name="target" value="1.7"/>
@@ -28,7 +28,12 @@
     <property name="project.path" location="."/>
     
     <property name="declex.processor.path" value="${project.path}/../declex/bin/declex-v${project.version}.jar;${project.path}/resources"/>
-    <property name="class.path" value="${project.path}/libs/adroid-support-v4.jar;${project.path}/libs/android.jar;${project.path}/target/classes"/>
+    <property name="class.path" value="
+        ${project.path}/libs/android-support-v4.jar;
+        ${project.path}/libs/android.jar;
+        ${project.path}/libs/picasso-2.5.2.jar;
+        ${project.path}/libs/support-annotations-24.0.0.jar;
+        ${project.path}/target/classes"/>
     
     <property name="processed" location="target/processed"/>
     <property name="generated-src" location="target/generated-src"/>

@@ -31,21 +31,19 @@ import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.util.TypeUtils;
 
-public abstract class BaseModelAndModelClassHandler extends BaseTemplateHandler {
+public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClassHolder> extends BaseTemplateHandler<T> {
 	
 	public BaseModelAndModelClassHandler(Class<?> targetClass,
 			AndroidAnnotationsEnvironment environment, String templatePath,
 			String templateName) {
 		super(targetClass, environment, templatePath, templateName);
-		
-		
 	}
 	
 	protected abstract Class<?> getDefaultModelClass();
 	
 	@Override
 	protected void setTemplateDataModel(Map<String, Object> rootDataModel,
-			Element element, BaseGeneratedClassHolder holder) {
+			Element element, T holder) {
 		super.setTemplateDataModel(rootDataModel, element, holder);
 		
 		final DeclaredType modelClassType = annotationHelper.extractAnnotationClassParameter(element, getTarget(), "modelClass");
@@ -60,7 +58,7 @@ public abstract class BaseModelAndModelClassHandler extends BaseTemplateHandler 
 		
 		try {
 			Method modelMethod = targetAnnotation.getMethod("model", new Class[] {});
-			String model = (String) modelMethod.invoke(element.getAnnotation(targetAnnotation), new Object[] {});
+			String model = (String) modelMethod.invoke(adiHelper.getAnnotation(element, targetAnnotation), new Object[] {});
 			
 			rootDataModel.put("model", model);
 			
@@ -90,7 +88,7 @@ public abstract class BaseModelAndModelClassHandler extends BaseTemplateHandler 
 		
 		final DeclaredType modelClassType = annotationHelper.extractAnnotationClassParameter(element, getTarget(), "modelClass");
 		if (modelClassType != null) {
-			UseModel useModel = modelClassType.asElement().getAnnotation(UseModel.class);
+			UseModel useModel = adiHelper.getAnnotation(modelClassType.asElement(), UseModel.class);
 			if (useModel == null) {
 				valid.addError("The provided model \"" + modelClassType + "\" is not annotated with @UseModel");
 			}
@@ -98,7 +96,7 @@ public abstract class BaseModelAndModelClassHandler extends BaseTemplateHandler 
 		
 		try {
 			Method modelMethod = targetAnnotation.getMethod("model", new Class[] {});
-			String model = (String) modelMethod.invoke(element.getAnnotation(targetAnnotation), new Object[] {});
+			String model = (String) modelMethod.invoke(adiHelper.getAnnotation(element, targetAnnotation), new Object[] {});
 			
 			//Search coinciding fields
 			if (!model.equals("") && !model.equals("this")) {

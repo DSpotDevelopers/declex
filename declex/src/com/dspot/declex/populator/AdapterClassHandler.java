@@ -16,6 +16,7 @@
 package com.dspot.declex.populator;
 
 import static com.helger.jcodemodel.JExpr.ref;
+import static com.helger.jcodemodel.JExpr._null;
 
 import java.util.List;
 
@@ -40,6 +41,7 @@ import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
+import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 
 public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder> implements JClassPlugin {
@@ -91,20 +93,49 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 				List<? extends VariableElement> params = executableElement.getParameters();
 				
 				if (elemName.equals("inflate")) {
-					if (params.size() != 3) return;
 					
-					JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().LAYOUT_INFLATER});
+					if (params.size() > 0 && params.size() < 4) {
+						
+						boolean isViewAdapter = false;
+						JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().LAYOUT_INFLATER});
+						if (inflaterMethod == null) {
+							inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().LAYOUT_INFLATER});
+							isViewAdapter = true;
+						}
+							
+						
+						//Remove previous method body
+						codeModelHelper.removeBody(inflaterMethod);
+						
+						JFieldRef position = ref("position");
+						JFieldRef viewType = ref("viewType");
+						JFieldRef convertView = ref("convertView");
+						JFieldRef inflater = ref("inflater");
+
+						JInvocation invoke = JExpr._super().invoke(inflaterMethod);
+						for (VariableElement param : params) {
+							if (param.asType().toString().equals("int")) {
+								if (isViewAdapter) invoke = invoke.arg(position);
+								else invoke = invoke.arg(viewType);
+							} else
+							
+							if (isViewAdapter && param.asType().toString().equals(getClasses().VIEW.fullName())) {
+								invoke = invoke.arg(convertView);
+							} else
+							
+							if (param.asType().toString().equals(getClasses().LAYOUT_INFLATER.fullName())) {
+								invoke = invoke.arg(inflater);
+							} else					
+								
+							{
+								invoke = invoke.arg(_null());
+							}
+						}
+						
+						inflaterMethod.body()._return(invoke);
+					}
 					
-					//Remove previous method body
-					codeModelHelper.removeBody(inflaterMethod);
-					
-					JFieldRef position = ref("position");
-					JFieldRef convertView = ref("convertView");
-					JFieldRef inflater = ref("inflater");
-					
-					inflaterMethod.body()._return(
-						JExpr._super().invoke(inflaterMethod).arg(position).arg(convertView).arg(inflater)
-					);	
+					return;				
 				}				
 			}
 		}

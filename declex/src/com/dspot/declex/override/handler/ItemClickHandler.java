@@ -36,6 +36,11 @@ public class ItemClickHandler extends BaseViewListenerHandler {
 	}
 	
 	@Override
+	protected boolean isList() {
+		return true;
+	}
+	
+	@Override
 	protected ViewListenerHolder getListenerHolder(String elementName,
 			String elementClass, Map<AbstractJClass, IJExpression> declForListener,
 			Element element, ViewsHolder viewsHolder, EComponentWithViewSupportHolder holder) {

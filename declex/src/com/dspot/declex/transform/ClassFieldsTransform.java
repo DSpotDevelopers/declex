@@ -31,9 +31,9 @@ import com.helger.jcodemodel.JMod;
 
 import freemarker.template.TemplateModelException;
 
-public class ClassFieldsTransform extends BaseTemplateTransform {
+public class ClassFieldsTransform<T extends BaseGeneratedClassHolder> extends BaseTemplateTransform<T> {
 	
-	public ClassFieldsTransform(BaseGeneratedClassHolder holder) {
+	public ClassFieldsTransform(T holder) {
 		super(holder);
 	}
 
@@ -43,9 +43,9 @@ public class ClassFieldsTransform extends BaseTemplateTransform {
 		return new ClassFieldsWriter(out, holder);
 	}
 
-	private class ClassFieldsWriter extends BaseTemplateTransformWriter {
+	private class ClassFieldsWriter extends BaseTemplateTransformWriter<T> {
 
-		public ClassFieldsWriter(Writer out, BaseGeneratedClassHolder holder) {
+		public ClassFieldsWriter(Writer out, T holder) {
 			super(out, holder);
 		}
 		
@@ -86,7 +86,7 @@ public class ClassFieldsTransform extends BaseTemplateTransform {
 				} catch (Exception e){}
 			
 			
-			//Catch declarations with expresions
+			//Catch declarations with expressions
 			pattern = Pattern.compile("((?:private\\s+|public\\s+|protected\\s+)*(?:final\\s+|static\\s+)*(?:final\\s+|static\\s+)*)" +
 					  "(\\w+(?:<\\?>|<\\w+>)?(?:\\[\\])?)\\s+(\\w+)\\s*=\\s*([^;]+);");
 			match = pattern.matcher(strCode);

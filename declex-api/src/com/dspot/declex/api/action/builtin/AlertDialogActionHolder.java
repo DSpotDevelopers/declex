@@ -24,10 +24,14 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.api.action.runnable.dialog.DialogClickRunnable;
+import com.dspot.declex.api.action.runnable.dialog.DialogMultiChoiceClickRunnable;
 
 @EBean
 @ActionFor("AlertDialog")
@@ -56,8 +60,12 @@ public class AlertDialogActionHolder {
     }
     
 	//Here you can infer any parameter, the first parameter is the next listener 
-    void build(final DialogClickRunnable PositiveButtonPressed, final DialogClickRunnable NegativeButtonPressed, 
-    		final DialogClickRunnable ItemSelected, final MultiChoiceClickRunnable MultiChoiceSelected,
+    void build(
+    		final DialogClickRunnable PositiveButtonPressed, 
+    		final DialogClickRunnable NegativeButtonPressed, 
+    		final DialogClickRunnable ItemSelected, 
+    		final DialogMultiChoiceClickRunnable MultiChoiceSelected,
+    		final Runnable Canceled, 
     		final Runnable Dismissed) { 
 
 		if (negativeButtonText != null) {
@@ -84,7 +92,19 @@ public class AlertDialogActionHolder {
 			builder.setMultiChoiceItems(multiChoiceRes, null, MultiChoiceSelected);
 		}
 		
-		if (Dismissed != null) {
+        dialog = builder.create();
+        
+        if (Canceled != null) {
+    		dialog.setOnCancelListener(new OnCancelListener() {
+				
+				@Override
+				public void onCancel(DialogInterface arg0) {
+					Canceled.run();
+				}
+			});
+    	}
+        
+        if (Dismissed != null) {
 			dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
 				
 				@Override
@@ -93,18 +113,35 @@ public class AlertDialogActionHolder {
 				}
 			});
 		}
-		
-        dialog = builder.create();
     };
 	
     void execute() {
 		dialog.show();
 	}
 
-    Dialog dialog() {
+    /**
+     * @return Internal Android Dialog instance.
+     */
+    @StopOn("show")
+    public Dialog dialog() {
         return this.dialog;
     }
     
+    /**
+     * Assigns the Internal Android Dialog instance.
+     * 
+     * @param dialog The variable to which the dialog is going to be assigned
+     */
+    public AlertDialogActionHolder dialog(@Assignable("dialog") Dialog dialog) {
+    	return this;
+    }
+    
+    /**
+     * @return Android Builder layer to access the underlying Notifications Builder object
+     * 
+     * @see android.support.v4.app.NotificationCompat.Builder Notifications Builder
+     */
+    @StopOn("create")
     public AlertDialog.Builder builder() {
     	return this.builder;
     }
@@ -170,35 +207,5 @@ public class AlertDialogActionHolder {
 		this.itemsRes = res;
         return this;
     }
-	
-    public AlertDialogActionHolder into(@Assignable("dialog") Dialog dialog) {
-    	return this;
-    }
-    
- 	public static abstract class DialogClickRunnable implements Runnable, DialogInterface.OnClickListener {
-		public DialogInterface dialogInterface;
-		public int position;
-		
-		@Override
-		public void onClick(DialogInterface dialogInterface, int position) {
-			this.dialogInterface = dialogInterface;
-			this.position = position;
-			run();
-		}
-	}
-    
- 	public static abstract class MultiChoiceClickRunnable implements Runnable, DialogInterface.OnMultiChoiceClickListener {
-		public DialogInterface dialogInterface;
-		public int position;
-		public boolean checked;
-		
-		@Override
-		public void onClick(DialogInterface dialogInterface, int position, boolean checked) {
-			this.dialogInterface = dialogInterface;
-			this.position = position;
-			this.checked = checked;
-			run();
-		}
-	}
 
 }

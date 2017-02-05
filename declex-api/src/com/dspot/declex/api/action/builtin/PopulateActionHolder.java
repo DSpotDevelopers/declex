@@ -15,26 +15,64 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import org.androidannotations.annotations.EBean;
-
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.processor.PopulateActionProcessor;
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
-@EBean
+
+/**
+ * An Action to populate a {@link com.dspot.declex.api.populator.Populator @Populator} 
+ * annotated field.
+ * 
+ * <br><br>
+ * The population process will link the user interface (layout) with the field, assigning all
+ * the matching "ids" in the layout with the fields and methods in the Model. 
+ * 
+ * It can be used to populate from Strings and Lists also.
+ * 
+ * <br><br>
+ * <b>More Info in </b><a href="https://github.com/smaugho/declex/wiki/Populating%20Views">Populating Views</a>
+ * 
+ * @see com.dspot.declex.Action.$Recollect $Recollect
+ * @see com.dspot.declex.Action.$GetModel $GetModel
+ * @see com.dspot.declex.Action.$PutModel $PutModel
+ */
+
 @ActionFor(value="Populate", processors=PopulateActionProcessor.class)
 public class PopulateActionHolder {
 
 	private Runnable Done;
+	private OnFailedRunnable Failed;
 	
-    void init(@Field Object object) {
+	/**
+	 *@param field The field annotated with {@link com.dspot.declex.api.populator.Populator @Populator}.
+	 */
+    void init(@Field Object field) {
     }
 
-    void build(Runnable Done) {
+    /**
+     * @param Done <i><b>(default)</b></i> It will be executed after the 
+     * {@link com.dspot.declex.api.populator.Populator @Populator}  annotated
+     * field is used to populate the user interface
+     * 
+     * @param Failed It will be executed if the 
+     * {@link com.dspot.declex.api.populator.Populator @Populator}  
+     * annotated field fails populating.
+     */
+    void build(Runnable Done, OnFailedRunnable Failed) {
     	this.Done = Done;
+    	this.Failed = Failed;
     }
 
     void execute() {
-    	if (Done != null) Done.run();
+    }
+    
+    Runnable getDone() {
+    	return this.Done;
+    }
+    
+    OnFailedRunnable getFailed() {
+    	return this.Failed;
     }
 }

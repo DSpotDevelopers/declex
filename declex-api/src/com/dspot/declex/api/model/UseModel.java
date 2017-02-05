@@ -20,13 +20,22 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * This annotation is used to prepare a Model for injection. 
+ * 
+ * <br><br>
+ * <b>Read more in the documentation <a href="https://github.com/smaugho/declex/wiki/Models">Models</a></b>
+ *
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.FIELD})
 public @interface UseModel {
 	
+	/**
+	 * When "query" is not specified
+	 */
 	String defaultQuery() default "";
 	
 	boolean custom() default false;
-	
 	boolean debug() default false;
 }

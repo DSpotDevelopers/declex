@@ -39,9 +39,10 @@ import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
 public class AdapterClassCreator extends HolderClassCreator {
-	AbstractJClass BaseAdapter;
-	final AbstractJClass Model;
 	
+	AbstractJClass BaseAdapter;
+	
+	final AbstractJClass Model;
 	final String className;
 	
 	public AdapterClassCreator(String modelClassName, String className, Element element, GeneratedClassHolder holder, 
@@ -106,7 +107,7 @@ public class AdapterClassCreator extends HolderClassCreator {
 		getViewMethod.param(getClasses().VIEW, "convertView");
 		JVar parent = getViewMethod.param(JMod.FINAL, getClasses().VIEW_GROUP, "parent");
 		
-		//Declare a inflater
+		//Declare an inflater
 		getViewMethod.body().decl(
 				JMod.FINAL, 
 				getJClass("android.view.LayoutInflater"), 

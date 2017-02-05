@@ -24,6 +24,7 @@ import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.populator.Populator;
 import com.helger.jcodemodel.JInvocation;
+import com.helger.jcodemodel.JVar;
 
 public class PopulateActionProcessor extends BaseActionProcessor {
 
@@ -36,14 +37,20 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
+			JVar action = (JVar) actionInfo.metaData.get("action");
 			
-			if (field != null) {
+			if (field != null && action != null) {
 				
 				Populator populatorAnnotation = field.getAnnotation(Populator.class);
 				if (populatorAnnotation != null) {
 					
-					JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString());					
-					addPostBuildBlock(invoke);
+					Boolean validating = (Boolean) actionInfo.metaData.get("validating");
+					if (validating) return;
+					
+					JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
+							.arg(action.invoke("getDone"))
+							.arg(action.invoke("getFailed"));
+					addPostBuildBlock(invoke);						
 					
 				} else {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Populator");

@@ -21,7 +21,6 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,10 +33,12 @@ import org.androidannotations.annotations.Extra;
 import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.api.action.PutOnAction;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
@@ -67,12 +68,12 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
-public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
+public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 	private static final Logger LOGGER = LoggerFactory.getLogger(ModelHandler.class);
 	
 	public ModelHandler(AndroidAnnotationsEnvironment environment) {
-		super(Model.class, environment);
+		super(Model.class, environment);		
 	}
 
 	@Override
@@ -98,9 +99,8 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 		}
 		
 		if (element.getModifiers().contains(Modifier.STATIC)) {
-			 Annotation annotation = element.getEnclosingElement().getAnnotation(UseModel.class);
-			 
-			 if (annotation == null) {
+
+			if (!adiHelper.hasAnnotation(element.getEnclosingElement(), UseModel.class)) {
 				 valid.addError("Static @Models only permitted inside @UseModel annotated elements");
 			 }
 			 
@@ -117,16 +117,30 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 			}
 		}
 		
+		String[] fields = element.getAnnotation(Model.class).fields();
+		if (fields.length > 0) {
+			for (String field : fields) {
+				//TODO validate fields
+			}
+		}
+		
 	}
 
 	@Override
-	public void process(Element element, EComponentWithViewSupportHolder holder) {
+	public void process(Element element, EComponentHolder holder) {
 		
 		JBlock block;
 		final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));	
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
-
 		final UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
+		
+		final ViewsHolder viewsHolder;
+		if (holder instanceof EComponentWithViewSupportHolder) {
+			viewsHolder = holder.getPluginHolder(
+					new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+				);
+		} else {
+			viewsHolder = null;
+		}
 		
 		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
@@ -208,12 +222,12 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 		if (element.getModifiers().contains(Modifier.STATIC)) {
 			if (!element.getAnnotation(Model.class).lazy()) {
 				block = useModelHolder.getGetModelInitBlock();
-				generateGetModelCallInBlock(block, element, modelHolder, true);
+				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);
 				
 				block = useModelHolder.getGetModelListInitBlock();
-				generateGetModelCallInBlock(block, element, modelHolder, true);				
+				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);				
 			} else {
-				generateGetModelCallInBlock(block, element, modelHolder, true);	
+				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);	
 			}
 			
 		} else {
@@ -236,27 +250,29 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 			generatePutModelCallInBlock(block, element, modelHolder, true);
 		}
 		
-		PutOnAction putOnAction = element.getAnnotation(PutOnAction.class);
-		if (putOnAction != null) {
-			final ClickHolder listenerHolder = holder.getPluginHolder(new ClickHolder(holder));
-			
-			String referecedId = getEnvironment().getRClass().get(Res.ID).getIdQualifiedName(putOnAction.value()[0]);
-			referecedId = referecedId.substring(referecedId.lastIndexOf('.') + 1);
-			
-			if (viewsHolder.layoutContainsId(referecedId)) {
-				WriteInBlockWithResult<JBlock> writeInBlockWithResult = new WriteInBlockWithResult<JBlock>() {
-
-					@Override
-					public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
-						result = listenerHolder.createListener(viewName, block);
-						
-					}
-				};
-				viewsHolder.createAndAssignView(referecedId, writeInBlockWithResult);
+		if (viewsHolder != null) {
+			PutOnAction putOnAction = element.getAnnotation(PutOnAction.class);
+			if (putOnAction != null) {
+				final ClickHolder listenerHolder = holder.getPluginHolder(new ClickHolder(viewsHolder.holder()));
 				
-				JBlock putOnBlock = writeInBlockWithResult.getResult();
-				generatePutModelCallInBlock(putOnBlock, element, modelHolder, false);
-			}
+				String referecedId = getEnvironment().getRClass().get(Res.ID).getIdQualifiedName(putOnAction.value()[0]);
+				referecedId = referecedId.substring(referecedId.lastIndexOf('.') + 1);
+				
+				if (viewsHolder.layoutContainsId(referecedId)) {
+					WriteInBlockWithResult<JBlock> writeInBlockWithResult = new WriteInBlockWithResult<JBlock>() {
+
+						@Override
+						public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
+							result = listenerHolder.createListener(viewName, block);
+							
+						}
+					};
+					viewsHolder.createAndAssignView(referecedId, writeInBlockWithResult);
+					
+					JBlock putOnBlock = writeInBlockWithResult.getResult();
+					generatePutModelCallInBlock(putOnBlock, element, modelHolder, false);
+				}
+			}	
 		}
 		
 		//If an UpdateOnEvent is present, add the call to the provided Event
@@ -278,14 +294,13 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 	}
 	
 	private void generateGetModelCallInBlock(JBlock block, Element element, ModelHolder holder) {
-		this.generateGetModelCallInBlock(block, element, holder, false);
+		this.generateGetModelCallInBlock(block, element, holder, null, false);
 	}
 	
 	private void generateGetModelCallInBlock(final JBlock block, final Element element, 
-			final ModelHolder holder, final boolean isStatic) {
+			final ModelHolder holder, final UseModelHolder useModelHolder, final boolean isStatic) {
 		
 		//This ensures the priority of the @Model
-		
 		final Trees trees = Trees.instance(getProcessingEnvironment());
     	final TreePath treePath = trees.getPath(element);
     	
@@ -300,7 +315,6 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
     				int position = (int) trees.getSourcePositions()
     										  .getStartPosition(treePath.getCompilationUnit(), annotationTree);
     				
-    				String fieldName = element.getSimpleName().toString();
     				Model annotation = element.getAnnotation(Model.class);
 
     				//Get the internal calling method
@@ -308,6 +322,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
     				
     				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
     				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
+					final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
     				
     				IJExpression contextExpr = holder.getContextRef();
     				if (contextExpr == _this()) {
@@ -315,7 +330,16 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
     				}
     				if (isStatic) contextExpr = ref("context");
     				
-    				JInvocation invocation = invoke(getModelMethod).arg(contextExpr).arg(queryExpr).arg(orderByExpr).arg(_null());
+    				IJExpression onFailed = _null();
+    				if (isStatic && useModelHolder != null && !annotation.lazy()) 
+    					onFailed = useModelHolder.getGetModelInitBlockOnFailed();
+    				
+    				JInvocation invocation = invoke(getModelMethod).arg(contextExpr)
+    						                                       .arg(queryExpr)
+    						                                       .arg(orderByExpr)
+    						                                       .arg(fieldsExpr)
+    						                                       .arg(_null())
+    															   .arg(onFailed);
     				SharedRecords.priorityAdd(block, invocation, position);
     			}
     			
@@ -332,6 +356,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 		final JMethod putModelMethod = holder.getPutModelMethod(element);
 		final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
 		final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
+		final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
 
 		if (hasEvent) {
 			IJExpression instanceOfExpression = ref("event").invoke("getValues").component(lit(0));
@@ -345,12 +370,22 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentWithViewSuppor
 			ifBlock.invoke(putModelMethod)
 				   .arg(queryExpr)
 				   .arg(orderByExpr)
-			       .arg(JExpr.cast(getJClass(Runnable.class), instanceOfExpression));
+				   .arg(fieldsExpr)
+			       .arg(JExpr.cast(getJClass(Runnable.class), instanceOfExpression))
+			       .arg(_null());
 			ifBlock.invoke(ref("event"), "setValues").arg(JExpr.newArray(getJClass(Object.class)));
 			
-			condition._else().invoke(putModelMethod).arg(queryExpr).arg(orderByExpr).arg(_null());
+			condition._else().invoke(putModelMethod).arg(queryExpr)
+			                                        .arg(orderByExpr)
+			                                        .arg(fieldsExpr)
+			                                        .arg(_null())
+			                                        .arg(_null());
 		} else {
-			block.invoke(putModelMethod).arg(queryExpr).arg(orderByExpr).arg(_null());
+			block.invoke(putModelMethod).arg(queryExpr)
+										.arg(orderByExpr)
+							            .arg(fieldsExpr)
+							            .arg(_null())
+							            .arg(_null());
 		}
 		
 	}

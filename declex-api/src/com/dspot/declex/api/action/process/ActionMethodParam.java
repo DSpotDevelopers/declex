@@ -24,10 +24,11 @@ import com.helger.jcodemodel.AbstractJClass;
 
 public class ActionMethodParam {
 	public Map<String, Object> metaData;
+	public Object internal;
 	
 	public String name;
 	public AbstractJClass clazz;
-	public List<Annotation> annotations; 
+	public List<Annotation> annotations;
 	
 	public ActionMethodParam(String name, AbstractJClass clazz) {
 		this(name, clazz, new ArrayList<Annotation>(0));

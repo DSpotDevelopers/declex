@@ -24,10 +24,13 @@ import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,14 +44,12 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
-import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.api.extension.Extension;
+import com.dspot.declex.api.json.JsonSerializedModel;
 import com.dspot.declex.api.model.Model;
-import com.dspot.declex.api.model.UseModel;
-import com.dspot.declex.api.server.SerializeCondition;
 import com.dspot.declex.api.server.ServerModel;
 import com.dspot.declex.api.server.ServerRequest;
 import com.dspot.declex.api.server.ServerRequest.RequestMethod;
@@ -64,6 +65,7 @@ import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JConditional;
+import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
@@ -71,9 +73,7 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-import freemarker.template.SimpleSequence;
-
-public class ServerModelHandler extends BaseModelAndModelClassHandler {
+public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponentHolder> {
 
 	private String response;
 	private List<String> responseParams = new LinkedList<>();
@@ -86,21 +86,24 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 	
 	@Override
 	protected void setTemplateDataModel(Map<String, Object> rootDataModel,
-			Element element, BaseGeneratedClassHolder holder) {
+			Element element, EComponentHolder holder) {
 		super.setTemplateDataModel(rootDataModel, element, holder);
 		
-		rootDataModel.put("responseParams", new SimpleSequence(responseParams));
+		rootDataModel.put("responseParams", responseParams);
 		rootDataModel.put("client", client);
 		rootDataModel.put("response", response);
 		
-		Map<String, String> fields = getSerializeConditionFields(
-				(TypeElement) element, 
-				getFields((TypeElement) element)
-			);
-		
-		rootDataModel.put("avoidExceptions", element.getAnnotation(ServerModel.class).avoidExceptions());
-		rootDataModel.put("serializeCondition", new SimpleSequence(fields.values()));
-		rootDataModel.put("serializeConditionField", new SimpleSequence(fields.keySet()));
+		ServerModel serverModel = element.getAnnotation(ServerModel.class);
+		rootDataModel.put("processUnsuccessful", serverModel.processUnsuccessful());		
+		rootDataModel.put("hasMock", hasMock(serverModel));
+		rootDataModel.put("offline", serverModel.offline());
+	}
+	
+	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					JsonSerializedModel.class
+			   ));
 	}
 
 	@Override
@@ -129,12 +132,10 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 			return;
 		}
 		
-		validatorHelper.typeHasAnnotation(EBean.class, element, valid);
-		validatorHelper.typeHasAnnotation(UseModel.class, element, valid);		
 	}
 
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, EComponentHolder holder) {
 		if (element.getKind().isField()) return;
 		if (element instanceof ExecutableElement) return;
 		
@@ -183,80 +184,106 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		
 		super.process(element, holder);
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
-		boolean loadExecuted = false;
-		boolean putExecuted = false;
-		
-		if (!annotation.get().trim().equals("")) {
-			processRequest(new GetRequest(annotation), 0, true, element, useModelHolder);
-			loadExecuted = true;
-		}
-		
-		int requestNumber = 1;
-		for (ServerRequest request : annotation.load()) {
-			if (!request.action().equals("NONE")) {
-				processRequest(request, requestNumber, true, element, useModelHolder);
+		ServerModel serverModel = element.getAnnotation(ServerModel.class);
+		if (!serverModel.offline()) {
+			boolean loadExecuted = false;
+			boolean putExecuted = false;
+			
+			if (!serverModel.get().trim().equals("")) {
+				processRequest(new GetRequest(serverModel), true, element, useModelHolder);
 				loadExecuted = true;
 			}
 			
-			requestNumber++;
-		}
+			for (ServerRequest request : serverModel.load()) {
+				if (!request.action().equals("NONE")) {
+					processRequest(request, true, element, useModelHolder);
+					loadExecuted = true;
+				}
+			}
 
-		
-		if (!annotation.post().trim().equals("")) {
-			processRequest(new PostRequest(annotation), 0, false, element, useModelHolder);
-			putExecuted = true;
-		}
-				
-		requestNumber = 1;
-		for (ServerRequest request : annotation.put()) {
-			if (!request.action().equals("NONE")) {
-				processRequest(request, requestNumber, false, element, useModelHolder);
+			
+			if (!serverModel.post().trim().equals("")) {
+				processRequest(new PostRequest(serverModel), false, element, useModelHolder);
 				putExecuted = true;
 			}
+					
+			for (ServerRequest request : serverModel.put()) {
+				if (!request.action().equals("NONE")) {
+					processRequest(request, false, element, useModelHolder);
+					putExecuted = true;
+				}
+			}		
 			
-			requestNumber++;
-		}		
+			placeReturnForMethods(serverModel, holder.getGeneratedClass());
+			
+			if (loadExecuted) {
+				insertInGetModel(serverModelLoaded, element, useModelHolder);
+				
+				insertInSelectedGetModel(serverModelLoaded, element, useModelHolder);
+				
+				insertInGetModelList(serverModelLoaded, element, useModelHolder);
+				
+				insertInSelectedGetModelList(serverModelLoaded, element, useModelHolder);
+			}
+			
+			if (putExecuted) {
+				insertInPutModel(serverModelPut, element, useModelHolder);
+			}
+		}
 		
-		JMethod getRequestMethod = holder.getGeneratedClass().getMethod(
+	}
+	
+	private void placeReturnForMethods(ServerModel serverModel, JDefinedClass generatedClass) {
+		JMethod getRequestMethod = generatedClass.getMethod(
 				"getRequest", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, generatedClass}
 			);
 		if (getRequestMethod != null)
 			getRequestMethod.body()._return(_null());
 		
-		JMethod processResponseMethod = holder.getGeneratedClass().getMethod(
+		JMethod processResponseMethod = generatedClass.getMethod(
 				"processResponse", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, getClasses().STRING, generatedClass}
 			);
 		if (processResponseMethod != null) 
 			processResponseMethod.body()._return(ref("json"));
 		
-		JMethod getMockMethod = holder.getGeneratedClass().getMethod(
-				"getMock", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
-			);
-		if (getMockMethod != null)
-			getMockMethod.body()._return(_null());
+		if (hasMock(serverModel)) {
+			JMethod getMockMethod = generatedClass.getMethod(
+					"getMock", 
+					new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, generatedClass}
+				);
+			if (getMockMethod != null)
+				getMockMethod.body()._return(_null());
+		}
+	}
+
+	private boolean hasMock(ServerModel serverModel) {
+		boolean hasMock = serverModel.mock();
 		
-		if (loadExecuted) {
-			insertInGetModel(serverModelLoaded, element, useModelHolder);
-			
-			insertInSelectedGetModel(serverModelLoaded, element, useModelHolder);
-			
-			insertInGetModelList(serverModelLoaded, element, useModelHolder);
-			
-			insertInSelectedGetModelList(serverModelLoaded, element, useModelHolder);
+		if (!hasMock) {
+			for (ServerRequest request : serverModel.load()) {
+				if (request.mock()) {
+					return hasMock;
+				}
+			}			
 		}
 		
-		if (putExecuted) {
-			insertInPutModel(serverModelPut, element, useModelHolder);
+		if (!hasMock) {
+			for (ServerRequest request : serverModel.put()) {
+				if (request.mock()) {
+					return hasMock;
+				}
+			}			
 		}
+		
+		return hasMock;
 	}
 	
 	private void insertInPutModel(ExecutableElement serverModelPut, Element element, UseModelHolder holder) {
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		
 		//Write the putLocalDbModel in the generated putModels() method
 		JBlock block = holder.getPutModelInitBlock();
@@ -270,7 +297,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
 		}
 		
-		ifBlock.assign(ref("result"), _this().invoke("putServerModel").arg(query).arg(orderBy));
+		ifBlock.assign(ref("result"), _this().invoke("putServerModel").arg(query).arg(orderBy).arg(fields));
 				
 		if (serverModelPut != null) {
 			ifBlock = ifBlock._if(ref("result").ne(_null()))._then();
@@ -299,6 +326,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef context = ref("context");
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		JFieldRef useModel = ref("useModel");
 		
 		//Write the getServerModels in the generated getModelList() method inside the UseModel clause
@@ -313,7 +341,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef serverModels = ref("models");
 		block.assign(serverModels,
 				invoke("getServerModels").arg(context)
-				                         .arg(query).arg(orderBy)
+				                         .arg(query).arg(orderBy).arg(fields)
 			);
 		if (serverModelLoaded != null) {
 			JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
@@ -342,6 +370,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef context = ref("context");
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		
 		//Write the getServerModels in the generated getModelList() method
 		JBlock block = holder.getGetModelListBlock();
@@ -354,7 +383,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef serverModels = ref("models");
 		block.assign(serverModels, 
 				invoke("getServerModels").arg(context)
-				                         .arg(query).arg(orderBy)
+				                         .arg(query).arg(orderBy).arg(fields)
 			);
 		JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
 		if (serverModelLoaded != null) {
@@ -383,6 +412,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef context = ref("context");
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		JFieldRef useModel = ref("useModel");
 		
 		//Write the getServerModel in the generated getModel() method inside the UseModel clause
@@ -397,7 +427,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef serverModel = ref("model");
 		block.assign(serverModel, 
 				invoke("getServerModel").arg(context)
-				                        .arg(query).arg(orderBy)
+				                        .arg(query).arg(orderBy).arg(fields)
 			);
 		JConditional cond = block._if(serverModel.ne(_null()));
 		cond._else()._return(_new(holder.getGeneratedClass()).arg(context));
@@ -429,6 +459,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef context = ref("context");
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		
 		//Write the getServerModel in the generated getModel() method
 		JBlock block = holder.getGetModelBlock();
@@ -443,6 +474,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 				invoke("getServerModel").arg(context)
 				                        .arg(query)
 				                        .arg(orderBy)
+				                        .arg(fields)
 			);
 		JBlock notNull = block._if(serverModel.ne(_null()))._then();
 		if (serverModelLoaded != null) {
@@ -463,22 +495,23 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		notNull._return(serverModel);
 	}
 	
-	private void processRequest(ServerRequest request, int requestNumber, boolean isLoad, Element element, UseModelHolder holder) {
+	private void processRequest(ServerRequest request, boolean isLoad, Element element, UseModelHolder holder) {
 	
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
+		ServerModel serverModel = element.getAnnotation(ServerModel.class);
 		
 		JMethod getRequestMethod = holder.getGeneratedClass().getMethod(
 				"getRequest", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
 			);
 		
 		if (getRequestMethod == null) {
 			getRequestMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getJClass("okhttp3.Request"), "getRequest");
 			getRequestMethod.param(getClasses().STRING, "query");
 			getRequestMethod.param(getClasses().STRING, "orderBy");
+			getRequestMethod.param(getClasses().STRING, "fields");
 			getRequestMethod.param(holder.getGeneratedClass(), "inst");
 			
-			String baseUrlValue = annotation.baseUrl();
+			String baseUrlValue = serverModel.baseUrl();
 			if (baseUrlValue.endsWith("/")) baseUrlValue = baseUrlValue.substring(0, baseUrlValue.length()-1);
 			getRequestMethod.body().decl(
 				JMod.FINAL, 
@@ -491,20 +524,16 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		JFieldRef json = ref("json");
 		JFieldRef query = ref("query");
 		JFieldRef orderBy = ref("orderBy");
+		JFieldRef fields = ref("fields");
 		JFieldRef inst = ref("inst");
 		
-		Map<String, String> clsFields = getFields((TypeElement) element);
+		Map<String, String> clsMethods = new HashMap<>();
+		Map<String, String> clsFields = new HashMap<>();
+		getFieldsAndMethods((TypeElement) element, clsFields, clsMethods);
 		
 		JBlock newBlock = getRequestMethod.body().block();		
-		IJExpression check = orderBy.invoke("equals").arg(String.valueOf(requestNumber));
-		
-		if (requestNumber == 0)
-			check = check.cor(orderBy.invoke("equals").arg(""));
-		
-		if (!request.name().equals("") && !request.name().equals(String.valueOf(requestNumber))) 
-			check = check.cor(orderBy.invoke("equals").arg(request.name()));
-		
-		check = check.cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
+		IJExpression check = orderBy.invoke("equals").arg(request.name())
+									.cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
 		newBlock = newBlock._if(check)._then();
 		
 		JVar requestBuilder = newBlock.decl(getJClass("okhttp3.Request.Builder"), "request", _new(getJClass("okhttp3.Request.Builder")));
@@ -530,17 +559,17 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		String[] headers = request.headers();
 		if (headers.length == 1 && headers[0].equals("")) {
 			if (isLoad) {
-				headers = annotation.getHeaders();
+				headers = serverModel.getHeaders();
 				
 				if (headers.length == 1 && headers[0].equals("")) {
-					headers = annotation.postHeaders();
+					headers = serverModel.postHeaders();
 				}
 			}
 			else {
-				headers = annotation.postHeaders();
+				headers = serverModel.postHeaders();
 				
 				if (headers.length == 1 && headers[0].equals("")) {
-					headers = annotation.getHeaders();
+					headers = serverModel.getHeaders();
 				}
 			}
 		}
@@ -617,7 +646,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 					{
 						IJExpression createExp = getJClass("okhttp3.RequestBody").staticInvoke("create")
 								.arg(getJClass("okhttp3.MediaType").staticInvoke("parse").arg("application/json"))
-								.arg(inst.invoke("toJson"));
+								.arg(inst.invoke("toJson").arg(fields));
 						JVar requestBody = newBlock.decl(getJClass("okhttp3.RequestBody"), "requestBody", createExp);
 						newBlock.invoke(requestBuilder, method).arg(requestBody);
 					}
@@ -662,12 +691,12 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 							}
 							
 						} else {
-							JVar fields = newBlock.decl(getJClass(Map.class).narrow(String.class, String.class), "fields", inst.invoke("getAllFields"));
-							newBlock.forEach(getClasses().STRING, "field", fields.invoke("keySet")).body()
+							JVar fieldsVar = newBlock.decl(getJClass(Map.class).narrow(String.class, String.class), "allFields", inst.invoke("getAllFields").arg(fields));
+							newBlock.forEach(getClasses().STRING, "field", fieldsVar.invoke("keySet")).body()
 							        .assign(
 						        		formBody, 
 						        		formBody.invoke("add").arg(ref("field"))
-						        		        .arg(fields.invoke("get").arg(ref("field")))
+						        		        .arg(fieldsVar.invoke("get").arg(ref("field")))
 					        		);
 						}
 					
@@ -686,30 +715,23 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		
 		JMethod processResponseMethod = holder.getGeneratedClass().getMethod(
 				"processResponse", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
 			);
 		if (processResponseMethod == null) {
 			processResponseMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getClasses().STRING, "processResponse");
 			processResponseMethod.param(getClasses().STRING, "json");
 			processResponseMethod.param(getClasses().STRING, "query");
 			processResponseMethod.param(getClasses().STRING, "orderBy");
+			processResponseMethod.param(getClasses().STRING, "fields");
 			processResponseMethod.param(holder.getGeneratedClass(), "inst");
 			
 			newBlock = processResponseMethod.body();
 		}
 
-		if (!request.model().equals("") && !isLoad) {
+		if (!request.model().equals("") && !(request.model().equals("this") && isLoad)) {
 			newBlock = processResponseMethod.body().block();
-			check = orderBy.invoke("equals").arg(String.valueOf(requestNumber));
-			
-			if (requestNumber == 0)
-				check = check.cor(orderBy.invoke("equals").arg(""));
-
-			if (!request.name().equals("") && !request.name().equals(String.valueOf(requestNumber))) 
-				check = check.cor(orderBy.invoke("equals").arg(request.name()));
-			
-			check = check.cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
-			
+			check = orderBy.invoke("equals").arg(request.name())
+										    .cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
 			newBlock = newBlock._if(check)._then();
 			
 			JVar elem = newBlock.decl(
@@ -723,18 +745,27 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 			if (request.model().equals("this")) {
 				thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
 				thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
+				
 				newBlock._if(elem.invoke("isJsonObject").not())._then()._return(_null());
 
 				newBlock.staticInvoke(getJClass(CastUtility.class), "copy")
-				        .arg(
-			        		invoke("getGson")
-			        		.invoke("fromJson")
-			        		.arg(ref("elem"))
-			        		.arg(JExpr.dotclass(holder.getGeneratedClass()))
-        				).arg(inst);
+		        .arg(
+	        		invoke("getGson")
+	        		.invoke("fromJson")
+	        		.arg(ref("elem"))
+	        		.arg(JExpr.dotclass(holder.getGeneratedClass()))
+				).arg(inst);
+				
 			} else {
 				
-				String clsName = clsFields.get(request.model());		
+				String clsName = clsFields.get(request.model());	
+				boolean isMethod = false;
+				
+				if (clsName == null) {
+					clsName = clsMethods.get(request.model());
+					isMethod = true;
+				}
+				
 				final boolean modelIsList = TypeUtils.isSubtype(clsName, CanonicalNameConstants.LIST, getProcessingEnvironment()); 
 				if (modelIsList) {
 					
@@ -752,15 +783,26 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 					               + clsName + ">(){}.getType();";
 					
 					thenBlock.directStatement(dclr);
-					thenBlock.assign(
-							inst.ref(request.model()), 
-							gson.invoke("fromJson")
-							     .arg(ref("elem")).arg(ref("listType"))
-						);
+					
+					if (isMethod) {
+						thenBlock.invoke(inst, request.model())
+								 .arg(gson.invoke("fromJson")
+								          .arg(ref("elem")).arg(ref("listType"))
+							     );
+					} else {
+						thenBlock.assign(
+								inst.ref(request.model()), 
+								gson.invoke("fromJson")
+								     .arg(ref("elem")).arg(ref("listType"))
+							);						
+					}
 					
 					ifConditional._else()._return(_null());
 					
+					if (isLoad) newBlock._return(_null());
+					
 				} else {
+					
 					newBlock._if(elem.invoke("isJsonObject").not())._then()._return(_null());
 					thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
 					thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
@@ -775,13 +817,25 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 							       .invoke("create")
 					       );
 
-					newBlock.assign(
-							inst.ref(request.model()), 
-							gson.invoke("fromJson")
-							     .arg(ref("elem")).arg(getJClass(clsName).dotclass())
-						);
+					if (isMethod) {
+						newBlock.invoke(inst, request.model())
+								 .arg(gson.invoke("fromJson")
+									      .arg(ref("elem"))
+									      .arg(getJClass(clsName).dotclass())
+							     );
+					} else {
+						newBlock.assign(
+								inst.ref(request.model()), 
+								gson.invoke("fromJson")
+ 							        .arg(ref("elem"))
+							        .arg(getJClass(clsName).dotclass())
+							);						
+					}
+					
+					if (isLoad) newBlock._return(_null());
 				}
 								
+				//TODO support for modelClass field
 //				if (!request.modelClass().equals(Object.class)) {
 //					newBlock.assign(
 //							ref(request.model()), 
@@ -798,54 +852,47 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 			}
 		}
 
-		
-		JMethod getMockMethod = holder.getGeneratedClass().getMethod(
-				"getMock", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
-			);
-		if (getMockMethod == null) {
-			getMockMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getClasses().STRING, "getMock");
-			getMockMethod.param(getClasses().STRING, "query");
-			getMockMethod.param(getClasses().STRING, "orderBy");
-			getMockMethod.param(holder.getGeneratedClass(), "inst");
-		}
-		
-		if (request.mock() || annotation.mock()) {
-			newBlock = getMockMethod.body().block();
-			check = orderBy.invoke("equals").arg(String.valueOf(requestNumber));
+		if (hasMock(serverModel)) {
+			JMethod getMockMethod = holder.getGeneratedClass().getMethod(
+					"getMock", 
+					new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+				);
+			if (getMockMethod == null) {
+				getMockMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getClasses().STRING, "getMock");
+				getMockMethod.param(getClasses().STRING, "query");
+				getMockMethod.param(getClasses().STRING, "orderBy");
+				getMockMethod.param(getClasses().STRING, "fields");
+				getMockMethod.param(holder.getGeneratedClass(), "inst");
+			}
 			
-			if (requestNumber == 0)
-				check = check.cor(orderBy.invoke("equals").arg(""));
-
-			if (!request.name().equals("") && !request.name().equals(String.valueOf(requestNumber))) 
-				check = check.cor(orderBy.invoke("equals").arg(request.name()));
-			
-			check = check.cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
-			
-			newBlock = newBlock._if(check)._then();
-			
-			String mockResult = request.mockResult();
-			
-			formatSyntaxMatcher = Pattern.compile(FormatsUtils.FORMAT_SYNTAX_REGX).matcher(mockResult);
-			while (formatSyntaxMatcher.find()) {
-				String match = formatSyntaxMatcher.group(0);
+			if (request.mock() || serverModel.mock()) {
+				newBlock = getMockMethod.body().block();
+				check = orderBy.invoke("equals").arg(request.name())
+												.cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
 				
-				for (String clsField : clsFields.keySet()) {
-					match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
-				}
+				newBlock = newBlock._if(check)._then();
 				
-				mockResult = mockResult.replace(formatSyntaxMatcher.group(0), match);
-			}	
+				String mockResult = request.mockResult();
+				
+				formatSyntaxMatcher = Pattern.compile(FormatsUtils.FORMAT_SYNTAX_REGX).matcher(mockResult);
+				while (formatSyntaxMatcher.find()) {
+					String match = formatSyntaxMatcher.group(0);
+					
+					for (String clsField : clsFields.keySet()) {
+						match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
+					}
+					
+					mockResult = mockResult.replace(formatSyntaxMatcher.group(0), match);
+				}	
 
-			
-			newBlock._return(FormatsUtils.expressionFromString(mockResult));
+				
+				newBlock._return(FormatsUtils.expressionFromString(mockResult));
+			}
 		}
 		
 	}
 	
-	private Map<String, String> getFields(TypeElement element) {
-		Map<String, String> fields = new HashMap<>();
-		
+	private void getFieldsAndMethods(TypeElement element, Map<String, String> fields, Map<String, String> methods) {
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
@@ -853,55 +900,27 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			
-			if (elem.getKind() == ElementKind.FIELD) {
-				if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
-				
-				fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
-			}			
-		}
-		
-		//Apply to Extensions
-		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
-		for (TypeMirror type : superTypes) {
-			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
-			
-			if (superElement.getAnnotation(Extension.class) != null) {
-				fields.putAll(getFields(superElement));
-			}
-			
-			break;
-		}
-		
-		return fields;
-	}
-
-	private Map<String, String> getSerializeConditionFields(TypeElement element, Map<String, String> allFields) {
-		Map<String, String> fields = new HashMap<>();
-		
-		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems) {
-			final String elemName = elem.getSimpleName().toString();
-			
-			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
-			
-			if (elem.getKind() == ElementKind.FIELD) {
-				if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
-				
-				SerializeCondition serializeCondition = elem.getAnnotation(SerializeCondition.class);
-				if (serializeCondition == null) continue;
-				
-				String cond = "!(" + serializeCondition.value() + ")";
-				for (String clsField : allFields.keySet()) {
-					String prevCond = new String(cond);
-					cond = cond.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
+			if (fields != null) {
+				if (elem.getKind() == ElementKind.FIELD) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
-					if (!cond.equals(prevCond) && !cond.startsWith("inst != null")) {
-						cond = "inst != null && " + cond;
+					fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
+				}					
+			}
+			
+			if (methods != null) {
+				if (elem.getKind() == ElementKind.METHOD) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					ExecutableElement executableElement = (ExecutableElement) elem;
+					
+					//One parameter means that the method can be used to update the model
+					if (executableElement.getParameters().size() == 1) {
+						VariableElement param = executableElement.getParameters().get(0);
+						methods.put(elemName, TypeUtils.typeFromTypeString(param.asType().toString(), getEnvironment()));	
 					}
-				}
-				
-				fields.put(elemName, cond);
-			}			
+				}	
+			}
 		}
 		
 		//Apply to Extensions
@@ -910,13 +929,11 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
-				fields.putAll(getSerializeConditionFields(superElement, allFields));
+				getFieldsAndMethods(superElement, fields, methods);
 			}
 			
 			break;
 		}
-		
-		return fields;
 	}
 	
 	@Override
@@ -940,7 +957,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 
 		@Override
 		public String name() {
-			return "0";
+			return "";
 		}
 
 		@Override
@@ -995,7 +1012,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler {
 		public PostRequest(ServerModel annotation) {
 			super(annotation);
 		}
-
+		
 		@Override
 		public String action() {
 			return annotation.post();

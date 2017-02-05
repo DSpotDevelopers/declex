@@ -15,14 +15,14 @@
  */
 package com.dspot.declex.transform;
 
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 
 import freemarker.template.TemplateTransformModel;
 
-public abstract class BaseTemplateTransform implements TemplateTransformModel {
-	protected BaseGeneratedClassHolder holder;
+public abstract class BaseTemplateTransform<T extends GeneratedClassHolder> implements TemplateTransformModel {
+	protected T holder;
 	
-	public BaseTemplateTransform(BaseGeneratedClassHolder holder) {
+	public BaseTemplateTransform(T holder) {
 		this.holder = holder;
 	}
 }

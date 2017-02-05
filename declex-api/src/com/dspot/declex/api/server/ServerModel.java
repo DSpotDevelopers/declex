@@ -42,9 +42,10 @@ public @interface ServerModel {
 	boolean mock() default false;
 	String mockResult() default "";
 	
-	boolean avoidExceptions() default true;
-	
 	String defaultQuery() default "";
+	
+	boolean offline() default false;
+	boolean processUnsuccessful() default false;
 	
 	boolean custom() default false;
 	

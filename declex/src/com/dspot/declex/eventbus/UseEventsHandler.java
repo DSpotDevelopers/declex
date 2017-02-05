@@ -20,9 +20,13 @@ import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +38,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EBeanHolder;
 
 import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.handler.BaseTemplateHandler;
@@ -46,22 +51,31 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-public class UseEventsHandler extends BaseTemplateHandler {
+public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 
 	public UseEventsHandler(AndroidAnnotationsEnvironment environment) {
 		super(UseEvents.class, environment,
 				 "com/dspot/declex/eventbus/", "UseEvents.ftl.java");
+	}
+	
+	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					EBean.class
+			   ));
 	}
 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		validatorHelper.typeHasAnnotation(EBean.class, element, valid);
 		
-		if (valid.isValid()) SharedRecords.addEventGeneratedClass(element.toString(), getEnvironment());
+		if (valid.isValid()) {
+			SharedRecords.addEventGeneratedClass(element.toString(), getEnvironment());
+		}
 	}
 
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, EBeanHolder holder) {
 		super.process(element, holder);
 		
 		Map<String, String> fields = new HashMap<String, String>();
