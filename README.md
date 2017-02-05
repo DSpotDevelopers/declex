@@ -11,6 +11,18 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 
 ## Configuration
 
+Add the repository to your project .gradle file
+
+```gradle
+allprojects {
+    repositories {
+        jcenter()
+        //Add this line:
+        maven { url "http://dl.bintray.com/dspot-developers/declex" }
+    }
+}
+```
+
 Place the following lines in your app module build.gradle file:
 
 ```gradle
