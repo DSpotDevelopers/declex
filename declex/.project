@@ -24,17 +24,12 @@
 		<link>
 			<name>androidannotations</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/Dependencies/androidannotations/AndroidAnnotations/androidannotations-core/androidannotations/src/main/java</locationURI>
-		</link>
-		<link>
-			<name>androidannotations-api</name>
-			<type>2</type>
-			<location>C:/Dropbox/Android/SMBuilder/Dependencies/androidannotations/AndroidAnnotations/androidannotations-api/src/main/java</location>
+			<locationURI>PARENT-1-PROJECT_LOC/Dependencies/androidannotations/AndroidAnnotations/androidannotations-core/androidannotations/src/main/java</locationURI>
 		</link>
 		<link>
 			<name>evo-inflector</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/Dependencies/evo-inflector/src/main/java</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Dependencies/evo-inflector/src/main/java</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

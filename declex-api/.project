@@ -24,17 +24,17 @@
 		<link>
 			<name>ActiveAndroid</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/Dependencies/ActiveAndroid/src</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Dependencies/ActiveAndroid/src</locationURI>
 		</link>
 		<link>
 			<name>androidannotations-api</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/Dependencies/androidannotations/AndroidAnnotations/androidannotations-core/androidannotations-api/src/main/java</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Dependencies/androidannotations/AndroidAnnotations/androidannotations-core/androidannotations-api/src/main/java</locationURI>
 		</link>
 		<link>
 			<name>saripaar</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/Dependencies/saripaar/saripaar/src/main/java</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Dependencies/saripaar/saripaar/src/main/java</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
