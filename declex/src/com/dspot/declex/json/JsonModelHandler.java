@@ -38,11 +38,12 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.api.extension.Extension;
-import com.dspot.declex.api.json.JsonSerializedModel;
+import com.dspot.declex.api.json.JsonModel;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.server.SerializeCondition;
 import com.dspot.declex.handler.BaseTemplateHandler;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -50,11 +51,11 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHolder> {
+public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	
-	public JsonSerializedModelHandler(AndroidAnnotationsEnvironment environment) {
-		super(JsonSerializedModel.class, environment, 
-				"com/dspot/declex/json/", "JsonSerializedModel.ftl.java");
+	public JsonModelHandler(AndroidAnnotationsEnvironment environment) {
+		super(JsonModel.class, environment, 
+				"com/dspot/declex/json/", "JsonModel.ftl.java");
 	}
 	
 	@Override
@@ -71,14 +72,17 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 		
 		Map<String, String> fields = new HashMap<>();
 		getFieldsAndMethods((TypeElement) element, fields, null);
-		fields = getSerializeConditionFields(
-				(TypeElement) element, 
-				fields
-			);
+		
+		Map<String, String> serializeConditions = new HashMap<>();
+		Map<String, ClassInformation> jsonSerializedModels = new HashMap<>();
+		
+		getRequiredMaps((TypeElement) element, fields, serializeConditions, jsonSerializedModels);
+		
 				
-		rootDataModel.put("serializeConditions", fields);
+		rootDataModel.put("serializeConditions", serializeConditions);
+		rootDataModel.put("jsonSerializedModels", jsonSerializedModels);
 	}	
-	
+
 	private void getFieldsAndMethods(TypeElement element, Map<String, String> fields, Map<String, String> methods) {
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
@@ -123,8 +127,11 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 		}
 	}
 
-	private Map<String, String> getSerializeConditionFields(TypeElement element, Map<String, String> allFields) {
-		Map<String, String> fields = new HashMap<>();
+	private void getRequiredMaps(
+			TypeElement element, 
+			Map<String, String> allFields, 
+			Map<String, String> serializeConditions,
+			Map<String, ClassInformation> jsonSerializedModels) {
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
@@ -136,19 +143,26 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 				if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 				
 				SerializeCondition serializeCondition = elem.getAnnotation(SerializeCondition.class);
-				if (serializeCondition == null) continue;
-				
-				String cond = "!(" + serializeCondition.value() + ")";
-				for (String clsField : allFields.keySet()) {
-					String prevCond = new String(cond);
-					cond = cond.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
-					
-					if (!cond.equals(prevCond) && !cond.startsWith("inst != null")) {
-						cond = "inst != null && " + cond;
+				if (serializeCondition != null) {
+					String cond = "!(" + serializeCondition.value() + ")";
+					for (String clsField : allFields.keySet()) {
+						String prevCond = new String(cond);
+						cond = cond.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
+						
+						if (!cond.equals(prevCond) && !cond.startsWith("inst != null")) {
+							cond = "inst != null && " + cond;
+						}
 					}
+					
+					serializeConditions.put(elemName, cond);
 				}
 				
-				fields.put(elemName, cond);
+				ClassInformation classInformation = TypeUtils.getClassInformation(elem, getEnvironment(), true);				
+				if (classInformation.generatorElement != null) {
+					if (adiHelper.hasAnnotation(classInformation.generatorElement, JsonModel.class)) {
+						jsonSerializedModels.put(elemName, classInformation);
+					}
+				}
 			}			
 		}
 		
@@ -158,13 +172,11 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
-				fields.putAll(getSerializeConditionFields(superElement, allFields));
+				getRequiredMaps(superElement, allFields, serializeConditions, jsonSerializedModels);
 			}
 			
 			break;
 		}
-		
-		return fields;
 	}
 
 	@Override
@@ -183,7 +195,7 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
-			if (elem.getAnnotation(JsonSerializedModel.class) == null) continue;
+			if (elem.getAnnotation(JsonModel.class) == null) continue;
 			
 			if (elem.getKind() == ElementKind.METHOD) {
 				ExecutableElement executableElement = (ExecutableElement) elem;
@@ -224,6 +236,8 @@ public class JsonSerializedModelHandler extends BaseTemplateHandler<EComponentHo
 		if (createGetGsonBuilderMethod){
 			IJExpression createBuilder = _new(GsonBuilder)
 					.invoke("addSerializationExclusionStrategy")
+						.arg(_new(getJClass("ModelExclusionStrategy")).arg(inst).arg(fields))
+					.invoke("addDeserializationExclusionStrategy")
 						.arg(_new(getJClass("ModelExclusionStrategy")).arg(inst).arg(fields))
 					.invoke("excludeFieldsWithModifiers")
 						.arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))

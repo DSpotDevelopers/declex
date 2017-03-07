@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.androidannotations.annotations.RootContext;
 import org.androidannotations.annotations.SystemService;
+import org.androidannotations.api.BackgroundExecutor;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -26,9 +27,12 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.ColorInt;
 import android.support.annotation.DrawableRes;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat.Style;
 import android.widget.RemoteViews;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
@@ -62,6 +66,7 @@ public class NotificationActionHolder {
     private boolean cancelPrevious = true;
 
     private int notificationId;
+    private String pendingLargeIconLoad;
 
     private Runnable Shown;
 
@@ -86,8 +91,36 @@ public class NotificationActionHolder {
     };
 
     void execute() {
-        manager.notify(notificationId, builder.build());
-        this.Shown.run();
+    	
+    	final Runnable execute = new Runnable() {
+			
+			@Override
+			public void run() {
+				manager.notify(notificationId, builder.build());
+		        if (Shown != null) Shown.run();
+			}
+		};
+    	
+    	if (pendingLargeIconLoad != null) {
+    		BackgroundExecutor.execute(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+		                Bitmap bitmap = Picasso.with(context).load(pendingLargeIconLoad).get();
+		                pendingLargeIconLoad = null;		                
+		                builder.setLargeIcon(bitmap);
+		            } catch (IOException ignored) {}
+					
+					Handler mainHandler = new Handler(context.getMainLooper());
+		        	mainHandler.post(execute);
+				}
+			});    		
+    	} else {
+    		execute.run();
+    	}
+    	
+        
     }
 
     /**
@@ -262,6 +295,12 @@ public class NotificationActionHolder {
     public NotificationActionHolder largeIcon(@FormattedExpression String icon) {
         if (icon == null || icon.isEmpty()) return this;
 
+        if(Looper.myLooper() == Looper.getMainLooper()) {
+        	//Call should not be in main thread
+        	pendingLargeIconLoad = icon;
+        	return this;
+        }
+        
         try {
             Bitmap bitmap = Picasso.with(context).load(icon).get();
             builder.setLargeIcon(bitmap);
@@ -441,6 +480,19 @@ public class NotificationActionHolder {
      */
     public NotificationActionHolder fullScreenIntent(PendingIntent intent, boolean highPriority) {
         builder.setFullScreenIntent(intent, highPriority);
+        return this;
+    }
+    
+    /**
+     * Add a rich notification style to be applied at build time.
+     * <br>
+     * If the platform does not provide rich notification styles, this method has no effect. The
+     * user will always see the normal notification style.
+     *
+     * @param style Object responsible for modifying the notification style.
+     */
+    public NotificationActionHolder style(Style style) {
+        builder.setStyle(style);
         return this;
     }
 }

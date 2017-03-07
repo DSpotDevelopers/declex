@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator;
+package com.dspot.declex.viewsinjection;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,6 +44,7 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 import org.androidannotations.internal.process.ProcessHolder.Classes;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
@@ -52,12 +53,10 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.model.Model;
-import com.dspot.declex.api.populator.Populator;
+import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.model.ModelHolder;
 import com.dspot.declex.plugin.JClassPlugin;
-import com.dspot.declex.populator.adapter.AdapterClassCreator;
-import com.dspot.declex.populator.adapter.RecyclerViewAdapterClassCreator;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
@@ -67,6 +66,8 @@ import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.dspot.declex.viewsinjection.adapter.AdapterClassCreator;
+import com.dspot.declex.viewsinjection.adapter.RecyclerViewAdapterClassCreator;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
@@ -74,19 +75,21 @@ import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JCatchBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
+import com.helger.jcodemodel.JCodeModel;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
+import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
-public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
+public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(PopulatorHandler.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(PopulateHandler.class);
 	
 	private List<JClassPlugin> adapterPlugins; 
 
@@ -94,15 +97,15 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	
 	private static int uniquePriorityCounter = 1000;
 	
-	public PopulatorHandler(AndroidAnnotationsEnvironment environment, List<JClassPlugin> adapterPlugins) {
-		super(Populator.class, environment);
+	public PopulateHandler(AndroidAnnotationsEnvironment environment, List<JClassPlugin> adapterPlugins) {
+		super(Populate.class, environment);
 		
 		this.adapterPlugins = adapterPlugins;
 	}
 	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		//Ignore @Populator Methods
+		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 			if (methods == null) {
@@ -193,7 +196,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	public void process(Element element, EComponentWithViewSupportHolder holder) {		
 		uniquePriorityCounter++;
 		
-		//Ignore @Populator Methods
+		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) return;
 
 		final boolean isPrimitive = element.asType().getKind().isPrimitive() || 
@@ -211,80 +214,53 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		int layoutId = 0;
 		int index = 0;
-		int[] values = element.getAnnotation(Populator.class).value();
+		int[] values = element.getAnnotation(Populate.class).value();
 		
 		//Restoration objects
 		String defLayoutId = viewsHolder.getDefLayoutId();
-		Object onViewChangedHasViewsParam = null;
-		Field onViewChangedHasViewsParamField = null;
+		JVar onViewChangedHasViewsParam = holder.getOnViewChangedHasViewsParam();
 		
-		try {
-			onViewChangedHasViewsParamField = EComponentWithViewSupportHolder.class.getDeclaredField("onViewChangedHasViewsParam");
-			onViewChangedHasViewsParamField.setAccessible(true);			
+		do {
+			if (layoutId != 0) {
+				viewsHolder.inflateLayoutAndUse(layoutId);
+				processEventsInViews(element, viewsHolder);
+			}
 			
-			//It's important to invoke it like this to create the onViewChangedHasViewsParam object
-			//in case it has not been created before
-			onViewChangedHasViewsParam = holder.getOnViewChangedHasViewsParam();
-			
-			do {
-				if (layoutId != 0) {
-					String layoutIdString = viewsHolder.addLayoutWithView(layoutId);
-					
-					//This will cause' all operations with viewHolder to be executed with the new layout
-					viewsHolder.setDefLayoutId(layoutIdString);
-					
-					//This is to use the view of the layout to findByViewId the Views
-					JVar layoutViewVar = new JBlock().decl(getClasses().VIEW, layoutIdString + DeclexConstant.VIEW);
-					onViewChangedHasViewsParamField.set(holder,  layoutViewVar);
-					
-					processEventsInViews(element, viewsHolder);
+			//Check if the field is a primitive or a String
+			if (isPrimitive) {
+				
+				processPrimitive(className, element, viewsHolder, onEventMethods);
+				
+			} else if (isList) {
+				
+				if (layoutId == 0) {
+					processList(originalClassName, element, viewsHolder, onEventMethods);					
 				}
 				
-				//Check if the field is a primitive or a String
-				if (isPrimitive) {
-					
-					processPrimitive(className, element, viewsHolder, onEventMethods);
-					
-				} else if (isList) {
-					
-					if (layoutId == 0) {
-						processList(originalClassName, element, viewsHolder, onEventMethods);					
-					}
-					
-				} else {
-					
-					processModel(className, element, viewsHolder, onEventMethods);
-					
-				}		
+			} else {
 				
-				createViewsForPopulatorMethod(element.getSimpleName().toString(), element, viewsHolder);
+				processModel(className, element, viewsHolder, onEventMethods);
 				
-				if (index >= values.length) break;
-				layoutId = values[index];
-				index++;
-				
-//				if (element.getAnnotation(Populator.class).debug())
-//					LOGGER.warn("\nPopulator layouts: " + getLayoutNodes(element), element, element.getAnnotation(Populator.class));
-				
-			} while (layoutId != 0);
+			}		
 			
-			if (!isList) {
-				callPopulatorMethod(
-						element.getSimpleName().toString(), 
-						holder.getOnViewChangedBody(), 
-						null, null, element, viewsHolder
-				);			
-			}			
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			//Restore the objects of the holders
-			viewsHolder.setDefLayoutId(defLayoutId);
-			try {
-				onViewChangedHasViewsParamField.set(holder,  onViewChangedHasViewsParam);
-			} catch (Exception e) {}
-		}
+			createViewsForPopulatorMethod(element.getSimpleName().toString(), element, viewsHolder);
+			
+			if (index >= values.length) break;
+			layoutId = values[index];
+			index++;
+							
+		} while (layoutId != 0);
 		
+		if (!isList) {
+			callPopulatorMethod(
+					element.getSimpleName().toString(), 
+					holder.getOnViewChangedBody(), 
+					null, null, element, viewsHolder
+			);			
+		}			
+
+		viewsHolder.setDefLayoutId(defLayoutId);
+		holder.setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);		
 	}
 	
 	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
@@ -319,7 +295,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		Model model = element.getAnnotation(Model.class); 
 		if (model != null) {
 			ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
-			JBlock methodBody = modelHolder.getAfterGetModelBlock(element);
+			JBlock methodBody = modelHolder.getAfterLoadModelBlock(element);
 			
 			if (model.async()) {
 				JDefinedClass annonimousRunnable = getCodeModel().anonymousClass(Runnable.class);
@@ -336,7 +312,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			methodBody.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
 		}
 		
-		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, getClasses());
+		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, viewsHolder.holder());
 	}
 	
 	private void processPrimitive(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
@@ -344,8 +320,8 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		String fieldName = element.getSimpleName().toString();
 		IJExpression assignRef = ref(fieldName);
 		
-		if (element.getAnnotation(Populator.class).debug())
-			LOGGER.warn("\nField: " + fieldName, element, element.getAnnotation(Populator.class));
+		if (element.getAnnotation(Populate.class).debug())
+			LOGGER.warn("\nField: " + fieldName, element, element.getAnnotation(Populate.class));
 		
 		TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(className);
 		if (typeElement.asType().getKind().isPrimitive()) {
@@ -391,7 +367,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		JBlock notifyBlock = ifNotifBlock._then();
 		
 		final boolean foundAdapterDeclaration = TypeUtils.fieldInElement(adapterName, element.getEnclosingElement());
-		final Populator annotation = element.getAnnotation(Populator.class);
+		final Populate annotation = element.getAnnotation(Populate.class);
 		JFieldRef view = viewsHolder.createAndAssignView(fieldName, new IWriteInBloc() {
 			@Override
 			public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
@@ -424,7 +400,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		if (!foundAdapterDeclaration) {
 			if (viewsHolder.getGeneratedClass().fields().get(adapterName)!=null) {
 				//Another annotation tried to create the same adapter, this is an error
-				LOGGER.error("Tying to create a List Adapter twice for field " + fieldName, element, element.getAnnotation(Populator.class));
+				LOGGER.error("Tying to create a List Adapter twice for field " + fieldName, element, element.getAnnotation(Populate.class));
 				return;
 			}
 					
@@ -501,10 +477,10 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 		viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, true);
 		
-		if (element.getAnnotation(Populator.class).debug())
-			LOGGER.warn("\nClass: " + className + "\nFields: " + fields + "\nMethods: " + methods, element, element.getAnnotation(Populator.class));
+		if (element.getAnnotation(Populate.class).debug())
+			LOGGER.warn("\nClass: " + className + "\nFields: " + fields + "\nMethods: " + methods, element, element.getAnnotation(Populate.class));
 		
-		/*See how to integrate Plugins to the @Populators and Recollectors
+		/*See how to integrate Plugins to the @Populates and Recollectors
 		String mapField = null;
 		UseMap useMap = element.getEnclosingElement().getAnnotation(UseMap.class);
 		if (useMap != null) {
@@ -627,7 +603,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		String idName = info.idName;
 		TypeMirror type = info.type;
 		String viewClass = info.viewClass;		
-		org.w3c.dom.Element node = viewsHolder.getXMLElementFromId(idName, layoutItemId);
+		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(idName, layoutItemId);
 		
 		block = block._if(view.ne(_null()))._then();
 		
@@ -657,8 +633,10 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			assignRef = getClasses().STRING.staticInvoke("valueOf").arg(assignRef);
 		}
 			
+		boolean thisContext = false;
 		IJExpression context = viewsHolder.holder().getContextRef();
 		if (context == _this()) {
+			thisContext = true;
 			context = viewsHolder.getGeneratedClass().staticRef("this");
 		}
 		
@@ -671,7 +649,11 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		if (TypeUtils.isSubtype(viewClass, "android.widget.TextView", getProcessingEnvironment())) {
-			block.invoke(view, "setText").arg(assignRef);
+			if (TypeUtils.isSubtype(type.toString(), "android.text.Spanned", getProcessingEnvironment())) {
+				block.invoke(view, "setText").arg(origAssignRef);	
+			} else {
+				block.invoke(view, "setText").arg(assignRef);
+			}			
 			return;
 		}
 		
@@ -694,12 +676,16 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						.arg(getEnvironment().getRClass().get(Res.DRAWABLE).getIdStaticRef(srcId, getEnvironment()));
 			}
 		
+			JBlock ifBlock;
 			if (type.toString().equals(String.class.getCanonicalName())) {
-				block._if(assignRef.invoke("equals").arg("").not())._then()
-					 .add(PicassoBuilder.invoke("into").arg(view));	
+				ifBlock = block._if(assignRef.invoke("equals").arg("").not())._then();
 			} else {
-				block.add(PicassoBuilder.invoke("into").arg(view));
+				ifBlock = block.blockVirtual();			
 			}
+			
+			if (!thisContext) ifBlock = ifBlock._if(context.ne(_null()))._then();
+			ifBlock.add(PicassoBuilder.invoke("into").arg(view));
+			
 			return;
 		}		
 		
@@ -792,12 +778,27 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		JMethod populateFieldMethod;
 		JBlock populateFieldMethodBody;
 		
-		public OnEventMethods(JMethod loadOnEventMethod, JMethod populateFieldMethod, Classes classes) {
+		public OnEventMethods(JMethod loadOnEventMethod, JMethod populateFieldMethod, GeneratedClassHolder holder) {
 			super();
 			this.loadOnEventMethod = loadOnEventMethod;
 			this.populateFieldMethod = populateFieldMethod;
 			
 			if (populateFieldMethod != null) {
+				Classes classes = holder.getEnvironment().getClasses();
+				JCodeModel codeModel = holder.getEnvironment().getCodeModel();
+				
+				JFieldRef afterPopulate = ref("afterPopulate");
+				JFieldVar populateField = holder.getGeneratedClass().field(
+						JMod.PRIVATE, codeModel.BOOLEAN, 
+						populateFieldMethod.name(), lit(true)
+				);
+				
+				JBlock notPopulate = populateFieldMethod.body()._if(populateField.not())._then();
+				notPopulate._if(afterPopulate.ne(_null()))._then()
+	               .invoke(afterPopulate, "run");
+				notPopulate.assign(populateField, lit(true));
+				notPopulate._return();
+				
 				JTryBlock tryBlock = populateFieldMethod.body()._try();
 				{//Catch block
 					JCatchBlock catchBlock = tryBlock._catch(classes.THROWABLE);
@@ -816,7 +817,7 @@ public class PopulatorHandler extends BaseAnnotationHandler<EComponentWithViewSu
 				}
 				this.populateFieldMethodBody = tryBlock.body().block();
 				
-				JFieldRef afterPopulate = ref("afterPopulate");
+				
 				tryBlock.body()._if(afterPopulate.ne(_null()))._then()
 				               .invoke(afterPopulate, "run");
 			}

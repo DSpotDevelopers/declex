@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator.adapter;
+package com.dspot.declex.viewsinjection.adapter;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.lit;
-import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.List;
 
@@ -38,25 +38,30 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-public class AdapterClassCreator extends HolderClassCreator {
+public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 	
-	AbstractJClass BaseAdapter;
+	AbstractJClass RecyclerViewAdapter;
 	
+	final AbstractJClass RecyclerViewHolder;
 	final AbstractJClass Model;
+	final AbstractJClass ArrayList;
+	
 	final String className;
 	
-	public AdapterClassCreator(String modelClassName, String className, Element element, GeneratedClassHolder holder, 
-			List<JClassPlugin> adapterPlugins) {
+	public RecyclerViewAdapterClassCreator(String modelClassName, String className, Element element, 
+			GeneratedClassHolder holder, List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
-
-		BaseAdapter = getJClass("android.widget.BaseAdapter");
+		
+		RecyclerViewHolder = getJClass(className + "ViewHolder");
+		RecyclerViewAdapter = getJClass("android.support.v7.widget.RecyclerView.Adapter").narrow(RecyclerViewHolder);
 		Model = getJClass(modelClassName);
+		ArrayList = getJClass("java.util.ArrayList").narrow(Model);
 		this.className = className;
 		
 		for (JClassPlugin plugin : adapterPlugins) {
 			AbstractJClass newBaseAdapter = plugin.getBaseAdapter(element);
 			if (newBaseAdapter != null) {
-				BaseAdapter = newBaseAdapter;
+				RecyclerViewAdapter = newBaseAdapter.narrow(RecyclerViewHolder);
 			}
 			this.addPlugin(plugin);
 		}
@@ -65,50 +70,52 @@ public class AdapterClassCreator extends HolderClassCreator {
 	@Override
 	public JDefinedClass getDefinedClass() throws JClassAlreadyExistsException {
 		
-		JDefinedClass AdapterClass = holder.getGeneratedClass()._class(JMod.PRIVATE, className)._extends(BaseAdapter);
+		JDefinedClass AdapterClass = holder.getGeneratedClass()._class(JMod.PRIVATE, className)._extends(RecyclerViewAdapter);
 		
 		JFieldVar models = AdapterClass.field(JMod.PRIVATE, getClasses().LIST.narrow(Model), "models");
 		
 		JMethod constructor = AdapterClass.constructor(JMod.PUBLIC);
-		constructor.body().assign(_this().ref(models), constructor.param(getClasses().LIST.narrow(Model), "models"));
+		JVar paramModels = constructor.param(getClasses().LIST.narrow(Model), "models");
+		JConditional ifParamModelsNull = constructor.body()._if(paramModels.eq(_null()));
+		ifParamModelsNull._then().assign(
+				_this().ref(models), _new(ArrayList)				
+		);
+		ifParamModelsNull._else().assign(
+				_this().ref(models), _new(ArrayList).arg(paramModels)				
+		);
 		
 		//setModels() METHOD
 		JMethod setModels = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "setModels");
 		JVar modelsParam = setModels.param(getClasses().LIST.narrow(Model), "models");
 		JConditional ifModels = setModels.body()._if(modelsParam.ne(_null()));
-		ifModels._then().assign(_this().ref(models), modelsParam);
+		ifModels._then().directStatement("//This permits the external modification of the model");
+		ifModels._then().directStatement("//without crashing the interface for concurrent modifications");
+		ifModels._then().assign(_this().ref(models), _new(ArrayList).arg(modelsParam));
 		ifModels._else().invoke(_this().ref(models), "clear");
 		
-		//getCount() METHOD
-		JMethod getCountMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().INT, "getCount");
-		getCountMethod.annotate(Override.class);
-		getCountMethod.body()._if(models.eq(_null()))._then()._return(lit(0));
-		
-		//getItem() METHOD
-		JMethod getItemMethod = AdapterClass.method(JMod.PUBLIC, getClasses().OBJECT, "getItem");
-		getItemMethod.annotate(Override.class);
-		getItemMethod.param(getCodeModel().INT, "position");
-		
-		//getItemId() METHOD
-		JMethod getItemIdMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().LONG, "getItemId");
-		getItemIdMethod.annotate(Override.class);
-		getItemIdMethod.param(getCodeModel().INT, "position");
+		//getItemCount() METHOD
+		JMethod getItemCountMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().INT, "getItemCount");
+		getItemCountMethod.annotate(Override.class);
+		getItemCountMethod.body()._if(models.eq(_null()))._then()._return(lit(0));
 		
 		//inflate() METHOD
 		JMethod inflateMethod = AdapterClass.method(JMod.PUBLIC, getClasses().VIEW, "inflate");
-		inflateMethod.param(getCodeModel().INT, "position");
-		inflateMethod.param(getClasses().VIEW, "convertView");
+		inflateMethod.param(getCodeModel().INT, "viewType");
+		inflateMethod.param(getClasses().VIEW_GROUP, "parent");
 		inflateMethod.param(getClasses().LAYOUT_INFLATER, "inflater");
+				
+		JMethod onBindViewHolderMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "onBindViewHolder");
+		onBindViewHolderMethod.annotate(Override.class);
+		onBindViewHolderMethod.param(RecyclerViewHolder, "viewHolder");
+		onBindViewHolderMethod.param(getCodeModel().INT, "position");
 		
-		//getView() METHOD
-		JMethod getViewMethod = AdapterClass.method(JMod.PUBLIC, getClasses().VIEW, "getView");
-		getViewMethod.annotate(Override.class);
-		getViewMethod.param(JMod.FINAL, getCodeModel().INT, "position");
-		getViewMethod.param(getClasses().VIEW, "convertView");
-		JVar parent = getViewMethod.param(JMod.FINAL, getClasses().VIEW_GROUP, "parent");
+		JMethod onCreateViewHolderMethod = AdapterClass.method(JMod.PUBLIC, RecyclerViewHolder, "onCreateViewHolder");
+		onCreateViewHolderMethod.annotate(Override.class);
+		JVar parent = onCreateViewHolderMethod.param(JMod.FINAL, getClasses().VIEW_GROUP, "parent");
+		onCreateViewHolderMethod.param(JMod.FINAL, getCodeModel().INT, "viewType");
 		
 		//Declare an inflater
-		getViewMethod.body().decl(
+		onCreateViewHolderMethod.body().decl(
 				JMod.FINAL, 
 				getJClass("android.view.LayoutInflater"), 
 				"inflater", 
@@ -123,9 +130,7 @@ public class AdapterClassCreator extends HolderClassCreator {
 			plugin.process(element, AdapterClass);
 		}
 		
-		getCountMethod.body()._return(models.invoke("size"));
-		getItemMethod.body()._return(models.invoke("get").arg(ref("position")));
-		getItemIdMethod.body()._return(lit(0));
+		getItemCountMethod.body()._return(models.invoke("size"));
 		
 		return AdapterClass;
 	}

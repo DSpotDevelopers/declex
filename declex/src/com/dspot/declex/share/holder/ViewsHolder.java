@@ -3,6 +3,7 @@ package com.dspot.declex.share.holder;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.ArrayList;
@@ -32,21 +33,24 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.LayoutsParser;
+import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JVar;
 
 public class ViewsHolder extends
 		PluginClassHolder<EComponentWithViewSupportHolder> {
 
 	// <Layout Id, <Id, Class>>
-	private Map<String, Map<String, String>> layoutObjects = new HashMap<>();
-	private Map<String, Map<String, org.w3c.dom.Element>> layoutNodes = new HashMap<>();
+	private Map<String, Map<String, LayoutObject>> layoutObjects = new HashMap<>();
+	private Map<String, JVar> onViewChangedHasViewsParamValues = new HashMap<>();
 	private List<String> menuObjects;
 	
 	private String defLayoutId = null;
@@ -72,8 +76,7 @@ public class ViewsHolder extends
 	}
 
 	private void getDefaultLayout() {
-		Map<String, String> defLayoutObjects = null;
-		Map<String, org.w3c.dom.Element> defLayoutNodes = null;
+		Map<String, LayoutObject> defLayoutObjects = null;
 
 		EActivity activity = holder().getAnnotatedElement().getAnnotation(
 				EActivity.class);
@@ -90,11 +93,10 @@ public class ViewsHolder extends
 					defLayoutId = matcher.group(1);
 					defLayoutObjects = layoutParser.getLayoutObjects(
 							defLayoutId, annotationHelper);
-					defLayoutNodes = layoutParser.getLayoutNodes(defLayoutId);
 				}
 			}
 		}
-
+		
 		EFragment fragment = holder().getAnnotatedElement().getAnnotation(
 				EFragment.class);
 		if (fragment != null) {
@@ -109,14 +111,12 @@ public class ViewsHolder extends
 					defLayoutId = matcher.group(1);
 					defLayoutObjects = layoutParser.getLayoutObjects(
 							defLayoutId, annotationHelper);
-					defLayoutNodes = layoutParser.getLayoutNodes(defLayoutId);
 				}
 			}
 		}
 
 		if (defLayoutId != null) {
 			layoutObjects.put(defLayoutId, defLayoutObjects);
-			layoutNodes.put(defLayoutId, defLayoutNodes);
 		}
 	}
 
@@ -154,7 +154,7 @@ public class ViewsHolder extends
 		return menuObjects;
 	}
 
-	public String addLayoutWithView(int layoutId) {
+	public void inflateLayoutAndUse(int layoutId) {
 		
 		String idQualifiedName = environment().getRClass().get(Res.LAYOUT)
 				.getIdQualifiedName(layoutId);
@@ -183,37 +183,50 @@ public class ViewsHolder extends
 							.arg(_null())
 			);
 
+			defLayoutId = layoutIdString;
+			
+			//This is to use the view of the layout to findByViewId the Views
+			JVar layoutViewVar = new JBlock().decl(getClasses().VIEW, layoutIdString + DeclexConstant.VIEW);
+			holder().setOnViewChangedHasViewsParam(layoutViewVar);
+			
 			addLayout(layoutIdString);
 
-			layoutObjects.get(layoutIdString).put(viewName, CanonicalNameConstants.VIEW);
-			layoutNodes.get(layoutIdString).put(viewName, null);
-
-			return layoutIdString;
+			layoutObjects.get(layoutIdString).put(
+					layoutIdString,
+					new LayoutObject(CanonicalNameConstants.VIEW, null)
+					
+			);
 		}
-
-		return null;
 	}
 
 	public void addLayout(String layoutId) {
 
 		if (!layoutObjects.containsKey(layoutId)) {
-			Map<String, String> elementLayoutObjects = layoutParser
+			Map<String, LayoutObject> elementLayoutObjects = layoutParser
 					.getLayoutObjects(layoutId, annotationHelper);
 			layoutObjects.put(layoutId, elementLayoutObjects);
-
-			Map<String, org.w3c.dom.Element> elementLayoutNodes = layoutParser
-					.getLayoutNodes(layoutId);
-			layoutNodes.put(layoutId, elementLayoutNodes);
+			
+			onViewChangedHasViewsParamValues.put(layoutId, holder().getOnViewChangedHasViewsParam());
 		}
 
 	}
 
 	public JInvocation checkFieldNameInInvocation(String fieldName, JInvocation invocation) {
-		if (this.layoutContainsId(fieldName)) {
-			return invocation.arg(this.createAndAssignView(fieldName));
-		} else {
-			return ParamUtils.injectParam(fieldName, invocation);	
+		for (String layoutId : layoutObjects.keySet()) {
+			if (this.layoutContainsId(fieldName, layoutId)) {
+				
+				final String savedDefLayoutId = defLayoutId;
+				defLayoutId = layoutId;
+				
+				JFieldRef view = this.createAndAssignView(fieldName);
+			
+				defLayoutId = savedDefLayoutId;
+				
+				return invocation.arg(view);
+			}	
 		}
+		
+		return ParamUtils.injectParam(fieldName, invocation);	
 	}
 	
 	public boolean viewsDeclared(String id) {
@@ -243,23 +256,23 @@ public class ViewsHolder extends
 		if (layoutId == null)
 			return null;
 
-		return layoutObjects.get(layoutId).get(id);
+		return layoutObjects.get(layoutId).get(id).className;
 	}
 
-	public org.w3c.dom.Element getXMLElementFromId(String id) {
-		return getXMLElementFromId(id, null);
+	public org.w3c.dom.Element getDomElementFromId(String id) {
+		return getDomElementFromId(id, null);
 	}
 
-	public org.w3c.dom.Element getXMLElementFromId(String id, String layoutId) {
+	public org.w3c.dom.Element getDomElementFromId(String id, String layoutId) {
 		if (layoutId == null)
 			layoutId = defLayoutId;
 		if (layoutId == null)
 			return null;
 
-		return layoutNodes.get(layoutId).get(id);
+		return layoutObjects.get(layoutId).get(id).domElement;
 	}
-
-	public Map<String, String> getLayoutObjects(String layoutId) {
+	
+	private Map<String, LayoutObject> getLayoutObjects(String layoutId) {
 		if (layoutId == null)
 			layoutId = defLayoutId;
 		if (layoutId == null)
@@ -294,22 +307,83 @@ public class ViewsHolder extends
 		final JFieldRef view = ref(viewName);		
 		final JFieldRef idRef = environment().getRClass().get(Res.ID)
 				                       .getIdStaticRef(fieldName, environment());
-
-		FoundViewHolder foundViewHolder = holder().getFoundViewHolder(idRef, viewClass);
-		JBlock body = foundViewHolder.getIfNotNullBlock();
-
-		if (!views.containsKey(viewName)) {
-			if (getGeneratedClass().fields().get(viewName)==null &&
-					!TypeUtils.fieldInElement(viewName, holder().getAnnotatedElement()))
-				getGeneratedClass().field(JMod.PRIVATE, viewClass, viewName);
+		
+		//If idRef is null, this means the view was generated by DecleX,
+		//Ex. the view of an automatic inflated layout
+		if (idRef != null) {
+			JVar savedOnViewChangedHasViewsParam = null;
+			JVar onViewChangedHasViewsParam = onViewChangedHasViewsParamValues.get(defLayoutId);
 			
-			body.assign(view, cast(viewClass, foundViewHolder.getRef()));
-			views.put(viewName, new ViewInfo());
+			JBlock declaredBlock = null;
+			IJExpression viewRef = null;
+			
+			
+			if (onViewChangedHasViewsParam != null) {
+				savedOnViewChangedHasViewsParam = holder().getOnViewChangedHasViewsParam();
+				holder().setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);
+			} else {
+				String holderId = getLayoutObjects(defLayoutId).get(fieldName).holderId;
+				if (holderId != null) {
+										
+					WriteInBlockWithResult<JBlock> writeInBlockWithResult = new WriteInBlockWithResult<JBlock>() {
+
+						@Override
+						public void writeInBlock(String viewName,
+								AbstractJClass viewClass, JFieldRef view,
+								JBlock block) {							
+							result = block;
+						}
+					};	
+					
+					JFieldRef holderView = createAndAssignView(holderId, writeInBlockWithResult);
+					
+					declaredBlock = writeInBlockWithResult.result;
+					
+					JVar headerView = null;
+					for (Object statement : declaredBlock.getContents()) {
+						if (statement instanceof JVar) {					
+							if (((JVar) statement).name().equals("header")) {
+								headerView = (JVar) statement;
+								break;
+							}
+						}
+					}
+					
+					if (headerView == null) {
+						headerView = declaredBlock.decl(
+								environment().getClasses().VIEW, 
+								"header", 
+								holderView.invoke("getHeaderView").arg(0)
+							);
+					}
+					
+					viewRef = invoke(headerView, "findViewById").arg(idRef);
+				}
+			}
+			
+			if (declaredBlock == null) {
+				FoundViewHolder foundViewHolder = holder().getFoundViewHolder(idRef, viewClass);
+				declaredBlock = foundViewHolder.getIfNotNullBlock();	
+				viewRef = foundViewHolder.getRef();
+			}
+
+			if (!views.containsKey(viewName)) {
+				if (getGeneratedClass().fields().get(viewName)==null &&
+						!TypeUtils.fieldInElement(viewName, holder().getAnnotatedElement()))
+					getGeneratedClass().field(JMod.PRIVATE, viewClass, viewName);
+				
+				declaredBlock.assign(view, cast(viewClass, viewRef));
+				views.put(viewName, new ViewInfo());
+			}
+			
+			if (writeInBlock != null)
+				writeInBlock.writeInBlock(viewName, viewClass, view, declaredBlock);
+			
+			if (savedOnViewChangedHasViewsParam != null) {
+				holder().setOnViewChangedHasViewsParam(savedOnViewChangedHasViewsParam);
+			}
 		}
-
-		if (writeInBlock != null)
-			writeInBlock.writeInBlock(viewName, viewClass, view, body);
-
+		
 		return view;
 	}
 
@@ -349,7 +423,7 @@ public class ViewsHolder extends
 	private void findFieldsAndMethods(String fieldName,
 			TypeElement typeElement, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, String className,
-			Map<String, String> layoutObjects, boolean getter, boolean isList) {
+			Map<String, LayoutObject> layoutObjects, boolean getter, boolean isList) {
 		String classSimpleName = getJClass(className).name();
 		for (String id : layoutObjects.keySet()) {
 			String startsWith = null;
@@ -379,7 +453,7 @@ public class ViewsHolder extends
 			}
 
 			deepFieldsAndMethodsSearch(id, null, typeElement, fields, methods,
-					originalId, layoutObjects.get(originalId), getter);
+					originalId, layoutObjects.get(originalId).className, getter);
 		}
 	}
 
@@ -511,7 +585,7 @@ public class ViewsHolder extends
 	}
 
 	private class ViewInfo {
-
+		
 	}
 
 }

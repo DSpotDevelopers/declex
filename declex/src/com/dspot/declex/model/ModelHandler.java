@@ -318,7 +318,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
     				Model annotation = element.getAnnotation(Model.class);
 
     				//Get the internal calling method
-    				JMethod getModelMethod = holder.getGetModelMethod(element);
+    				JMethod getModelMethod = holder.getLoadModelMethod(element);
     				
     				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
     				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());

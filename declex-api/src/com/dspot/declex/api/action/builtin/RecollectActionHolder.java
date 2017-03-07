@@ -21,7 +21,7 @@ import com.dspot.declex.api.action.processor.RecollectActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 /**
- * An Action to recollect a {@link com.dspot.declex.api.populator.Recollector @Recollector} 
+ * An Action to recollect a {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect} 
  * annotated field.
  * 
  * <br><br>
@@ -32,7 +32,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * <b>More Info in </b><a href="https://github.com/smaugho/declex/wiki/Recollecting%20Data">Recollecting Data</a>
  *
  * @see com.dspot.declex.Action.$Populate $Populate
- * @see com.dspot.declex.Action.$GetModel $GetModel
+ * @see com.dspot.declex.Action.$LoadModel $LoadModel
  * @see com.dspot.declex.Action.$PutModel $PutModel
  */
 
@@ -43,18 +43,18 @@ public class RecollectActionHolder {
 	private OnFailedRunnable Failed;
 	
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.populator.Recollector @Recollector}.
+	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
 	 */
     void init(@Field Object object) {
     }
 
     /**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.populator.Recollector @Recollector}  annotated
+     * {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}  annotated
      * field is used to recollect from the user interface
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.populator.Recollector @Recollector}  
+     * {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}  
      * annotated field fails recollecting.
      */
     void build(Runnable Done, OnFailedRunnable Failed) {

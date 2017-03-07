@@ -22,12 +22,30 @@ import javax.lang.model.element.Element;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.populator.Populator;
+import com.dspot.declex.api.viewsinjection.Populate;
 import com.helger.jcodemodel.JInvocation;
-import com.helger.jcodemodel.JVar;
 
 public class PopulateActionProcessor extends BaseActionProcessor {
 
+	@Override
+	public void validate(ActionInfo actionInfo) {
+		super.validate(actionInfo);
+		
+		ActionMethod init = getActionMethod("init");
+				
+		if (init.metaData != null) {
+			ActionMethodParam initParam = init.params.get(0);
+			Element field = (Element) initParam.metaData.get("field");
+			
+			if (field != null) {
+				Populate populatorAnnotation = field.getAnnotation(Populate.class);
+				if (populatorAnnotation == null) {
+					throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
+				}				
+			}
+		}
+	}
+	
 	@Override
 	public void process(ActionInfo actionInfo) {
 		super.process(actionInfo);
@@ -37,24 +55,12 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
-			JVar action = (JVar) actionInfo.metaData.get("action");
 			
-			if (field != null && action != null) {
-				
-				Populator populatorAnnotation = field.getAnnotation(Populator.class);
-				if (populatorAnnotation != null) {
-					
-					Boolean validating = (Boolean) actionInfo.metaData.get("validating");
-					if (validating) return;
-					
-					JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
-							.arg(action.invoke("getDone"))
-							.arg(action.invoke("getFailed"));
-					addPostBuildBlock(invoke);						
-					
-				} else {
-					throw new IllegalStateException("The field " + field + " is not annotated with @Populator");
-				}
+			if (field != null) {
+				JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
+						.arg(getAction().invoke("getDone"))
+						.arg(getAction().invoke("getFailed"));
+				addPostBuildBlock(invoke);						
 			}
 		}
 	}

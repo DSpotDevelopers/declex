@@ -20,21 +20,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 
 public class ActionMethodParam {
 	public Map<String, Object> metaData;
 	public Object internal;
 	
 	public String name;
-	public AbstractJClass clazz;
+	public AbstractJType clazz;
 	public List<Annotation> annotations;
 	
-	public ActionMethodParam(String name, AbstractJClass clazz) {
+	public ActionMethodParam(String name, AbstractJType clazz) {
 		this(name, clazz, new ArrayList<Annotation>(0));
 	}
 	
-	public ActionMethodParam(String name, AbstractJClass clazz, List<Annotation> annotations) {
+	public ActionMethodParam(String name, AbstractJType clazz, List<Annotation> annotations) {
 		super();
 		this.name = name;
 		this.clazz = clazz;

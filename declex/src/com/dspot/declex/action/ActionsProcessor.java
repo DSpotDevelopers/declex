@@ -43,6 +43,7 @@ import org.androidannotations.internal.process.ProcessHolder.Classes;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.Literal;
 import com.dspot.declex.api.action.annotation.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
@@ -51,6 +52,7 @@ import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.share.holder.EnsureImportsHolder;
 import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -129,6 +131,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private String lastMemberIdentifier;
 	
 	private List<String> currentAction = new LinkedList<>();
+	private List<String> currentActionSelectors = new LinkedList<>();
 	private List<JInvocation> currentBuildInvocation = new LinkedList<>();
 	private List<Map<String, ParamInfo>> currentBuildParams = new LinkedList<>(); 
 	
@@ -210,6 +213,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
             	scanner.scan(treePath, trees);
 			} catch (ActionProcessingException e) {
 				valid.addError(e.getMessage());
+			} catch (IllegalStateException e) {
+				valid.addError(e.getMessage());
 			}
 		}
 	}
@@ -267,6 +272,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	private String parseForSpecials(String expression, boolean ignoreThis) {
+		if (isValidating()) return expression;
+		
 		String generatedClass = holder.getGeneratedClass().name();
 		String annotatedClass = holder.getAnnotatedElement().getSimpleName().toString();
 		
@@ -277,6 +284,14 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		expression = expression.replaceAll("(?<![a-zA-Z_$.])" + annotatedClass + ".this(?![a-zA-Z_$])", generatedClass + ".this");
 		expression = expression.replaceAll("(?<![a-zA-Z_$.])" + annotatedClass + ".super(?![a-zA-Z_$])", generatedClass + ".super");
+		
+		if (currentAction.get(0) != null) {			
+			for (ParamInfo paramInfo : currentBuildParams.get(0).values()) {
+				final ActionMethodParam param = paramInfo.param;
+				expression = expression.replaceAll("\\" + currentAction.get(0) + "." + param.name + "\\(\\)\\.", "");
+			}
+		}
+		
 		return expression;
 	}
 	
@@ -305,13 +320,24 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			initialBlock.invoke(sharedVariablesHolderVar, "run");
 		}
 		
-		String variableClass = variableClassFromImports(variable.getType().toString(), true);
-						
+		String variableClass = variableClassFromImports(variable.getType().toString(), true);		
+		
+		int arrayCounter = 0;
+		while (variableClass.endsWith("[]")) {
+			arrayCounter++;
+			variableClass = variableClass.substring(0, variableClass.length() - 2);
+		}
+		
+		AbstractJClass VARIABLECLASS = getJClass(variableClass);
+		for (int i = 0; i < arrayCounter; i++) {
+			VARIABLECLASS = VARIABLECLASS.array();
+		}
+		
 		if (!sharedVariablesHolder.containsField(name)) {
 			if (initializer != null && !name.startsWith("$")) {
 				sharedVariablesHolder.field(
 						JMod.NONE, 
-						getJClass(variableClass), 
+						VARIABLECLASS, 
 						name
 					);
 				block.assign(ref(name), initializer);
@@ -319,7 +345,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (name.startsWith("$")) {
 					sharedVariablesHolder.field(
 							JMod.NONE, 
-							getJClass(variableClass), 
+							VARIABLECLASS, 
 							name
 						);
 					
@@ -327,7 +353,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				} else {
 					sharedVariablesHolder.field(
 							JMod.NONE, 
-							getJClass(variableClass), 
+							VARIABLECLASS, 
 							name
 						);												
 				}
@@ -482,14 +508,17 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 				for (ParamInfo paramInfo : currentBuildParams.get(0).values()) {
 					final ActionMethodParam param = paramInfo.param;
-					
+										
 					if (param.name.equals(lastMemberIdentifier)) {
+						
+						currentActionSelectors.add(0, idName + "." + lastMemberIdentifier + "()");
+
 						//If the block already exists, do not create a new Runnable 
 						if (paramInfo.runnableBlock != null) {
 							pushBlock(paramInfo.runnableBlock, null);
 						} else {
 							
-							JDefinedClass anonymousRunnable = getCodeModel().anonymousClass(param.clazz);
+							JDefinedClass anonymousRunnable = getCodeModel().anonymousClass((AbstractJClass) param.clazz);
 							JMethod anonymousRunnableRun = anonymousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
 							anonymousRunnableRun.annotate(Override.class);
 							anonymousRunnableRun.body().directStatement("//ACTION EVENT: " + param.name);
@@ -516,11 +545,17 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				
 				currentIfCondition = null;
 			} else {
+				
 				if (Actions.getInstance().hasActionNamed(idName)) {
-					throw new ActionProcessingException(
-							"Action Selector out of context: " + idName + " in if" + currentIfCondition 
-						);
+					System.out.println("LL: " + currentIfCondition);
+					if (parseForSpecials(currentIfCondition, false).contains(idName)) {
+						throw new ActionProcessingException(
+								"Action Selector out of context: " + idName + " in if" + currentIfCondition 
+							);
+						
+					}					
 				}
+				
 			}
 		} 
 		
@@ -645,8 +680,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					}
 				}
 
-				final String actionName = methodSelect.substring(0, 1).toLowerCase() 
+				String actionName = methodSelect.substring(0, 1).toLowerCase() 
 		                  + methodSelect.substring(1) + actionCount;
+				if (actionInfo.isGlobal) {
+					actionName = actionName + "$" + element.getSimpleName();
+				}
 				
 				JBlock block = blocks.get(0);
 				
@@ -677,15 +715,24 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				
 				AbstractJClass injectedClass = getJClass(actionClass + ModelConstants.generationSuffix());
 				
-				JVar action = block.decl(
-						injectedClass, 
-						actionName,
-						injectedClass.staticInvoke(EBeanHolder.GET_INSTANCE_METHOD_NAME).arg(context)
-				);
+				final JVar action;
+				if (actionInfo.isGlobal && !isValidating()) {
+					action = holder.getGeneratedClass().field(JMod.PRIVATE, injectedClass, actionName);
+					block.assign(action, injectedClass.staticInvoke(EBeanHolder.GET_INSTANCE_METHOD_NAME).arg(context));
+				} else {
+					action = block.decl(
+							JMod.FINAL,
+							injectedClass, 
+							actionName,
+							injectedClass.staticInvoke(EBeanHolder.GET_INSTANCE_METHOD_NAME).arg(context)
+					);
+				}
+				
 								
 				
 				actionInfo.clearMetaData();
 				
+				JBlock preInit = block.blockVirtual();
 				JInvocation initInvocation = block.invoke(action, "init");
 				if (invoke != null) {
 					
@@ -693,6 +740,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						initInvocation.arg(direct(arg));
 					}
 				} 
+				JBlock postInit = block.blockVirtual();
 				
 				Collections.reverse(subMethods);
 				JInvocation externalInvoke = null;
@@ -747,16 +795,35 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (buildMethods != null && buildMethods.size() > 0) {
 					
 					try {
-						actionInfo.metaData.put("action", action);
-						actionInfo.metaData.put("holder", holder);
-						actionInfo.metaData.put("validating", isValidating());
+						actionInfo.metaData.put("action", action);						
 						
-						actionInfo.callProcessors();
+						if (isValidating()) {
+							actionInfo.validateProcessors();
+						} else {
+							actionInfo.metaData.put("holder", holder);
+							actionInfo.callProcessors();
+						}						
 						
 					} catch (IllegalStateException e) {
 						throw new ActionProcessingException(
 									e.getMessage()
 								);
+					}
+					
+					@SuppressWarnings("unchecked")
+					List<IJStatement> preInitBlocks = (List<IJStatement>) actionInfo.metaData.get("preInitBlocks");
+					if (preInitBlocks != null) {
+						for (IJStatement preInitBlock : preInitBlocks) {
+							preInit.add(preInitBlock);
+						}
+					}
+					
+					@SuppressWarnings("unchecked")
+					List<IJStatement> postInitBlocks = (List<IJStatement>) actionInfo.metaData.get("postInitBlocks");
+					if (postInitBlocks != null) {
+						for (IJStatement postBuildBlock : postInitBlocks) {
+							postInit.add(postBuildBlock);
+						}
 					}
 					
 					if (buildAndExecute) {
@@ -790,7 +857,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 							ParamInfo paramInfo;
 							if (firstParam) {
 								
-								JDefinedClass anonymousRunnable = getCodeModel().anonymousClass(param.clazz);
+								JDefinedClass anonymousRunnable = getCodeModel().anonymousClass((AbstractJClass) param.clazz);
 								JMethod anonymousRunnableRun = anonymousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
 								anonymousRunnableRun.annotate(Override.class);
 								anonymousRunnableRun.body().directStatement("//ACTION EVENT: " + param.name);
@@ -869,7 +936,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			if (currentIfCondition != null) {
 
 				JBlock block = blocks.get(0);
-				JConditional cond = block._if(direct(currentIfCondition));
+				JConditional cond = block._if(direct(parseForSpecials(currentIfCondition, false)));
 				
 				if (elseIfCondition != null) {
 					addAdditionalBlock(cond._else(), "elseBlock:");					
@@ -1031,7 +1098,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (showDebugInfo()) {
 			debugIndex = debugIndex.substring(0, debugIndex.length()-4);
 			System.out.println(debugPrefix() + "end");
-		}
+		}		
 		
 		blocks.remove(0);
 		parallelBlock.remove(0);
@@ -1335,6 +1402,31 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					boolean useArguments = false;
 					for (Annotation annotation : param.annotations) {					
 						
+						//Literal Expressions
+						if (annotation instanceof Literal) {
+							boolean finded = false;			
+							Matcher matcher = patternForStringLiterals.matcher(currentParam);
+							
+							while (matcher.find()) {
+								finded = true;
+								
+								String matched = matcher.group(0);
+								if (!matched.equals(currentParam)) {
+									throw new ActionProcessingException("You should provide a literal value for \"fields\" in action " + invocation);
+								}
+								
+								String literalStringValue = matcher.group(1);
+								
+								IJExpression exp = FormatsUtils.expressionFromString(literalStringValue);
+								param.metaData.put("literalExpression", exp);
+								param.metaData.put("literal", literalStringValue);
+							}
+
+							if (!finded) {
+								throw new ActionProcessingException("You should provide a literal value for \"fields in action invocation");
+							}
+						}
+						
 						//Formatted Expressions
 						if (annotation instanceof FormattedExpression) {
 
@@ -1349,7 +1441,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 								
 								IJExpression exp = FormatsUtils.expressionFromString(literalStringValue);
 								
-								currentParam = currentParam.replace(matched, expressionToString(exp)); 								
+								currentParam = currentParam.replace(matched, expressionToString(exp));						
 							}
 
 							if (finded) {
@@ -1378,6 +1470,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 							
 							if (fieldElement != null) {
 								param.metaData.put("field", fieldElement);
+								param.metaData.put("fieldName", fieldElement.getSimpleName().toString());
+								
+								String fieldClass = TypeUtils.typeFromTypeString(fieldElement.asType().toString(), env);
+								param.metaData.put("fieldClass", fieldClass);
+								param.metaData.put("fieldJClass", getJClass(fieldClass));
 							} else {
 								throw new ActionProcessingException(
 										"There's no an accesible field named: " + currentParam + " in " + invocation
@@ -1464,6 +1561,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				currentVariableClass = variableClass.substring(pointIndex);
 			}
 			
+			while (firstElementName.endsWith("[]")) {
+				firstElementName = firstElementName.substring(0, firstElementName.length()-2);
+				if (currentVariableClass.isEmpty()) currentVariableClass = currentVariableClass + "[]";
+			}
+			
 			if (lastElementImport.equals(firstElementName)) {
 				
 				if (!isValidating() && ensureImport && !importTree.isStatic()) {
@@ -1477,7 +1579,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		return variableClass;
 	}
-	
+		
 	private AbstractJClass getJClass(String clazz) {
 		return env.getJClass(clazz);
 	}

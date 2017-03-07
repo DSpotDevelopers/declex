@@ -107,7 +107,7 @@ public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 			
 			for (String elemName : fields.keySet()) {
 				String elemType = fields.get(elemName);
-				AbstractJClass elemClass = getJClass(elemType);
+				AbstractJClass elemClass = TypeUtils.classFromTypeString(elemType, getEnvironment());
 				
 				JVar param = create.param(elemClass, elemName);
 				create.body().invoke(instance, fieldToSetter(elemName)).arg(param);

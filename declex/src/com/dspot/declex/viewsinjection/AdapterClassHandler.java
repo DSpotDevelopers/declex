@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator;
+package com.dspot.declex.viewsinjection;
 
 import static com.helger.jcodemodel.JExpr.ref;
 import static com.helger.jcodemodel.JExpr._null;
@@ -33,7 +33,7 @@ import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.api.populator.AdapterClass;
+import com.dspot.declex.api.viewsinjection.AdapterClass;
 import com.dspot.declex.plugin.JClassPlugin;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
@@ -61,7 +61,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		
 		boolean isList = TypeUtils.isSubtype(element, "java.util.Collection", getProcessingEnvironment());		
 		if (!isList) {
-			valid.addError("This annotation shoud be used only on @Populator for an AdapterView");
+			valid.addError("This annotation shoud be used only on @Populate for an AdapterView");
 		} 
 	}
 
@@ -97,9 +97,9 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					if (params.size() > 0 && params.size() < 4) {
 						
 						boolean isViewAdapter = false;
-						JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().LAYOUT_INFLATER});
+						JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
 						if (inflaterMethod == null) {
-							inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().LAYOUT_INFLATER});
+							inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
 							isViewAdapter = true;
 						}
 							
@@ -109,6 +109,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 						
 						JFieldRef position = ref("position");
 						JFieldRef viewType = ref("viewType");
+						JFieldRef parent = ref("parent");
 						JFieldRef convertView = ref("convertView");
 						JFieldRef inflater = ref("inflater");
 
@@ -121,6 +122,10 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 							
 							if (isViewAdapter && param.asType().toString().equals(getClasses().VIEW.fullName())) {
 								invoke = invoke.arg(convertView);
+							} else
+								
+							if (param.asType().toString().equals(getClasses().VIEW_GROUP.fullName())) {
+								invoke = invoke.arg(parent);
 							} else
 							
 							if (param.asType().toString().equals(getClasses().LAYOUT_INFLATER.fullName())) {

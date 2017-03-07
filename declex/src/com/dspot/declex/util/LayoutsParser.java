@@ -37,8 +37,7 @@ import org.w3c.dom.NodeList;
 public class LayoutsParser {
 	private Logger LOGGER;
 	
-	private Map<String, Map<String, String>> layoutMaps = new HashMap<String, Map<String, String>>();
-	private Map<String, Map<String, Element>> layoutNodes = new HashMap<String, Map<String, Element>>();
+	private Map<String, Map<String, LayoutObject>> layoutMaps = new HashMap<>();
 
 	private List<File> layoutFolders = new LinkedList<File>();
 	
@@ -68,23 +67,21 @@ public class LayoutsParser {
 		LayoutsParser.instance = this;
 	}
 	
-	public Map<String, String> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper) {
+	public Map<String, LayoutObject> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper) {
 		return getLayoutObjects(layoutName, idHelper, null);
 	}
 	
-	private Map<String, String> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper, String layoutId) {
-		Map<String, String> layoutObjects = layoutMaps.get(layoutName);
+	private Map<String, LayoutObject> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper, String layoutId) {
+		Map<String, LayoutObject> layoutObjects = layoutMaps.get(layoutName);
 		
 		if (layoutObjects == null) {
 			for (File layout : layoutFolders) {
 				for (File file : layout.listFiles()) {
 					if (file.isFile() && file.getName().equals(layoutName + ".xml")) {
-						Map<String, Element> layoutNode = new TreeMap<String, Element>();
 						
-						layoutObjects = parse(file, idHelper, layoutNode, layoutId);
+						layoutObjects = parse(file, idHelper, layoutId);
 						
 						layoutMaps.put(layoutName, layoutObjects);
-						layoutNodes.put(layoutName, layoutNode);
 						break;
 					}
 				}
@@ -94,28 +91,13 @@ public class LayoutsParser {
 		return layoutObjects;
 	}
 	
-	public Map<String, Element> getLayoutNodes(String layoutName) {
-		return layoutNodes.get(layoutName);
-	}
-	
-	private void searchInNode(Element node, IdAnnotationHelper idHelper, Map<String, String> foundObjects, Map<String, Element> layoutNode, String layoutId) {
+	private void searchInNode(Element node, IdAnnotationHelper idHelper, Map<String, LayoutObject> foundObjects, String layoutId) {
 		//documentElement.normalize();
 		
 		final String[] packages = {
 				"android.widget.", "android.view.", "android.webkit."
 		};
-		
-		//Support for new NavigationView
-		if (node.getTagName().equals("android.support.design.widget.NavigationView")) {
-			if (node.hasAttribute("app:headerLayout")) {
-				String layoutName = node.getAttribute("app:headerLayout");
-				layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
-				foundObjects.putAll(getLayoutObjects(layoutName, idHelper));
-				layoutNode.putAll(getLayoutNodes(layoutName));
-			}
-		}
-		
 		//Navigate in the <include> tag
 		if (node.getTagName().equals("include")) {
 			if (node.hasAttribute("layout")) {
@@ -130,7 +112,6 @@ public class LayoutsParser {
 				layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
 				foundObjects.putAll(getLayoutObjects(layoutName, idHelper, id));
-				layoutNode.putAll(getLayoutNodes(layoutName));
 			}
 			return;
 		}
@@ -145,12 +126,15 @@ public class LayoutsParser {
 				id = id.substring(id.lastIndexOf('/') + 1);				
 			}
 			
+			//Support for "fragment" tag
 			if (node.getTagName().equals("fragment")) {
 				if (node.hasAttribute("android:name")) {
 					String fragmentClassName = node.getAttribute("android:name");
 					if (idHelper.containsField(id, Res.ID))	{
-						foundObjects.put(id, fragmentClassName);
-						layoutNode.put(id, node);
+						foundObjects.put(
+								id,
+								new LayoutObject(fragmentClassName, node)
+						);
 					}
 				}
 				
@@ -161,7 +145,6 @@ public class LayoutsParser {
 					layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 					
 					foundObjects.putAll(getLayoutObjects(layoutName, idHelper, null));
-					layoutNode.putAll(getLayoutNodes(layoutName));
 				}
 				
 				return;
@@ -182,19 +165,35 @@ public class LayoutsParser {
 			}
 			
 			if (idHelper.containsField(id, Res.ID))	{
-				foundObjects.put(id, className);
-				layoutNode.put(id, node);
+				LayoutObject layoutObject = new LayoutObject(className, node);
+				foundObjects.put(id, layoutObject);
+				
+				//Support for new NavigationView
+				if (TypeUtils.isSubtype(className, "android.support.design.widget.NavigationView", processingEnv)) {
+					if (node.hasAttribute("app:headerLayout")) {
+						String layoutName = node.getAttribute("app:headerLayout");
+						layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
+				
+						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName, idHelper);
+						
+						for (LayoutObject headerLayoutObject : headerLayoutObjects.values()) {
+							headerLayoutObject.holderId = id;
+						}
+						
+						foundObjects.putAll(headerLayoutObjects);
+					}
+				}
 			}
 		}		
 		
 		NodeList nodes = node.getChildNodes();
 		for (int i = 0; i < nodes.getLength(); i++) 
 			if (nodes.item(i) instanceof Element){
-			searchInNode((Element)nodes.item(i), idHelper, foundObjects, layoutNode, null);
+			searchInNode((Element)nodes.item(i), idHelper, foundObjects, null);
 		}
 	}
 	
-	private Map<String, String> parse(File xmlLayoutFile, IdAnnotationHelper idHelper, Map<String, Element> layoutNode, String layoutId) {
+	private Map<String, LayoutObject> parse(File xmlLayoutFile, IdAnnotationHelper idHelper, String layoutId) {
 		LOGGER.info("Layout Parsing: " + xmlLayoutFile.getName());
 		
 		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
@@ -205,16 +204,27 @@ public class LayoutsParser {
 			doc = docBuilder.parse(xmlLayoutFile);
 		} catch (Exception e) {
 			LOGGER.error("Could not parse Layout file at path {}", xmlLayoutFile.getName(), e);
-			return new HashMap<String, String>();
+			return new HashMap<>();
 		}
 
-		Map<String, String> foundObjects = new TreeMap<String, String>();
+		Map<String, LayoutObject> foundObjects = new TreeMap<>();
 		Element documentElement = doc.getDocumentElement();
 		
-		searchInNode(documentElement, idHelper, foundObjects, layoutNode, layoutId);
+		searchInNode(documentElement, idHelper, foundObjects, layoutId);
 		
 		LOGGER.info("Layout Parsing Found: " + foundObjects);
 		
 		return foundObjects;
+	}
+	
+	public static class LayoutObject {
+		public String className;
+		public Element domElement;
+		public String holderId;
+		
+		public LayoutObject(String className, Element domElement) {
+			this.className = className;
+			this.domElement = domElement;
+		}
 	}
 }

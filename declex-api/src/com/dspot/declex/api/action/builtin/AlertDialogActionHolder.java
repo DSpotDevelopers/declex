@@ -196,10 +196,12 @@ public class AlertDialogActionHolder {
 		this.items = items;
         return this;
     }
-	
-	public AlertDialogActionHolder items(List<String> items) {
+
+	public AlertDialogActionHolder items(List<?> items) {
 		this.items = new String[items.size()];
-		this.items = items.toArray(this.items);
+		for (int i = 0; i < items.size(); i++) {
+			this.items[i] = items.get(i).toString();
+		}
         return this;
     }
 	

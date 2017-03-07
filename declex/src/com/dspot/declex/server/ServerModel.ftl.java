@@ -165,7 +165,7 @@ public class User extends Model {
 			
 			if (!elem.isJsonObject()) return null;
 	        
-			${className} instance = getGson().fromJson(elem, ${className}.class);
+			${className} instance = ${className}.fromJson(elem);
 	        if (instance!= null) {
 	            instance.rebind(context);
 	        }
@@ -197,7 +197,7 @@ public class User extends Model {
 			if (elem.isJsonObject()) {
 				java.util.List<${className}> models = new ArrayList<${className}>();
 				
-				${className} instance = getGson().fromJson(elem, ${className}.class);
+				${className} instance = ${className}.fromJson(elem);
 		        if (instance!= null) {
 		            instance.rebind(context);
 		        }
@@ -223,7 +223,7 @@ public class User extends Model {
 		}
 	}
 
-	private java.util.Map<String, String> getAllFields(String fields) {
+	private java.util.Map<String, String> getAllFields(String fields) {		
         java.util.Map<String, String> allFields = new java.util.HashMap<>();
 		
 		try {

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.populator;
+package com.dspot.declex.api.action.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,9 +21,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.FIELD)
-public @interface Recollector {
-	boolean validate() default false;
-	boolean validateAutoMessage() default true;
-	boolean debug() default false;
+@Target(ElementType.PARAMETER)
+public @interface Literal {
+
 }

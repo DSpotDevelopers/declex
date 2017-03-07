@@ -24,12 +24,8 @@ public class ActionProcessorUtil {
 		return getMethodInHolder(methodName, holder, null);
 	}
 	
-	public static <T> T getMethodInHolder(String methodName, Object holder, Object param) {
-		return getMethodInHolder(methodName, holder, null, param);
-	}
-	
 	@SuppressWarnings("unchecked")
-	public static <T> T getMethodInHolder(String methodName, Object holder, String subHolder, Object param) {
+	public static <T> T getMethodInHolder(String methodName, Object holder, String subHolder, Object ... params) {
 		Class<?> clazz = holder.getClass();
 		if (subHolder != null) {
 			try {
@@ -56,8 +52,8 @@ public class ActionProcessorUtil {
 	    if (method == null) return null;
 	    
 	    try {
-	    	if (param != null)
-	    		return (T) method.invoke(holder, param);
+	    	if (params != null && params.length > 0)
+	    		return (T) method.invoke(holder, params);
 	    	else {
 	    		return (T) method.invoke(holder);
 	    	}
@@ -87,6 +83,7 @@ public class ActionProcessorUtil {
 		Method[] methods = clazz.getDeclaredMethods();
 		for (Method method : methods) {
 			if (method.getName().equals(methodName)) {
+				method.setAccessible(true);
 				return method;
 			}
 		}

@@ -22,7 +22,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 
 /**
- * An Action to populate a {@link com.dspot.declex.api.populator.Populator @Populator} 
+ * An Action to populate a {@link com.dspot.declex.api.viewsinjection.Populate @Populate} 
  * annotated field.
  * 
  * <br><br>
@@ -35,7 +35,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * <b>More Info in </b><a href="https://github.com/smaugho/declex/wiki/Populating%20Views">Populating Views</a>
  * 
  * @see com.dspot.declex.Action.$Recollect $Recollect
- * @see com.dspot.declex.Action.$GetModel $GetModel
+ * @see com.dspot.declex.Action.$LoadModel $LoadModel
  * @see com.dspot.declex.Action.$PutModel $PutModel
  */
 
@@ -46,18 +46,18 @@ public class PopulateActionHolder {
 	private OnFailedRunnable Failed;
 	
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.populator.Populator @Populator}.
+	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
 	 */
     void init(@Field Object field) {
     }
 
     /**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.populator.Populator @Populator}  annotated
+     * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  annotated
      * field is used to populate the user interface
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.populator.Populator @Populator}  
+     * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  
      * annotated field fails populating.
      */
     void build(Runnable Done, OnFailedRunnable Failed) {

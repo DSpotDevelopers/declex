@@ -43,7 +43,7 @@ public class User extends Model {
 </@class_head>
 
 	//============================================================
-	//						@JsonSerializedModel
+	//						   @JsonModel
 	//============================================================
 
 	public String toJson() {
@@ -62,6 +62,16 @@ public class User extends Model {
 		return getGson().fromJson(jsonElement, ${className}.class);
 	}
 
+	public static List<${className}> listFromJson(String json) {
+		Type listType = new TypeToken<java.util.List<${className}>>(){}.getType();
+		return getGson().fromJson(json, listType);
+	}
+	
+	public static List<${className}> listFromJson(JsonElement jsonElement) {
+		Type listType = new TypeToken<java.util.List<${className}>>(){}.getType();
+		return getGson().fromJson(jsonElement, listType);
+	}
+	
 	private static Gson getGson() {
 		return getGson(null, null);
 	}
@@ -70,10 +80,45 @@ public class User extends Model {
 		return getGsonBuilder(inst, fields).create();		
 	}
 		
-	private static class ModelExclusionStrategy implements ExclusionStrategy {
+	public static class ModelExclusionStrategy implements ExclusionStrategy {
 
 		private ${className} inst;
-		private List<String> fields;
+		private List<String> fields;		
+		<#if (jsonSerializedModels?size > 0)>
+
+		private ExclusionStrategy currentExclusion;
+		
+		<#list jsonSerializedModels as fieldName, classInfo>
+		private ${classInfo.generatorClassName}_.ModelExclusionStrategy exclussionFor_${fieldName};
+		</#list>
+		</#if>
+		
+		private static ModelExclusionStrategy nullExclussionInstance;
+		
+		public static ModelExclusionStrategy nullExclussion() {
+			if (nullExclussionInstance == null) {
+				nullExclussionInstance = new ModelExclusionStrategy(null, null);
+			}			
+			return nullExclussionInstance;
+		}
+		<#if (jsonSerializedModels?size > 0)>
+		
+		private void initializeSerializedModels(${className} inst) {			
+			<#list jsonSerializedModels as fieldName, classInfo>
+			<#if !(classInfo.list)>
+
+			exclussionFor_${fieldName} = new ${classInfo.generatorClassName}_.ModelExclusionStrategy(inst.${fieldName}, null);
+			</#if>
+			</#list>
+			
+		}		
+		</#if>
+		
+		public void clearExclusion() {
+			<#if (jsonSerializedModels?size > 0)>
+			currentExclusion = null;
+			</#if>
+		}
 		
 		public ModelExclusionStrategy(${className} inst, String fields) {
 			this.inst = inst;
@@ -82,7 +127,13 @@ public class User extends Model {
 				this.fields = null;
 			} else {
 				this.fields = Arrays.asList(fields.split("\\s*[,]\\s*"));				
+			}		
+			<#if (jsonSerializedModels?size > 0)>
+			
+			if (inst != null) {
+				initializeSerializedModels(inst);
 			}
+			</#if>
 		}
 		
 		@Override
@@ -96,15 +147,37 @@ public class User extends Model {
 			if (fields != null && field.getDeclaringClass().getName().equals("${fromClassFull}")) {
 				if (!fields.contains(field.getName())) return true;
 			}
+			<#if (jsonSerializedModels?size > 0)>
+			
+			if (currentExclusion != null) {
+				if (currentExclusion.shouldSkipField(field)) return true;
+			}
+			
+			if (field.getDeclaringClass().getName().equals("${fromClassFull}")) {
+				<#list jsonSerializedModels as fieldName, classInfo>
+				
+				if (field.getName().equals("${fieldName}")) {
+					if (exclussionFor_${fieldName} == null) 
+						exclussionFor_${fieldName} = ${classInfo.generatorClassName}_.ModelExclusionStrategy.nullExclussion();
+					
+					currentExclusion = exclussionFor_${fieldName};
+					exclussionFor_${fieldName}.clearExclusion();
+				} else if (currentExclusion == exclussionFor_${fieldName}) {
+					currentExclusion = null;
+				}			
+				</#list>
+			}
+			
+			</#if>
 			<#if (serializeConditions?size > 0)>
 			
-			//Exclude from serialization any generated class fields (ending with "_") and 
-			//Active Android Model fields, if any
 			<#list serializeConditions as field, cond>
 			if ("${field}".equals(field.getName())<#if cond!="!(false)"> && (${cond})</#if>) return true;
 			</#list>
             </#if>
 			
+            //Exclude from serialization any generated class fields (ending with "_") and 
+			//Active Android Model fields, if any
 			return field.getDeclaringClass().getName().endsWith("_") ||
 					field.getDeclaringClass().getCanonicalName().equals(com.activeandroid.Model.class.getCanonicalName()) ||
 					field.hasModifier(java.lang.reflect.Modifier.FINAL) || field.hasModifier(java.lang.reflect.Modifier.STATIC) ||

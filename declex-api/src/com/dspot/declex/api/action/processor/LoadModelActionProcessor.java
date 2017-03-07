@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.api.action.processor;
 
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.assign;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
@@ -31,12 +32,13 @@ import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.api.viewsinjection.Recollect;
+import com.dspot.declex.api.viewsinjection.Populate;
 import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 
-public class PutModelActionProcessor extends BaseActionProcessor {
+public class LoadModelActionProcessor extends BaseActionProcessor {
 
 	@Override
 	public void validate(ActionInfo actionInfo) {
@@ -54,11 +56,11 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
-				ActionMethod noRecollecte = getActionMethod("noRecollect");
-				if (noRecollecte.metaData != null) {
-					Recollect recollectorAnnotation = field.getAnnotation(Recollect.class);
-					if (recollectorAnnotation == null) {
-						throw new IllegalStateException("The field " + field + " is not annotated with @Recollect");
+				ActionMethod noPopulate = getActionMethod("noPopulate");
+				if (noPopulate.metaData != null) {
+					Populate populatorAnnotation = field.getAnnotation(Populate.class);
+					if (populatorAnnotation == null) {
+						throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
 					}
 				}
 			}
@@ -78,20 +80,20 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
 			String fieldName = (String) initParam.metaData.get("fieldName");
-						
+			
 			if (field != null) {
 				Model modelAnnotation = field.getAnnotation(Model.class);
-				
+					
 				if (field.getEnclosingElement().getAnnotation(EFragment.class) == null
-					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null)
+						&& field.getEnclosingElement().getAnnotation(EActivity.class) == null)
 				{
 					if (getActionMethod("keepCallingThread").metaData == null) {
 						addPreBuildBlock(getAction().invoke("keepCallingThread"));
 					}
 				}
 				
-				JMethod putModelMethod = getMethodInHolder(
-						"getPutModelMethod", "com.dspot.declex.model.ModelHolder", field
+				JMethod getModelMethod = getMethodInHolder(
+						"getLoadModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);
 				
 				IJExpression queryExp = null;
@@ -107,7 +109,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				} else {
 					orderByExp = getAction().invoke("getOrderBy");
 				}
-
+				
 				IJExpression fieldsExp = null;
 				if (fields.metaData == null) {
 					fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
@@ -115,17 +117,24 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					fieldsExp = getAction().invoke("getFields");
 				}
 				
-				JInvocation invoke = invoke(putModelMethod)
-										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
-						                .arg(getAction().invoke("getAfterPut"))
-						                .arg(getAction().invoke("getFailed"));
-				
-				ActionMethod noPopulate = getActionMethod("noRecollect");
-				if (noPopulate.metaData != null) {
-					addPostBuildBlock(assign(ref("_recollect_" + fieldName), lit(false)));
+				IJExpression contextExpr = getMethodInHolder("getContextRef");
+				if (contextExpr == _this()) {
+					JDefinedClass generatedClass = getMethodInHolder("getGeneratedClass");
+					contextExpr = generatedClass.staticRef("this");
 				}
 				
-				addPostBuildBlock(invoke);				
+				JInvocation invoke = invoke(getModelMethod)
+										.arg(contextExpr)
+										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
+						                .arg(getAction().invoke("getAfterLoad"))
+						                .arg(getAction().invoke("getFailed"));
+				
+				ActionMethod noPopulate = getActionMethod("noPopulate");
+				if (noPopulate.metaData != null) {
+					addPostBuildBlock(assign(ref("_populate_" + fieldName), lit(false)));
+				}
+				
+				addPostBuildBlock(invoke);					
 			}
 		}
 	}

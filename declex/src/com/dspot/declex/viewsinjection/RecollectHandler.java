@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator;
+package com.dspot.declex.viewsinjection;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
@@ -49,7 +49,7 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.action.error.ValidationException;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
-import com.dspot.declex.api.populator.Recollector;
+import com.dspot.declex.api.viewsinjection.Recollect;
 import com.dspot.declex.model.ModelHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
@@ -74,12 +74,12 @@ import com.helger.jcodemodel.JVar;
 import com.mobsandgeeks.saripaar.annotation.Order;
 import com.mobsandgeeks.saripaar.annotation.ValidateUsing;
 
-public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
+public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(RecollectorHandler.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(RecollectHandler.class);
 	
-	public RecollectorHandler(AndroidAnnotationsEnvironment environment) {
-		super(Recollector.class, environment);
+	public RecollectHandler(AndroidAnnotationsEnvironment environment) {
+		super(Recollect.class, environment);
 	}
 	
 	@Override
@@ -100,7 +100,7 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 				
 		boolean isList = TypeUtils.isSubtype(element, "java.util.Collection", getProcessingEnvironment());		
 		if (isList) {
-			valid.addError("@Recollector cannot be used over a Collection of models");
+			valid.addError("@Recollect cannot be used over a Collection of models");
 		} 		
 		
 		//Validate special methods
@@ -146,6 +146,16 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 		JVar afterRecollect = recollectModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
 		JVar onFailed = recollectModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		
+		JFieldVar recollectField = holder.getGeneratedClass().field(
+				JMod.PRIVATE, getCodeModel().BOOLEAN, 
+				recollectModelMethod.name(), lit(true)
+		);
+		
+		JBlock notRecollect = recollectModelMethod.body()._if(recollectField.not())._then();
+		notRecollect.invoke(afterRecollect, "run");
+		notRecollect.assign(recollectField, lit(true));
+		notRecollect._return();
+		
 		final Model annotation = element.getAnnotation(Model.class);
 		if (annotation != null) {
 			final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));
@@ -158,7 +168,7 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 		
 		JBlock recollectBlock;
 		JAnonymousClass ValidatorListenerClass = null;
-		Recollector recollector = element.getAnnotation(Recollector.class);
+		Recollect recollector = element.getAnnotation(Recollect.class);
 		if (recollector.validate()) {
 			AbstractJClass Validator = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator");
 			AbstractJClass ValidatorListener = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator.ValidationListener");
@@ -206,7 +216,7 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 			JMethod onValidationSucceeded = ValidatorListenerClass.method(JMod.PUBLIC, getCodeModel().VOID, "onValidationSucceeded");
 			onValidationSucceeded.annotate(Override.class);
 
-			JBlock block = recollectModelMethod.body();
+			JBlock block = recollectModelMethod.body();			
 			JVar validatorHolder = block.decl(ValidatorListenerClass, fieldName + "$validatorHolder", _new(ValidatorListenerClass));
 			JVar validator = block.decl(Validator, fieldName + "$validator", _new(Validator).arg(validatorHolder));
 			block.invoke(validator, "setValidationListener").arg(validatorHolder);
@@ -240,8 +250,8 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 			element.asType().toString().equals(String.class.getCanonicalName())) {
 			
 			if (annotationHelper.containsField(fieldName, Res.ID)) {
-				if (element.getAnnotation(Recollector.class).debug())
-					LOGGER.warn("\nField: " + fieldName, element, element.getAnnotation(Recollector.class));
+				if (element.getAnnotation(Recollect.class).debug())
+					LOGGER.warn("\nField: " + fieldName, element, element.getAnnotation(Recollect.class));
 								
 				JFieldRef view = viewsHolder.createAndAssignView(fieldName);
 				assignValueToField(ref(fieldName), element.asType(), view, recollectBlock);
@@ -259,8 +269,8 @@ public class RecollectorHandler extends BaseAnnotationHandler<EComponentWithView
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 		viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, false);
 		
-		if (element.getAnnotation(Recollector.class).debug())
-			LOGGER.warn("\nFields: " + fields + "\nMethods: " + methods, element, element.getAnnotation(Recollector.class));
+		if (element.getAnnotation(Recollect.class).debug())
+			LOGGER.warn("\nFields: " + fields + "\nMethods: " + methods, element, element.getAnnotation(Recollect.class));
 		
 		
 		for (String field : fields.keySet()) {

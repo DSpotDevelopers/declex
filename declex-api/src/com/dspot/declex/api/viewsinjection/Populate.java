@@ -13,42 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.server;
+package com.dspot.declex.api.viewsinjection;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.dspot.declex.api.server.ServerRequest.RequestType;
-
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD})
-public @interface ServerModel {
-	String baseUrl() default "";
+@Target({ElementType.FIELD, ElementType.METHOD})
+public @interface Populate {
 	
-	String get() default "";
-	String post() default "";
+	/**
+	 * A List of Layouts to be inflated by the populator
+	 */
+	int[] value() default 0;
 	
-	String[] getHeaders() default {};
-	String[] postHeaders() default {};
-	
-	RequestType postType() default RequestType.Default;
-	String[] postFields() default {};
-	
-	String model() default "";
-	Class<?> modelClass() default Object.class;
-	
-	boolean mock() default false;
-	String mockResult() default "";
-	
-	String defaultQuery() default "";
-	
-	boolean offline() default false;
-	boolean processUnsuccessful() default false;
-	
+	/**
+	 * The custom value is used to indicate in the case of a List<Model> that a 
+	 * custom adapter is going to be used
+	 */
 	boolean custom() default false;
 	
-	ServerRequest[] load() default {};
-	ServerRequest[] put() default {};
+	boolean debug() default false;
 }

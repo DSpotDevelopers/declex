@@ -33,14 +33,14 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
+import com.dspot.declex.override.util.OverrideAPTCodeModelHelper;
 
 public class ActionForHandler extends BaseAnnotationHandler<BaseGeneratedClassHolder> {
 	
 	public ActionForHandler(AndroidAnnotationsEnvironment environment) {
 		super(ActionFor.class, environment);
 		
-		codeModelHelper = new DeclexAPTCodeModelHelper(getEnvironment());
+		codeModelHelper = new OverrideAPTCodeModelHelper(getEnvironment());
 	}
 	
 	@Override

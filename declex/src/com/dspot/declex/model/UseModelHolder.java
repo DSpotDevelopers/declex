@@ -267,7 +267,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		}		
 	}
 	
-	public JMethod getGetModelMethod() {
+	public JMethod getLoadModelMethod() {
 		if (getModelMethod == null) {
 			setGetModel();
 		}

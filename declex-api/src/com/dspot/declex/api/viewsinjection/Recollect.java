@@ -13,9 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.action.process;
+package com.dspot.declex.api.viewsinjection;
 
-public interface ActionProcessor {
-	public void validate(ActionInfo actionInfo);
-	public void process(ActionInfo actionInfo);
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.FIELD)
+public @interface Recollect {
+	boolean validate() default false;
+	boolean validateAutoMessage() default true;
+	boolean debug() default false;
 }

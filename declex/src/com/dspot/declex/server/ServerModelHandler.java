@@ -18,6 +18,7 @@ package com.dspot.declex.server;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.direct;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
@@ -45,10 +46,12 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.api.extension.Extension;
-import com.dspot.declex.api.json.JsonSerializedModel;
+import com.dspot.declex.api.json.JsonModel;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.server.ServerModel;
 import com.dspot.declex.api.server.ServerRequest;
@@ -102,7 +105,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	@Override
 	public Set<Class<? extends Annotation>> getDependencies() {
 		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					JsonSerializedModel.class
+					JsonModel.class
 			   ));
 	}
 
@@ -195,10 +198,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			}
 			
 			for (ServerRequest request : serverModel.load()) {
-				if (!request.action().equals("NONE")) {
-					processRequest(request, true, element, useModelHolder);
-					loadExecuted = true;
-				}
+				processRequest(request, true, element, useModelHolder);
+				loadExecuted = true;
 			}
 
 			
@@ -208,10 +209,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			}
 					
 			for (ServerRequest request : serverModel.put()) {
-				if (!request.action().equals("NONE")) {
-					processRequest(request, false, element, useModelHolder);
-					putExecuted = true;
-				}
+				processRequest(request, false, element, useModelHolder);
+				putExecuted = true;
 			}		
 			
 			placeReturnForMethods(serverModel, holder.getGeneratedClass());
@@ -552,23 +551,18 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			action = action.replace(formatSyntaxMatcher.group(0), match);
 		}	
 
-		newBlock.invoke(requestBuilder, "url")
-		        .arg(ref("baseUrl")
-        		.plus(FormatsUtils.expressionFromString(action)));	
+		JBlock setUrl = newBlock.blockVirtual();	
 		
 		String[] headers = request.headers();
-		if (headers.length == 1 && headers[0].equals("")) {
+		if (headers.length == 0) {
 			if (isLoad) {
 				headers = serverModel.getHeaders();
-				
-				if (headers.length == 1 && headers[0].equals("")) {
+				if (headers.length == 0) {
 					headers = serverModel.postHeaders();
 				}
-			}
-			else {
+			} else {
 				headers = serverModel.postHeaders();
-				
-				if (headers.length == 1 && headers[0].equals("")) {
+				if (headers.length == 0) {
 					headers = serverModel.getHeaders();
 				}
 			}
@@ -602,112 +596,122 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			else requestMethod = RequestMethod.Post;
 		}
 		
-		String method = null;
-		switch (requestMethod) {
-		case Get:
-		case Head:
-			break;
-			
-		case Post:
-			method = "post";
-			break;
-			
-		case Delete:
-			method = "delete";
-			break;
-			
-		case Patch:
-			method = "patch";
-			break;
-			
-		case Put:
-			method = "put";
-			break;
-			
-		default:
-			break;
-			
+		final String method = requestMethod.toString().toLowerCase();
+
+		RequestType requestType = request.type();
+		if (requestType.equals(RequestType.Default)) {
+			if (isLoad) requestType = RequestType.Form;
+			else requestType = RequestType.Json;
 		}
 		
-		switch (requestMethod) {
-		case Get:
-		case Head:
-			break;
-			
-		case Post:
-		case Put:
-		case Patch:
-		case Delete:
-			RequestType requestType = request.type();
-			if (!request.fields()[0].equals("")) requestType = RequestType.Fields;
-			
-			switch (requestType) {
-				case Body: 
-					{
-						IJExpression createExp = getJClass("okhttp3.RequestBody").staticInvoke("create")
-								.arg(getJClass("okhttp3.MediaType").staticInvoke("parse").arg("application/json"))
-								.arg(inst.invoke("toJson").arg(fields));
+		switch (requestType) {
+			case Default: break;
+			case Json: 
+				if (!requestMethod.equals(RequestMethod.Get)) {
+					
+					if (!isLoad && !requestMethod.equals(RequestMethod.Head)) {
+						JInvocation createExp = getJClass("okhttp3.RequestBody").staticInvoke("create")
+								.arg(getJClass("okhttp3.MediaType").staticInvoke("parse").arg("application/json"));
+						
+						if (request.fields().length > 0) {
+							newBlock._if(fields.invoke("trim").invoke("equals").arg(""))
+							        ._then().assign(fields, lit(StringUtils.join(request.fields(), ", ")));						
+						}
+						
+						createExp = createExp.arg(inst.invoke("toJson").arg(fields));
+						
 						JVar requestBody = newBlock.decl(getJClass("okhttp3.RequestBody"), "requestBody", createExp);
 						newBlock.invoke(requestBuilder, method).arg(requestBody);
-					}
-					
-					break;
-					
-				case Fields:
-					{
-						JVar formBody = newBlock.decl(
-							getJClass("okhttp3.FormBody.Builder"), 
-							"formBody",
-							_new(getJClass("okhttp3.FormBody.Builder"))
-						);
-						
-						if (!request.fields()[0].equals("")) {
-							
-							for (String field : request.fields()) {
-								
-								Matcher matcher = Pattern.compile("\\A\\s*(\\w+)\\s*=").matcher(field);
-								if (matcher.find()) {
-									String assignment = field.substring(matcher.group(0).length());
-									String param = matcher.group(1);
-									
-									formatSyntaxMatcher = Pattern.compile(FormatsUtils.FORMAT_SYNTAX_REGX).matcher(assignment);
-									while (formatSyntaxMatcher.find()) {
-										String match = formatSyntaxMatcher.group(0);
-										
-										for (String clsField : clsFields.keySet()) {
-											match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
-										}
-										
-										assignment = assignment.replace(formatSyntaxMatcher.group(0), match);
-									}	
-									
-									newBlock.assign(
-										formBody, 
-										formBody.invoke("add")
-										        .arg(param)
-										        .arg(FormatsUtils.expressionFromString(assignment))
-									);									
-								}
-							}
-							
+					} else {
+						if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
+							newBlock.invoke(requestBuilder, method);
 						} else {
-							JVar fieldsVar = newBlock.decl(getJClass(Map.class).narrow(String.class, String.class), "allFields", inst.invoke("getAllFields").arg(fields));
-							newBlock.forEach(getClasses().STRING, "field", fieldsVar.invoke("keySet")).body()
-							        .assign(
-						        		formBody, 
-						        		formBody.invoke("add").arg(ref("field"))
-						        		        .arg(fieldsVar.invoke("get").arg(ref("field")))
-					        		);
+							newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+									                                    .staticInvoke("create")
+									                                    .arg(_null())
+									                                    .arg(direct("new byte[0]"))
+									                                    );
 						}
-					
-						newBlock.invoke(requestBuilder, method).arg(formBody.invoke("build"));
 					}
-					break;
-			}
-			break;
-			
-		default:
-			break;
+							
+				}
+				break;
+				
+			case Form:
+				if (!isLoad) {
+					if (request.fields().length > 0) {
+						newBlock._if(fields.invoke("trim").invoke("equals").arg(""))
+						        ._then().assign(fields, lit(StringUtils.join(request.fields(), ", ")));						
+					}
+					
+					JVar fieldsVar = newBlock.decl(getJClass(Map.class).narrow(String.class, String.class), "allFields", inst.invoke("getAllFields").arg(fields));
+					
+					JConditional hasFieldsConditional = newBlock._if(fieldsVar.invoke("isEmpty").not());
+					JBlock hasFields = hasFieldsConditional._then();
+					
+					if (requestMethod.equals(RequestMethod.Get) || requestMethod.equals(RequestMethod.Head)) {
+						JVar url = hasFields.decl(
+								getJClass("okhttp3.HttpUrl.Builder"), 
+								"url",
+								getJClass("okhttp3.HttpUrl").staticInvoke("parse")
+						                                    .arg(ref("baseUrl")
+						                                    .plus(FormatsUtils.expressionFromString(action)))
+						                                    .invoke("newBuilder")
+							);
+						
+						hasFields.forEach(getClasses().STRING, "field", fieldsVar.invoke("keySet")).body()
+							     .invoke(url, "addQueryParameter").arg(ref("field"))
+							                                      .arg(fieldsVar.invoke("get").arg(ref("field")));
+						
+						hasFields.invoke(requestBuilder, "url").arg(url.invoke("build"));
+						
+						hasFieldsConditional._else()
+											.invoke(requestBuilder, "url")
+											.arg(ref("baseUrl")
+								            .plus(FormatsUtils.expressionFromString(action)));
+	
+						setUrl = null;
+					} else {
+						JVar formBody = hasFields.decl(
+								getJClass("okhttp3.FormBody.Builder"), 
+								"formBody",
+								_new(getJClass("okhttp3.FormBody.Builder"))
+							);
+						hasFields.forEach(getClasses().STRING, "field", fieldsVar.invoke("keySet")).body()
+						        .assign(
+					        		formBody, 
+					        		formBody.invoke("add").arg(ref("field"))
+					        		        .arg(fieldsVar.invoke("get").arg(ref("field")))
+				        		);
+						hasFields.invoke(requestBuilder, method).arg(formBody.invoke("build"));
+						
+						hasFieldsConditional._else()
+						                    .invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+											                                .staticInvoke("create")
+											                                .arg(_null())
+											                                .arg(direct("new byte[0]"))
+											                                );
+					}
+				} else {
+					if (!requestMethod.equals(RequestMethod.Get)) {
+						if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
+							newBlock.invoke(requestBuilder, method);
+						} else {
+							newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+									                                    .staticInvoke("create")
+									                                    .arg(_null())
+									                                    .arg(direct("new byte[0]"))
+									                                    );
+						}
+					}
+				}
+				break;
+		}
+		
+		if (setUrl != null) {
+			 setUrl.invoke(requestBuilder, "url")
+		           .arg(ref("baseUrl")
+		           .plus(FormatsUtils.expressionFromString(action)));
 		}
 		
 		newBlock._return(requestBuilder.invoke("build"));
@@ -807,29 +811,72 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
 					thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
 
-					JVar gson = newBlock.decl(
-							getJClass("com.google.gson.Gson"), 
-							"gson",
-							_new(getJClass("com.google.gson.GsonBuilder"))
-							       .invoke("excludeFieldsWithModifiers")
-							       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
-							       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
-							       .invoke("create")
-					       );
-
-					if (isMethod) {
-						newBlock.invoke(inst, request.model())
+					String originalClass = clsName;
+					if (clsName.endsWith(ModelConstants.generationSuffix())) {
+						originalClass = clsName.substring(0, clsName.length()-1);
+					}
+					Element originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);
+					if (originalClassElement != null 
+						&& adiHelper.hasAnnotation(originalClassElement, JsonModel.class)) {
+						
+						if (!clsName.endsWith(ModelConstants.generationSuffix())) {
+							clsName = clsName + ModelConstants.generationSuffix();
+						}
+						
+						if (isMethod) {
+							if (isLoad) {
+								//Assume static method
+								newBlock.invoke(request.model())
+								 .arg(
+									 getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
+							     );
+							} else {
+								newBlock.invoke(inst, request.model())
+								 .arg(
+									 getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
+							     );
+							}
+						} else {
+							newBlock.assign(
+									inst.ref(request.model()), 
+									getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
+								);						
+						}
+						
+					} else {
+						JVar gson = newBlock.decl(
+								getJClass("com.google.gson.Gson"), 
+								"gson",
+								_new(getJClass("com.google.gson.GsonBuilder"))
+								       .invoke("excludeFieldsWithModifiers")
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
+								       .invoke("create")
+						       );
+						
+						if (isMethod) {
+							if (isLoad) {
+								//Assume static method
+								newBlock.invoke(request.model())
 								 .arg(gson.invoke("fromJson")
 									      .arg(ref("elem"))
 									      .arg(getJClass(clsName).dotclass())
 							     );
-					} else {
-						newBlock.assign(
-								inst.ref(request.model()), 
-								gson.invoke("fromJson")
- 							        .arg(ref("elem"))
-							        .arg(getJClass(clsName).dotclass())
-							);						
+							} else {
+								newBlock.invoke(inst, request.model())
+										 .arg(gson.invoke("fromJson")
+											      .arg(ref("elem"))
+											      .arg(getJClass(clsName).dotclass())
+									     );
+							}
+						} else {
+							newBlock.assign(
+									inst.ref(request.model()), 
+									gson.invoke("fromJson")
+	 							        .arg(ref("elem"))
+								        .arg(getJClass(clsName).dotclass())
+								);						
+						}
 					}
 					
 					if (isLoad) newBlock._return(_null());
@@ -898,16 +945,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			final String elemName = elem.getSimpleName().toString();
 			final String elemType = elem.asType().toString();
 			
-			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
-			
-			if (fields != null) {
-				if (elem.getKind() == ElementKind.FIELD) {
-					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
-					
-					fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
-				}					
-			}
-			
+			//Static methods are included
 			if (methods != null) {
 				if (elem.getKind() == ElementKind.METHOD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
@@ -920,6 +958,16 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						methods.put(elemName, TypeUtils.typeFromTypeString(param.asType().toString(), getEnvironment()));	
 					}
 				}	
+			}
+			
+			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
+			
+			if (fields != null) {
+				if (elem.getKind() == ElementKind.FIELD) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
+				}					
 			}
 		}
 		

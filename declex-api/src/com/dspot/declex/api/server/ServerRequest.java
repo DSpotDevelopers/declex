@@ -19,12 +19,12 @@ public @interface ServerRequest {
 	String name() default "";
 	
 	RequestMethod method() default RequestMethod.Default;
-	RequestType type() default RequestType.Body;
+	RequestType type() default RequestType.Default;
 	
 	String action();
-	String[] headers() default "";
 	
-	String[] fields() default "";
+	String[] headers() default {};
+	String[] fields() default {};
 	
 	String model() default "";
 	Class<?> modelClass() default Object.class;
@@ -33,5 +33,5 @@ public @interface ServerRequest {
 	String mockResult() default "";
 	
 	public enum RequestMethod {Default, Delete, Get, Head, Post, Put, Patch}
-	public enum RequestType {Body, Fields}
+	public enum RequestType {Default, Json, Form}
 }

@@ -33,6 +33,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -48,12 +49,12 @@ import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.action.Action;
-import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -68,8 +69,6 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseEventHandler.class);
 	
 	protected final String[] actions = {
-			"Event", "_event",
-			"Method", "_method",
 			"Menu", "_menu", "MenuItem", "_menuitem",
 	};
 			
@@ -85,7 +84,6 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
 		 
 		String elementName = element.getSimpleName().toString();
-		String elementNameAsClass = elementName;
 		int actionIndex = -1;
 		for (int i = 0; i < actions.length; i++) {
 			String action = actions[i];
@@ -93,35 +91,12 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			Matcher match = Pattern.compile("(((?:\\w|_|\\d|\\$)+)" + action + ")\\d*$").matcher(elementName);
 			if (match.find()) {
 				elementName = match.group(2);
-				elementNameAsClass = match.group(1);
 				actionIndex = i;
 				break;
 			}
-		}
+		}	
 		
-		if (actionIndex == 0 || actionIndex == 1) {
-			//It should start with "on"
-			if (!elementName.startsWith("on")) {
-				valid.addError("An event method shoud start with \"on\"");
-			} else {
-				String eventClassName = SharedRecords.getEvent(elementNameAsClass.substring(2), getEnvironment()); 
-				
-				if (eventClassName == null) {
-					eventClassName = SharedRecords.getEvent(elementName.substring(2), getEnvironment());
-					if (eventClassName == null) {
-						valid.addError(
-							"No event found with the name \"" + elementName.substring(2) + 
-							"\" or \"" + elementNameAsClass.substring(2) + "\"" 
-						);
-					}					
-				}
-				
-				if (element.getEnclosingElement().getAnnotation(UseEventBus.class) == null) {
-					valid.addError("The enclosing element should be annotated with @UseEventBus");
-				}
-			}
-			
-		} else if (actionIndex==4 || actionIndex==5 || actionIndex==6 || actionIndex==7) {
+		if (actionIndex==0 || actionIndex==1 || actionIndex==2 || actionIndex==3) {
 //			List<String> menuObjects = getMenuObjects(element);
 //			if (!menuObjects.contains(elementName)) {
 //				valid.addError("The menu element " + element.getSimpleName() + 
@@ -157,28 +132,9 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		
 		switch (actionIndex) {
 		case 0:
-		case 1: 
-			{
-				String eventClassName = SharedRecords.getEvent(elementNameAsClass.substring(2), getEnvironment()); 
-				if (eventClassName == null) {
-					eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment());
-				}	
-				
-				JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-				method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
-				return null;
-			}
-		
+		case 1:
 		case 2:
 		case 3:
-			//reserved for methods
-			methodHandler(elementClass, referecedId, element, viewsHolder, holder);
-			return null;
-			
-		case 4:
-		case 5:
-		case 6:
-		case 7:
 			//Menu
 			if (viewsHolder != null) {
 				menuHandler(elementClass, referecedId, element, viewsHolder, holder);
@@ -208,8 +164,8 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 				}				
 			}
 			
-			//Check if it is an event
-			if (referecedId.startsWith("on")) {
+			//Check if it is an event, only permitted in fields
+			if (element.getKind().equals(ElementKind.FIELD) && referecedId.startsWith("on")) {
 				String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
 				
 				if (eventClassName != null) {
@@ -344,10 +300,45 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     	if (element instanceof ExecutableElement) {
     		//This give support to Override methods where
     		if (element.getAnnotation(Action.class) != null) {
+    			
     			if (elementName.endsWith("_")) {
     				elementName = elementName.substring(0, elementName.length()-1);
     				return methodHandler(elementClass, elementName, element, viewsHolder, holder);
     			}			
+    			
+    			//Override methods is handled in ActionHandler
+    			if (element.getAnnotation(Override.class) != null) {
+    				return true;
+    			}
+    			
+    			//Navigate in super parent looking for coinciding methods
+    			ExecutableElement executableElement = (ExecutableElement) element;
+
+    			//Look for similar methods in super classes
+    			List<? extends TypeMirror> superTypes = 
+    					getProcessingEnvironment().getTypeUtils().directSupertypes(element.getEnclosingElement().asType());
+    			
+    			for (TypeMirror type : superTypes) {
+    				TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+    				
+    				if (foundMethodIn(superElement, executableElement, elementName)) {
+    					TypeMirror resultType = executableElement.getReturnType();
+    					
+    					JMethod method = holder.getGeneratedClass().method(
+    							JMod.PUBLIC, getJClass(resultType.toString()), elementName
+    						);
+    					method.annotate(Override.class);
+    					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
+
+    					List<? extends VariableElement> parameters = executableElement.getParameters();
+    					for (VariableElement param : parameters) {
+    						method.param(getJClass(param.asType().toString()), param.getSimpleName().toString());
+    					}
+    					
+        				return true;
+    				}
+    			}
+    			
     		}
     		
     		//The same method invocating itself is handled in a different
@@ -381,15 +372,15 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 						method.param(getJClass(param.asType().toString()), param.getSimpleName().toString());
 						superInvoke = superInvoke.arg(ref(param.getSimpleName().toString()));
 					}
-					
-					if (!elem.getModifiers().contains(Modifier.ABSTRACT)) {
+
+					if (!executableElem.getModifiers().contains(Modifier.ABSTRACT)) {
 						if (resultType.getKind().equals(TypeKind.VOID)) {
 							method.body().add(superInvoke);
 						} else {
 							method.body()._return(superInvoke);
-						}
+						}    							
 					}
-
+					
 					return true;
 				}
 				
@@ -398,6 +389,48 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		return false;
 	}
 	
+	private boolean foundMethodIn(Element element, ExecutableElement executableElement, String elementName) {
+		List<? extends Element> elems = element.getEnclosedElements();
+		
+		ELEMENTS:
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.METHOD) {
+				if (elem.getModifiers().contains(Modifier.PRIVATE) ||
+					elem.getModifiers().contains(Modifier.STATIC)) {
+					continue;
+				}
+				
+				if (elem.getSimpleName().toString().equals(elementName)) {
+					ExecutableElement executableElem = (ExecutableElement) elem;
+										
+					TypeMirror resultType = executableElem.getReturnType();
+					if (!TypeUtils.isSubtype(executableElement.getReturnType(), resultType, getProcessingEnvironment())) continue;
+					
+					List<? extends VariableElement> parameters = executableElem.getParameters();
+					if (parameters.size() != executableElement.getParameters().size()) continue;
+					
+					for (int i = 0; i < parameters.size(); i++) {
+						if (!parameters.get(i).asType().toString().equals(
+								executableElement.getParameters().get(i).asType().toString()
+							)) continue ELEMENTS;
+					}
+					
+					//Method was found
+					return true;
+				}
+				
+			}
+		}
+		
+		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());			
+			if (foundMethodIn(superElement, executableElement, elementName)) return true;
+		}
+		
+		return false;
+	}
+
 	protected abstract IJStatement getStatement(AbstractJClass elementClass, Element element, 
 												ViewsHolder viewsHolder, T holder);
 	

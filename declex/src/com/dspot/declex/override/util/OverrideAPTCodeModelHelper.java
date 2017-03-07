@@ -13,9 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.action.process;
+package com.dspot.declex.override.util;
 
-public interface ActionProcessor {
-	public void validate(ActionInfo actionInfo);
-	public void process(ActionInfo actionInfo);
+import javax.lang.model.element.Element;
+
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.helper.APTCodeModelHelper;
+
+import com.helger.jcodemodel.JMod;
+
+
+public class OverrideAPTCodeModelHelper extends APTCodeModelHelper {
+	
+	public OverrideAPTCodeModelHelper(AndroidAnnotationsEnvironment environment) {
+		super(environment);
+	}
+	
+	@Override
+	public int elementVisibilityModifierToJMod(Element element) {
+		return JMod.PUBLIC;
+	}
 }

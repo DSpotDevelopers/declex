@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.populator;
+package com.dspot.declex.api.viewsinjection;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

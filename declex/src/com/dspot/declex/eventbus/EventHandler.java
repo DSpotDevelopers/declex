@@ -37,6 +37,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
@@ -180,20 +181,25 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					final String paramName = param.getSimpleName().toString();
 					String paramType = param.asType().toString();
 					
+					//Remove references to the same event
+					paramType = TypeUtils.typeFromTypeString(paramType, getEnvironment());
+					if (paramType.equals(EventClass.fullName() + ModelConstants.generationSuffix()) 
+						|| paramType.equals(EventClass.fullName())) {
+						eventFields.remove(paramName);
+					}
+					
 					if (!TypeUtils.isSubtype(paramType, CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
 						continue;
 					}
 					
-					if (viewsHolder.layoutContainsId(paramName)) {
+					if (viewsHolder != null && viewsHolder.layoutContainsId(paramName)) {
 						eventFields.remove(paramName);
 					}
 				}	
 			}	
 			
 			ExecutableElement executableElement = (ExecutableElement) element;				
-			if (viewsHolder != null) {
-				ActionsProcessor.processActions(executableElement, viewsHolder.holder());
-			}
+			ActionsProcessor.processActions(executableElement, holder);
 			
 			EventUtils.getEventMethod(EventClass.fullName(), executableElement, holder, viewsHolder, getEnvironment());		
 		}
@@ -212,9 +218,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				}
 				
 				final String fieldName = field.getKey();
-				final AbstractJClass fieldClass = getJClass(
-						TypeUtils.typeFromTypeString(field.getValue(), getEnvironment())
-					);
+				final AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
 				
 				((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);
 				initMethod.param(fieldClass, fieldName);

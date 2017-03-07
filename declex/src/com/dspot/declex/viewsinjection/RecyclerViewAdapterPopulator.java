@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator;
+package com.dspot.declex.viewsinjection;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr._new;
@@ -64,7 +64,7 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 	protected static final Logger LOGGER = LoggerFactory
 			.getLogger(RecyclerViewAdapterPopulator.class);
 
-	private PopulatorHandler handler;
+	private PopulateHandler handler;
 	private ViewsHolder viewsHolder;
 
 	private String adapterClassName;
@@ -73,7 +73,7 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 
 	private TargetAnnotationHelper annotationHelper;
 
-	public RecyclerViewAdapterPopulator(PopulatorHandler handler,
+	public RecyclerViewAdapterPopulator(PopulateHandler handler,
 			String fieldName, String adapterClassName, String modelClassName,
 			ViewsHolder viewsHolder) {
 		super(viewsHolder.environment());
@@ -127,7 +127,7 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		String defLayoutId = viewsHolder.getDefLayoutId();
 
 		// Read the Layout from the XML file
-		org.w3c.dom.Element node = viewsHolder.getXMLElementFromId(fieldName);
+		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(fieldName);
 		if (node.hasAttribute("tools:listitem")) {
 			String listItem = node.getAttribute("tools:listitem");
 			listItemId = listItem.substring(listItem.lastIndexOf('/') + 1);
@@ -167,11 +167,11 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 					fields, methods, true, true, listItemId);
 		}
 		
-		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().LAYOUT_INFLATER});
-		inflaterMethod.body()._return(inflater.invoke("inflate").arg(contentViewId).arg(_null()));
+		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
+		inflaterMethod.body()._return(inflater.invoke("inflate").arg(contentViewId).arg(parent).arg(false));
 
 		final JVar rootView = onCreateViewMethodBody.decl(getClasses().VIEW,
-				"rootView", invoke("inflate").arg(viewType).arg(inflater));
+				"rootView", invoke("inflate").arg(viewType).arg(parent).arg(inflater));
 
 		IJAssignmentTarget viewHolder = onCreateViewMethodBody.decl(
 				ViewHolderClass, "viewHolder",
@@ -301,15 +301,13 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 				return finalViewHolder.ref(viewField);
 			}
 		});
-
+		
 		// Get the model
-		JVar model = onBindMethodBody.decl(JMod.FINAL, Model, "model");
-
-		//Synchronize reading the models 
-		JBlock syncBlock = onBindMethodBody.synchronizedBlock(models).body();
+		JVar model = onBindMethodBody.decl(JMod.FINAL, Model, "model");		
+		
 		IJExpression modelAssigner = models.invoke("get").arg(position);
 		if (castNeeded)	modelAssigner = cast(Model, models.invoke("get").arg(position));
-		syncBlock.assign(model, modelAssigner);
+		onBindMethodBody.assign(model, modelAssigner);
 		
 		if (modelClassName.equals(String.class.getCanonicalName())) {
 			String viewClass = viewsHolder.getClassNameFromId("text");

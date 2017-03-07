@@ -295,6 +295,8 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private void setExecute() {
 		JMethod executeMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, EXECUTE_NAME);
 
+		executeMethod.body()._if(transactionField.eq(_null()))._then()._return();
+		
 		JInvocation transactionReplaceInvoke = transactionField.invoke("replace").arg(containerField)
 				.arg(builderField.invoke("build"))
 				.invoke("commit"); 
@@ -312,7 +314,8 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	private void setAddToBackStack() {
 		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
-		addToBackStackMethod.body().invoke(transactionField, "addToBackStack").arg(_null());
+		addToBackStackMethod.body()._if(transactionField.neNull())._then()
+		                           .invoke(transactionField, "addToBackStack").arg(_null());
 		addToBackStackMethod.body()._return(_this());
 	}
 	

@@ -21,13 +21,13 @@ import android.os.Looper;
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.processor.GetModelActionProcessor;
+import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 /**
  * An Action to load a {@link com.dspot.declex.api.model.Model @Model} 
  * annotated field. The Action will force a Populate if the field is also 
- * annotated with {@link com.dspot.declex.api.populator.Populator @Populator}.
+ * annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
  * 
  * <br><br>
  * The model will be loaded in background if it was specified {@code "async=true"},
@@ -37,8 +37,8 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * <br><br>
  * By default, after the Action executes, it returns to the main
  * thread, so, it can be savely assigned values to View components (This applies to 
- * {@link com.dspot.declex.Action.$GetModel#AfterLoad AfterLoad} and 
- * {@link com.dspot.declex.Action.$GetModel#Failed Failed} Action selectors). 
+ * {@link com.dspot.declex.Action.$LoadModel#AfterLoad AfterLoad} and 
+ * {@link com.dspot.declex.Action.$LoadModel#Failed Failed} Action selectors). 
  * To avoid this behavior use {@link keepCallingThread()}.
  * 
  * @see com.dspot.declex.Action.$PutModel $PutModel
@@ -46,8 +46,8 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * @see com.dspot.declex.Action.$Recollect $Recollect
  */
 
-@ActionFor(value="GetModel", processors=GetModelActionProcessor.class)
-public class GetModelActionHolder {
+@ActionFor(value="LoadModel", processors=LoadModelActionProcessor.class)
+public class LoadModelActionHolder {
 
 	private Runnable AfterLoad;
 	private OnFailedRunnable Failed;
@@ -70,7 +70,7 @@ public class GetModelActionHolder {
      * If it is not provided, the "query" parameter of the 
      * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
      */
-    public GetModelActionHolder query(@FormattedExpression String query) {
+    public LoadModelActionHolder query(@FormattedExpression String query) {
     	this.query = query;
     	return this;
     }
@@ -81,7 +81,7 @@ public class GetModelActionHolder {
      * If it is not provided, the "orderBy" parameter of the 
      * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
      */
-    public GetModelActionHolder orderBy(@FormattedExpression String orderBy) {
+    public LoadModelActionHolder orderBy(@FormattedExpression String orderBy) {
     	this.orderBy = orderBy;
     	return this;
     }
@@ -91,7 +91,7 @@ public class GetModelActionHolder {
      * If it is not provided, the "fields" parameter of the
      * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
      */
-    public GetModelActionHolder fields(@FormattedExpression String fields) {
+    public LoadModelActionHolder fields(@FormattedExpression String fields) {
     	this.fields = fields;
     	return this;
     }
@@ -113,8 +113,15 @@ public class GetModelActionHolder {
      * Keeps the calling Thread for the Action. This avoids the automatic switch to
      * the UIThread after the Action finishes execution
      */
-    public GetModelActionHolder keepCallingThread() {
+    public LoadModelActionHolder keepCallingThread() {
     	keepCallingThread = true; //This will keep the Action in the thread that is executed, after finalization
+    	return this;
+    }
+
+    /**
+     * No populate the Model after it is loaded
+     */
+    public LoadModelActionHolder noPopulate() {
     	return this;
     }
     

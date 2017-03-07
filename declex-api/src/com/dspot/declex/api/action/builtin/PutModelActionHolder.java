@@ -27,7 +27,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 /**
  * An Action to put a {@link com.dspot.declex.api.model.Model @Model} 
  * annotated field. The Action will force a Recollect if the field is also 
- * annotated with {@link com.dspot.declex.api.populator.Recollector @Recollector}.
+ * annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
  * 
  * <br><br>
  * The model will be put in background by default. If it was specified 
@@ -41,7 +41,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * {@link com.dspot.declex.Action.$PutModel#Failed Failed} Action selectors). 
  * To avoid this behavior use {@link keepCallingThread()}.
  * 
- * @see com.dspot.declex.Action.$GetModel $GetModel
+ * @see com.dspot.declex.Action.$LoadModel $LoadModel
  * @see com.dspot.declex.Action.$Populate $Populate
  * @see com.dspot.declex.Action.$Recollect $Recollect
  */
@@ -117,6 +117,14 @@ public class PutModelActionHolder {
     	keepCallingThread = true; //This will keep the Action in the thread that is executed, after finalization
     	return this;
     }
+    
+    /**
+     * No recollect the Model after it is loaded
+     */
+    public PutModelActionHolder noRecollect() {
+    	return this;
+    }
+
     
     String getQuery() {
     	return this.query;

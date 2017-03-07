@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.populator;
+package com.dspot.declex.api.json;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,19 +21,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.FIELD, ElementType.METHOD})
-public @interface Populator {
+@Target({ElementType.TYPE, ElementType.METHOD})
+public @interface JsonModel {
 	
-	/**
-	 * A List of Layouts to be inflated by the populator
-	 */
-	int[] value() default 0;
-	
-	/**
-	 * The custom value is used to indicate in the case of a List<Model> that a 
-	 * custom adapter is going to be used
-	 */
 	boolean custom() default false;
-	
-	boolean debug() default false;
 }

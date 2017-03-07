@@ -13,16 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.json;
+package com.dspot.declex.api.action.builtin;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.api.action.annotation.Literal;
+import com.dspot.declex.api.action.processor.CallActionProcessor;
 
-@Retention(RetentionPolicy.CLASS)
-@Target({ElementType.TYPE, ElementType.METHOD})
-public @interface JsonSerializedModel {
+
+@ActionFor(value="Call", processors=CallActionProcessor.class)
+public class CallActionHolder {
+
+	private Runnable Done;
 	
-	boolean custom() default false;
+	void init(@Literal String id) {
+    }
+	
+    void build(Runnable Done) {
+    	this.Done = Done;
+    }
+
+    void execute() {
+    	if (Done != null) Done.run();
+    }
+    
 }

@@ -115,7 +115,7 @@ import com.dspot.declex.eventbus.oneventhandler.LoadOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnActionHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.UpdateOnEventHandler;
-import com.dspot.declex.json.JsonSerializedModelHandler;
+import com.dspot.declex.json.JsonModelHandler;
 import com.dspot.declex.localdb.LocalDBModelHandler;
 import com.dspot.declex.localdb.LocalDBTransactionHandler;
 import com.dspot.declex.localdb.UseLocalDBHandler;
@@ -137,11 +137,11 @@ import com.dspot.declex.override.handler.ItemClickHandler;
 import com.dspot.declex.override.handler.ItemLongClickHandler;
 import com.dspot.declex.override.handler.LongClickHandler;
 import com.dspot.declex.plugin.JClassPlugin;
-import com.dspot.declex.populator.AdapterClassHandler;
-import com.dspot.declex.populator.PopulatorHandler;
-import com.dspot.declex.populator.RecollectorHandler;
 import com.dspot.declex.server.ServerModelHandler;
 import com.dspot.declex.util.SharedRecords;
+import com.dspot.declex.viewsinjection.AdapterClassHandler;
+import com.dspot.declex.viewsinjection.PopulateHandler;
+import com.dspot.declex.viewsinjection.RecollectHandler;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
@@ -194,7 +194,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new UseModelHandler(androidAnnotationEnv));
 		annotationHandlers.add(new AfterLoadHandler(androidAnnotationEnv));
 		annotationHandlers.add(new AfterPutHandler(androidAnnotationEnv));
-		annotationHandlers.add(new JsonSerializedModelHandler(androidAnnotationEnv));
+		annotationHandlers.add(new JsonModelHandler(androidAnnotationEnv));
 		annotationHandlers.add(new LocalDBModelHandler(androidAnnotationEnv));
 		annotationHandlers.add(new ServerModelHandler(androidAnnotationEnv));
 		annotationHandlers.add(new UseLocalDBHandler(androidAnnotationEnv));
@@ -296,7 +296,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new IgnoreWhenHandler(androidAnnotationEnv));
 
 		//Populators, Recollectors and Injected Models
-		annotationHandlers.add(new RecollectorHandler(androidAnnotationEnv));
+		annotationHandlers.add(new RecollectHandler(androidAnnotationEnv));
 		annotationHandlers.add(new ModelHandler(androidAnnotationEnv));		
 		
 		List<JClassPlugin> adapterPlugins = new LinkedList<JClassPlugin>();
@@ -306,7 +306,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(adapterClassHandler);
 		adapterPlugins.add(adapterClassHandler);
 		
-		annotationHandlers.add(new PopulatorHandler(androidAnnotationEnv, adapterPlugins));
+		annotationHandlers.add(new PopulateHandler(androidAnnotationEnv, adapterPlugins));
 
 		/* After injection methods must be after injections */
 		annotationHandlers.add(new AfterInjectHandler(androidAnnotationEnv));

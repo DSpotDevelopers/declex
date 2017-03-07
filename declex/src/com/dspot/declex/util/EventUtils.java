@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.util;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
@@ -53,6 +54,7 @@ import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
 import com.helger.jcodemodel.JConditional;
@@ -212,7 +214,10 @@ public class EventUtils {
 		actionInfo.addMethod(
 				BUILD_NAME, 
 				env.getCodeModel().VOID.fullName(),
-				Arrays.asList(new ActionMethodParam("Finished", env.getJClass(Runnable.class)))
+				Arrays.asList(
+					new ActionMethodParam("Finished", env.getJClass(className + ".EventFinishedRunnable")),
+					new ActionMethodParam("Failed", env.getJClass(Runnable.class))
+				)
 			);
 		
 		actionInfo.addMethod(EXECUTE_NAME, env.getCodeModel().VOID.fullName());
@@ -269,7 +274,8 @@ public class EventUtils {
 		JAnnotationUse actionFor = EventClass.annotate(ActionFor.class);
 		actionFor.param("value", eventName);				
 		
-		JFieldVar finished = EventClass.field(JMod.PRIVATE, env.getJClass(Runnable.class), "Finished");
+		JFieldVar finished = EventClass.field(JMod.PRIVATE, env.getJClass("EventFinishedRunnable"), "Finished");
+		JFieldVar failed = EventClass.field(JMod.PRIVATE, env.getJClass(Runnable.class), "Failed");
 		
 		AbstractJClass EventClass_ = env.getJClass(className + ModelConstants.generationSuffix());
 		JFieldVar event = EventClass.field(JMod.PRIVATE, EventClass_, "event");
@@ -278,14 +284,40 @@ public class EventUtils {
 		initMethod.body().assign(event, EventClass_.staticInvoke("create"));
 				
 		JMethod buildMethod = EventClass.method(JMod.NONE, env.getCodeModel().VOID, BUILD_NAME);
-		JVar finishedParam = buildMethod.param(env.getJClass(Runnable.class), "Finished");
+		JVar finishedParam = buildMethod.param(env.getJClass("EventFinishedRunnable"), "Finished");
 		buildMethod.body().assign(_this().ref(finished), finishedParam);
+		
+		AbstractJClass EventBus = env.getJClass("org.greenrobot.eventbus.EventBus");
+		JVar failedParam = buildMethod.param(env.getJClass(Runnable.class), "Failed");
+		buildMethod.body().assign(_this().ref(failed), failedParam);
 				
 		JMethod executeMethod = EventClass.method(JMod.NONE, env.getCodeModel().VOID, EXECUTE_NAME);
 		
+		JBlock ifFailed = executeMethod.body()
+				._if(EventBus.staticInvoke("getDefault").invoke("hasSubscriberForEvent").arg(EventClass_.dotclass()).not())
+				._then();
+		ifFailed._if(failed.neNull())._then().invoke(failed, "run");
+		ifFailed._return();
+		
+		JAnonymousClass anonymous = env.getCodeModel().anonymousClass(Runnable.class);
+		JMethod anonymousRunnableRun = anonymous.method(JMod.PUBLIC, env.getCodeModel().VOID, "run");
+		anonymousRunnableRun.annotate(Override.class);
+		anonymousRunnableRun.body().invoke(finished, "onEventFinished").arg(event);
 		JConditional ifFinished = executeMethod.body()._if(finished.ne(_null()));
-		ifFinished._then().add(event.invoke("setValues").arg(finished).invoke("postEvent"));
-		ifFinished._else().add(event.invoke("postEvent"));		
+		ifFinished._then().add(event.invoke("setValues").arg(_new(anonymous)).invoke("postEvent"));
+		ifFinished._else().add(event.invoke("postEvent"));	
+		
+		try {
+			JDefinedClass EventFinishedRunnable = EventClass._class(JMod.PUBLIC | JMod.ABSTRACT | JMod.STATIC, "EventFinishedRunnable");
+			EventFinishedRunnable._implements(Runnable.class);
+			
+			JFieldVar eventField = EventFinishedRunnable.field(JMod.PUBLIC, EventClass_, "event");
+			JMethod onEventFinished = EventFinishedRunnable.method(JMod.PUBLIC, env.getCodeModel().VOID, "onEventFinished");
+			JVar eventParam = onEventFinished.param(EventClass_, "event");
+			onEventFinished.body().assign(_this().ref(eventField), eventParam);
+			onEventFinished.body().invoke("run");
+		} catch (JClassAlreadyExistsException e) {
+		}
 
 		return EventClass;
 	}

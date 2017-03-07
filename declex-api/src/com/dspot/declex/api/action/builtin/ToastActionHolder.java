@@ -53,6 +53,8 @@ public class ToastActionHolder {
     }
 
     void execute() {
+    	if (context == null) return;
+    	
     	Runnable callToast = new Runnable() {
 			
 			@Override

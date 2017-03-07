@@ -31,6 +31,7 @@ public class ActionInfo {
 	
 	public String holderClass;
 	public String references;
+	public boolean isGlobal;
 	
 	public boolean generated;
 	
@@ -80,6 +81,12 @@ public class ActionInfo {
 		}
 		
 		methodList.add(actionMethod);
+	}
+
+	public void validateProcessors() {
+		for (ActionProcessor processor : processors) {
+			processor.validate(this);
+		}
 	}
 	
 	public void callProcessors() {

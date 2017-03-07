@@ -27,8 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -161,15 +159,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		//Generate getter and setters 
 		for (String elemName : fields.keySet()) {
 			String elemType = fields.get(elemName);
-			AbstractJClass elemClass = getJClass(elemType);
-			
-			Matcher matcher = Pattern.compile("<([a-zA-Z_][a-zA-Z_0-9.]+)>$").matcher(elemType);
-			if (matcher.find()) {
-				String innerElem = matcher.group(1);
-				
-				elemClass = getJClass(elemType.substring(0, elemType.length() - matcher.group(0).length()));
-				elemClass = elemClass.narrow(getJClass(innerElem));
-			}
+			AbstractJClass elemClass = TypeUtils.classFromTypeString(elemType, getEnvironment());
 			
 			String getterName = fieldToGetter(elemName);
 			

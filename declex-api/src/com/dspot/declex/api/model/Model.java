@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  * The injection process loads the models from different means (Ex. DB or Network), depending
  * of the description provided to the model itself when it was declared. It is automatically
  * executed when the Enhanced Component is loaded (at least that {@link lazy()} be set to true).
- * This process can be triggered with the action {@link com.dspot.declex.Action.$GetModel $GetModel}.
+ * This process can be triggered with the action {@link com.dspot.declex.Action.$LoadModel $LoadModel}.
  * It can be also triggered with {@link com.dspot.declex.api.eventbus.LoadOnEvent @LoadOnEvent}
  * or {@link com.dspot.declex.api.eventbus.PutOnEvent @PutOnEvent}
  * 

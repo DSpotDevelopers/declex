@@ -15,18 +15,13 @@
  */
 package com.dspot.declex.api.action.processor;
 
-import static com.helger.jcodemodel.JExpr.invoke;
-
-import javax.lang.model.element.Element;
+import java.util.Map;
 
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.viewsinjection.Recollect;
-import com.helger.jcodemodel.JInvocation;
-import com.helger.jcodemodel.JVar;
 
-public class RecollectActionProcessor extends BaseActionProcessor {
+public class CallActionProcessor extends BaseActionProcessor {
 
 	@Override
 	public void validate(ActionInfo actionInfo) {
@@ -35,15 +30,6 @@ public class RecollectActionProcessor extends BaseActionProcessor {
 		ActionMethod init = getActionMethod("init");
 				
 		if (init.metaData != null) {
-			ActionMethodParam initParam = init.params.get(0);
-			Element field = (Element) initParam.metaData.get("field");
-			
-			if (field != null) {
-				Recollect recollectorAnnotation = field.getAnnotation(Recollect.class);
-				if (recollectorAnnotation == null) {
-					throw new IllegalStateException("The field " + field + " is not annotated with @Recollect");
-				}
-			}
 		}
 	}
 	
@@ -53,17 +39,21 @@ public class RecollectActionProcessor extends BaseActionProcessor {
 		
 		ActionMethod init = getActionMethod("init");
 				
-		if (init.metaData != null) {
+		try {
 			ActionMethodParam initParam = init.params.get(0);
-			Element field = (Element) initParam.metaData.get("field");
-			JVar action = (JVar) actionInfo.metaData.get("action");
+            String literal = (String) initParam.metaData.get("literal");
 			
-			if (field != null && action != null) {					
-				JInvocation invoke = invoke("_recollect_" + field.getSimpleName().toString())
-										.arg(action.invoke("getDone"))
-										.arg(action.invoke("getFailed"));
-				addPostBuildBlock(invoke);
+			Map<Class<?>, Object> listenerHolders = getMethodInHolder("getPluginHolders");
+			for (Object listenerHolderObject : listenerHolders.values()) {
+				Class<?> ViewListenerHolder = getClass().getClassLoader()
+						                                .loadClass("com.dspot.declex.event.holder.ViewListenerHolder");
+				
+				if (!ViewListenerHolder.isInstance(listenerHolderObject)) continue;
+				
+				//TODO 
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 

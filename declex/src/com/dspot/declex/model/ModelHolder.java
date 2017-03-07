@@ -57,7 +57,7 @@ import com.sun.source.util.Trees;
 public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	
 	private Map<Element, PutModelRecord> putModelMethods = new HashMap<>();
-	private Map<Element, GetModelRecord> getModelMethods = new HashMap<>();
+	private Map<Element, LoadModelRecord> loadModelMethods = new HashMap<>();
 	
 	final AbstractJClass STRING;
 	final AbstractJClass LIST;
@@ -88,25 +88,25 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		return useModelComponentHolder.getPluginHolder(new UseModelHolder(useModelComponentHolder));
 	}
 	
-	public JMethod getGetModelMethod(Element element) {
-		GetModelRecord getModelRecord = getModelMethods.get(element);
-		if (getModelRecord == null) {
-			getModelRecord = setGetModelMethod(element);
+	public JMethod getLoadModelMethod(Element element) {
+		LoadModelRecord loadModelRecord = loadModelMethods.get(element);
+		if (loadModelRecord == null) {
+			loadModelRecord = setLoadModelMethod(element);
 		}
 			
-		return getModelRecord.getModelMethod;
+		return loadModelRecord.loadModelMethod;
 	}
 	
-	public JBlock getAfterGetModelBlock(Element element) {
-		GetModelRecord getModelRecord = getModelMethods.get(element);
-		if (getModelRecord == null) {
-			getModelRecord = setGetModelMethod(element);
+	public JBlock getAfterLoadModelBlock(Element element) {
+		LoadModelRecord loadModelRecord = loadModelMethods.get(element);
+		if (loadModelRecord == null) {
+			loadModelRecord = setLoadModelMethod(element);
 		}
 			
-		return getModelRecord.afterGetModelBlock;
+		return loadModelRecord.afterLoadModelBlock;
 	}
 	
-	private GetModelRecord setGetModelMethod(Element element) {
+	private LoadModelRecord setLoadModelMethod(Element element) {
 
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
@@ -117,15 +117,15 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		IJAssignmentTarget beanField = ref(fieldName);
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
 		
-		JMethod getModelMethod = getGeneratedClass().method(JMod.NONE | (isStatic? JMod.STATIC : 0), getCodeModel().VOID, "_get_" + fieldName);
-		JVar context = getModelMethod.param(JMod.FINAL, CONTEXT, "context");
-		JVar query = getModelMethod.param(JMod.FINAL, STRING, "query");
-		JVar orderBy = getModelMethod.param(JMod.FINAL, STRING, "orderBy");
-		JVar fields = getModelMethod.param(JMod.FINAL, STRING, "fields");
-		JVar onFinished = getModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
-		JVar onFailed = getModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		JMethod loadModelMethod = getGeneratedClass().method(JMod.NONE | (isStatic? JMod.STATIC : 0), getCodeModel().VOID, "_load_" + fieldName);
+		JVar context = loadModelMethod.param(JMod.FINAL, CONTEXT, "context");
+		JVar query = loadModelMethod.param(JMod.FINAL, STRING, "query");
+		JVar orderBy = loadModelMethod.param(JMod.FINAL, STRING, "orderBy");
+		JVar fields = loadModelMethod.param(JMod.FINAL, STRING, "fields");
+		JVar onFinished = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
+		JVar onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		
-		JBlock block = getModelMethod.body();
+		JBlock block = loadModelMethod.body();
 		
 		
 		//Check if this is a list @Model
@@ -138,7 +138,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			beanField = ref(fieldName + "Local");
 			
-			getModelMethod.annotate(SuppressWarnings.class).paramArray("value").param("unchecked").param("rawtypes");
+			loadModelMethod.annotate(SuppressWarnings.class).paramArray("value").param("unchecked").param("rawtypes");
 		} 
 			
 		String converted = null;
@@ -192,7 +192,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		}
 		
 		JMethod getModelInjectionMethod = isList ? useModelHolder.getGetModelListMethod() 
-				                                 : useModelHolder.getGetModelMethod();
+				                                 : useModelHolder.getLoadModelMethod();
 		JInvocation getModel = ModelClass.staticInvoke(getModelInjectionMethod)
 				  .arg(context)
 				  .arg(query)
@@ -236,6 +236,13 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		
 		if (isList) {
+			
+			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", beanField).body();
+			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelHolder.getModelInitMethod())
+			  .arg(query)
+			  .arg(orderBy)	
+			  .arg(fields);
+			
 			IJExpression assignField = beanField;
 			
 			if (converted != null) {
@@ -249,12 +256,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(ref(fieldName));
 			syncBlock.body().invoke(view, "clear");
 			syncBlock.body().invoke(view, "addAll").arg(assignField);
-			
-			JBlock forEachBody = syncBlock.body().forEach(getJClass(converted == null ? className : converted), "model", beanField).body();
-			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelHolder.getModelInitMethod())
-			  .arg(query)
-			  .arg(orderBy)	
-			  .arg(fields);
+						
 		} else {
 			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelHolder.getModelInitMethod())
 			  .arg(query)
@@ -267,8 +269,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		assign._if(onFinished.ne(_null()))._then()
 			  .invoke(onFinished, "run");
 
-		GetModelRecord getModelRecord = new GetModelRecord(getModelMethod, afterGetModelBlock);
-		getModelMethods.put(element, getModelRecord);
+		LoadModelRecord getModelRecord = new LoadModelRecord(loadModelMethod, afterGetModelBlock);
+		loadModelMethods.put(element, getModelRecord);
 		return getModelRecord;
 	}
 	
@@ -413,13 +415,13 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		return holder().getContextRef();
 	}	
 	
-	private class GetModelRecord {
-		JMethod getModelMethod;
-		JBlock afterGetModelBlock;
+	private class LoadModelRecord {
+		JMethod loadModelMethod;
+		JBlock afterLoadModelBlock;
 		
-		public GetModelRecord(JMethod getModelMethod, JBlock afterGetModelBlock) {
-			this.getModelMethod = getModelMethod;
-			this.afterGetModelBlock = afterGetModelBlock;
+		public LoadModelRecord(JMethod getModelMethod, JBlock afterGetModelBlock) {
+			this.loadModelMethod = getModelMethod;
+			this.afterLoadModelBlock = afterGetModelBlock;
 		}
 	}
 	

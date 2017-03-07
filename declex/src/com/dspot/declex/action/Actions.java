@@ -3,11 +3,16 @@ package com.dspot.declex.action;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._this;
 
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,23 +33,32 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
 import org.androidannotations.internal.process.ProcessHolder;
+import org.androidannotations.logger.Logger;
+import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
 import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.annotation.Literal;
 import com.dspot.declex.api.action.annotation.StopOn;
 import com.dspot.declex.api.action.builtin.AlertDialogActionHolder;
 import com.dspot.declex.api.action.builtin.AnimateActionHolder;
 import com.dspot.declex.api.action.builtin.BackgroundThreadActionHolder;
+import com.dspot.declex.api.action.builtin.CallActionHolder;
 import com.dspot.declex.api.action.builtin.DateDialogActionHolder;
-import com.dspot.declex.api.action.builtin.GetModelActionHolder;
+import com.dspot.declex.api.action.builtin.LoadModelActionHolder;
 import com.dspot.declex.api.action.builtin.NotificationActionHolder;
 import com.dspot.declex.api.action.builtin.PopulateActionHolder;
 import com.dspot.declex.api.action.builtin.ProgressDialogActionHolder;
@@ -67,9 +81,13 @@ import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.Trees;
 
 public class Actions {
 
+	protected static final Logger LOGGER = LoggerFactory.getLogger(Actions.class);
+	
 	private static final String BUILTIN_DIRECT_PKG = "com.dspot.declex.action.builtin.";
 	private static final String BUILTIN_PKG = "com.dspot.declex.api.action.builtin.";
 	private static final String BUILTIN_PATH = "com/dspot/declex/api/action/builtin/";
@@ -94,12 +112,14 @@ public class Actions {
 			ToastActionHolder.class.getSimpleName(),
 
 			PutModelActionHolder.class.getSimpleName(),
-			GetModelActionHolder.class.getSimpleName(),
+			LoadModelActionHolder.class.getSimpleName(),
 			PopulateActionHolder.class.getSimpleName(),
 			RecollectActionHolder.class.getSimpleName(),
 
 			UIThreadActionHolder.class.getSimpleName(),
-			BackgroundThreadActionHolder.class.getSimpleName()
+			BackgroundThreadActionHolder.class.getSimpleName(), 
+			
+			CallActionHolder.class.getSimpleName()
 	);
 	
 	private InternalAndroidAnnotationsEnvironment env;
@@ -131,6 +151,7 @@ public class Actions {
 		ACTION_ANNOTATION.add(Assignable.class);
 		ACTION_ANNOTATION.add(Field.class);
 		ACTION_ANNOTATION.add(FormattedExpression.class);
+		ACTION_ANNOTATION.add(Literal.class);
 		ACTION_ANNOTATION.add(Assignable.class);
 		ACTION_ANNOTATION.add(StopOn.class);
 		
@@ -251,6 +272,7 @@ public class Actions {
 
 			//Get model info
 			final ActionInfo actionInfo = new ActionInfo(action);
+			actionInfo.isGlobal = actionForAnnotation.global();
 			addAction(name, action, actionInfo, false);
 			
 			String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(typeElement);
@@ -266,7 +288,25 @@ public class Actions {
 						actionInfo.processors.add(
 								(ActionProcessor) Class.forName(processor.toString()).newInstance()
 							);
-					} catch (Exception e) {}
+					} catch (Exception e) {
+						TypeElement element = env.getProcessingEnvironment().getElementUtils().getTypeElement(processor.toString());
+						if (element == null) {
+							LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded, it is not in the building path", typeElement);							
+						} else {
+							try {
+								ActionProcessor processorInstance = (ActionProcessor) compileAndLoadClass(element);
+								if (processorInstance == null) {
+									LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded", typeElement);
+								}
+							} catch (ClassNotFoundException | MalformedURLException | InstantiationException | IllegalAccessException e1) {
+								LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded by the ClassLoader", typeElement);							
+							} catch (IOException e1) {
+								LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded, IOException", typeElement);
+							}
+							
+						}
+						
+					}
 				}
 			}
 									
@@ -332,6 +372,58 @@ public class Actions {
 		}		
 	}
 	
+	private Object compileAndLoadClass(TypeElement element) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
+		final Trees trees = Trees.instance(env.getProcessingEnvironment());
+    	final TreePath treePath = trees.getPath(element);    	
+		
+		DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
+        
+        List<String> optionList = new ArrayList<String>();
+        optionList.add("-classpath");
+        optionList.add(System.getProperty("java.class.path"));
+        
+        System.out.println("DD: " + System.getProperty("java.class.path"));
+        
+        JavaCompiler.CompilationTask task = compiler.getTask(
+            null, 
+            fileManager, 
+            diagnostics, 
+            optionList, 
+            null, 
+            Arrays.asList(treePath.getCompilationUnit().getSourceFile()));
+
+        if (task.call()) {
+            /** Load *************************************************************************************************/
+            System.out.println("Yipe");
+            // Create a new custom class loader, pointing to the directory that contains the compiled
+            // classes, this should point to the top of the package structure!
+            URLClassLoader classLoader = new URLClassLoader(new URL[]{new File("./").toURI().toURL()});
+            // Load the class from the classloader by name....
+            Class<?> loadedClass = classLoader.loadClass(element.asType().toString());
+            // Create a new instance...
+            return loadedClass.newInstance();
+            /************************************************************************************************* Load and execute **/
+        } else {
+            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+            	LOGGER.info("Error compiling processor file {}\n{} ", element, 
+		        			String.format("Error on line %d in %s%n",
+		                    diagnostic.getLineNumber(),
+		                    diagnostic.getSource().toUri())
+                        );
+            	
+            	System.out.format("Error on line %d in %s%n",
+                        diagnostic.getLineNumber(),
+                        diagnostic.getSource().toUri());
+            }
+        }
+        
+        fileManager.close();
+
+        return null;
+	}
+
 	public void getActionsInformation() {
 		
 		//This will ensure a correct working-flow for Actions Processing	
@@ -388,6 +480,18 @@ public class Actions {
 									JExpr.TRUE
 								);
 							
+							JFieldVar refField = ActionGate.field(
+									JMod.PROTECTED | JMod.STATIC, 
+									param.clazz, 
+									"$" + param.name
+								);
+							
+							JMethod method = ActionGate.method(
+									JMod.PUBLIC | JMod.STATIC, 
+									param.clazz, param.name
+								);
+							method.body()._return(refField);
+							
 							if (build.javaDoc != null) {
 								Matcher matcher = 
 										Pattern.compile(
@@ -434,9 +538,10 @@ public class Actions {
 								
 								if (actionMethod.resultClass.equals(actionInfo.holderClass) 
 									|| (actionMethod.resultClass.equals("void") && !specials.contains(actionMethod.name))) {
-									
+																		
 									JMethod method;
 									if (actionMethod.resultClass.equals("void")) {
+										
 										method = ActionGate.method(JMod.PUBLIC, env.getCodeModel().VOID, actionMethod.name);
 									} else {
 										method = ActionGate.method(JMod.PUBLIC, ActionGate, actionMethod.name);
@@ -452,7 +557,7 @@ public class Actions {
 											
 											for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
 												TypeUtils.annotateVar(paramVar, annotationMirror, env);
-											}
+											} 
 										}
 									}
 									

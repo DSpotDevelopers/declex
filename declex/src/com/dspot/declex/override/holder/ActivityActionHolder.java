@@ -1,5 +1,6 @@
 package com.dspot.declex.override.holder;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.lit;
@@ -25,6 +26,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.annotations.Extra;
 import org.androidannotations.annotations.RootContext;
+import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
@@ -33,9 +35,12 @@ import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.action.processor.ActivityActionProcessor;
+import com.dspot.declex.api.action.runnable.OnActivityResultRunnable;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
@@ -46,15 +51,21 @@ import com.helger.jcodemodel.JVar;
 
 public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 
+	private static final int MIN_SDK_WITH_FRAGMENT_SUPPORT = 11;
+	
 	private final static String INIT_NAME = "init";
 	private final static String BUILD_NAME = "build";
 	private final static String EXECUTE_NAME = "execute";
 	private final static String INTENT_NAME = "intent";
 	private final static String WITH_RESULT_NAME = "withResult";
+	private final static String SET_BUILDER = "setBuilder";
+	private final static String GET_ON_RESULT = "getOnResult";
+	private final static String GET_REQUEST_CODE = "getRequestCode";
 	
 	public JDefinedClass ActivityAction;
 	private JFieldVar contextField;
 	private JFieldVar startedField;
+	private JFieldVar onResultField;
 	private JFieldVar builderField;
 	private JFieldVar requestCodeField;
 	
@@ -78,6 +89,8 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String actionName = pkg + "." + activityName + "ActionHolder";
 						
 		ActionInfo actionInfo = new ActionInfo(actionName);
+		actionInfo.processors.add(new ActivityActionProcessor());
+		actionInfo.isGlobal = true;
 		
 		//This will avoid generation for parent classes, not used in the project
 		actionInfo.generated = false; 
@@ -90,7 +103,10 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		actionInfo.addMethod(
 				BUILD_NAME, 
 				env.getCodeModel().VOID.fullName(),
-				Arrays.asList(new ActionMethodParam("Started", env.getJClass(Runnable.class)))
+				Arrays.asList(
+						new ActionMethodParam("Started", env.getJClass(Runnable.class)),
+						new ActionMethodParam("OnResult", env.getJClass(OnActivityResultRunnable.class))
+				)
 			);
 		
 		actionInfo.addMethod(EXECUTE_NAME, env.getCodeModel().VOID.fullName());
@@ -103,11 +119,14 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			);
 		
 		actionInfo.addMethod(WITH_RESULT_NAME, actionName);
+		actionInfo.addMethod(WITH_RESULT_NAME, actionName, Arrays.asList(
+					new ActionMethodParam("requestCode" , env.getCodeModel().INT)
+				));
 		
-		addFragmentArgFieldsInformation(actionInfo, element, env);
+		addActivityExtraInformation(actionInfo, element, env);
 	}
 	
-	private static void addFragmentArgFieldsInformation(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
+	private static void addActivityExtraInformation(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
 		List<Element> extraFields = new LinkedList<>();
 		findExtraFields(element, extraFields, env.getProcessingEnvironment());
 		
@@ -168,7 +187,8 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			ActivityAction = getCodeModel()._class(actionName);
 			ActivityAction.annotate(EBean.class);
 			JAnnotationUse actionFor = ActivityAction.annotate(ActionFor.class);
-			actionFor.param("value", activityName);			
+			actionFor.param("value", activityName);		
+			actionFor.param("processors", ActivityActionProcessor.class);
 			
 			ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(ActivityAction.fullName());
 			actionInfo.generated = true;
@@ -180,6 +200,8 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			setBuild();
 			setExecute();			
 			setIntent();
+			setBuilder();
+			setOnResult();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -191,19 +213,21 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		contextField.annotate(RootContext.class);
 		
 		startedField = ActivityAction.field(JMod.PRIVATE, getJClass(Runnable.class), "Started");
+		onResultField = ActivityAction.field(JMod.PRIVATE, getJClass(OnActivityResultRunnable.class), "OnResult");
 		builderField = ActivityAction.field(JMod.PRIVATE, holder().getIntentBuilderClass(), "builder");
 	}
 	
 	private void setInit() {
 		JMethod initMethod = ActivityAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
-		initMethod.body().assign(builderField, getGeneratedClass().staticInvoke("intent").arg(contextField));
 	}
 	
 	private void setBuild() {
 		JMethod buildMethod = ActivityAction.method(JMod.NONE, getCodeModel().VOID, BUILD_NAME);
 		JVar startedParam = buildMethod.param(getJClass(Runnable.class), "Started");
+		JVar onResultParam = buildMethod.param(getJClass(OnActivityResultRunnable.class), "OnResult");
 		
 		buildMethod.body().assign(_this().ref(startedField), startedParam);
+		buildMethod.body().assign(_this().ref(onResultField), onResultParam);
 	}
 	
 	private void setExecute() {
@@ -216,6 +240,48 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		executeMethod.body()._if(startedField.ne(_null()))._then().invoke(startedField, "run");
 	}
 	
+	private void setBuilder() {
+		AbstractJClass Context = getClasses().CONTEXT;
+		AbstractJClass Fragment = getClasses().FRAGMENT;
+		AbstractJClass SupportFragment = getClasses().SUPPORT_V4_FRAGMENT;
+		
+		JMethod setBuilderMethod = ActivityAction.method(JMod.NONE, holder().getIntentBuilderClass(), SET_BUILDER);
+		JVar param = setBuilderMethod.param(Context, "context");
+		setBuilderMethod.body().assign(builderField, _new(holder().getIntentBuilderClass()).arg(param));
+		setBuilderMethod.body()._return(builderField);
+		
+		if (hasFragmentInClasspath()) {
+			setBuilderMethod = ActivityAction.method(JMod.NONE, holder().getIntentBuilderClass(), SET_BUILDER);
+			param = setBuilderMethod.param(Fragment, "fragment");
+			setBuilderMethod.body().assign(builderField, _new(holder().getIntentBuilderClass()).arg(param));
+			setBuilderMethod.body()._return(builderField);
+		}
+		
+		if (hasFragmentSupportInClasspath()) {
+			setBuilderMethod = ActivityAction.method(JMod.NONE, holder().getIntentBuilderClass(), SET_BUILDER);
+			param = setBuilderMethod.param(SupportFragment, "supportFragment");
+			setBuilderMethod.body().assign(builderField, _new(holder().getIntentBuilderClass()).arg(param));
+			setBuilderMethod.body()._return(builderField);
+		}
+	}
+	
+	protected boolean hasFragmentInClasspath() {
+		boolean fragmentExistsInSdk = environment().getAndroidManifest().getMinSdkVersion() >= MIN_SDK_WITH_FRAGMENT_SUPPORT;
+		return fragmentExistsInSdk && processingEnv().getElementUtils().getTypeElement(CanonicalNameConstants.FRAGMENT) != null;
+	}
+	
+	private boolean hasFragmentSupportInClasspath() {
+		return processingEnv().getElementUtils().getTypeElement(CanonicalNameConstants.SUPPORT_V4_FRAGMENT) != null;
+	}
+	
+	private void setOnResult() {
+		JMethod setBuilderMethod = ActivityAction.method(JMod.NONE, getJClass(OnActivityResultRunnable.class), GET_ON_RESULT);
+		setBuilderMethod.body()._return(onResultField);
+		
+		setBuilderMethod = ActivityAction.method(JMod.NONE, getCodeModel().INT, GET_REQUEST_CODE);
+		setBuilderMethod.body()._return(requestCodeField);
+	}
+	
 	private void setIntent() {
 		JMethod intentMethod = ActivityAction.method(JMod.PUBLIC, holder().getIntentBuilderClass(), INTENT_NAME);
 		JAnnotationUse stopOn = intentMethod.annotate(StopOn.class);
@@ -226,9 +292,14 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 	private void setWithResult() {
 		JMethod withResultMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, WITH_RESULT_NAME);
 		withResultMethod.param(getCodeModel().INT, "requestCode");
+			
 		
 		requestCodeField = ActivityAction.field(JMod.PRIVATE, getCodeModel().INT, "requestCode");
 		withResultMethod.body().assign(_this().ref("requestCode"), ref("requestCode"));
+		withResultMethod.body()._return(_this());
+		
+		//Same method without param
+		withResultMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, WITH_RESULT_NAME);
 		withResultMethod.body()._return(_this());
 	}
 	

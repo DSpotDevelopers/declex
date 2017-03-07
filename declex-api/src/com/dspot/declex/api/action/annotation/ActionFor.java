@@ -26,5 +26,6 @@ import com.dspot.declex.api.action.process.ActionProcessor;
 @Target(ElementType.TYPE)
 public @interface ActionFor {
 	String[] value();
+	boolean global() default false;
 	Class<? extends ActionProcessor>[] processors() default {};
 }

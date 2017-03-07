@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.populator;
+package com.dspot.declex.viewsinjection;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr._new;
@@ -62,7 +62,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 	
 	protected static final Logger LOGGER = LoggerFactory.getLogger(ViewAdapterPopulator.class);
 	
-	private PopulatorHandler handler;
+	private PopulateHandler handler;
 	private ViewsHolder viewsHolder;
 	
 	private String adapterClassName;
@@ -71,7 +71,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 
 	private TargetAnnotationHelper annotationHelper;
 	
-	public ViewAdapterPopulator(PopulatorHandler handler, String fieldName, String adapterClassName, String modelClassName, 
+	public ViewAdapterPopulator(PopulateHandler handler, String fieldName, String adapterClassName, String modelClassName, 
 			ViewsHolder viewsHolder) {
 		super(viewsHolder.environment());
 		
@@ -108,7 +108,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		String defLayoutId = viewsHolder.getDefLayoutId();
 		
 		//Read the Layout from the XML file
-		org.w3c.dom.Element node = viewsHolder.getXMLElementFromId(fieldName);
+		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(fieldName);
 		if (node.hasAttribute("tools:listitem")) {
 			String listItem = node.getAttribute("tools:listitem");
 			listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
@@ -142,15 +142,15 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		}
 
 		
-		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().LAYOUT_INFLATER});
+		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
 		JConditional conditional = inflaterMethod.body()._if(convertView.eq(_null()).cor(convertView.invoke("getTag").eq(_null()).cor(convertView.invoke("getTag")._instanceof(ViewHolderClass).not())));
-		conditional._then()._return(inflater.invoke("inflate").arg(contentViewId).arg(_null()));
+		conditional._then()._return(inflater.invoke("inflate").arg(contentViewId).arg(parent).arg(false));
 		conditional._else()._return(convertView);
 
 		final JVar rootView = methodBody.decl(
 				getClasses().VIEW, 
 				"rootView",
-				_this().invoke("inflate").arg(position).arg(convertView).arg(inflater)
+				_this().invoke("inflate").arg(position).arg(convertView).arg(parent).arg(inflater)
 			);
 		
 		final JVar viewHolder = methodBody.decl(
@@ -262,10 +262,9 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		JVar model = methodBody.decl(JMod.FINAL, Model, "model");
 		
 		//Synchronize reading the models 
-		JBlock syncBlock = methodBody.synchronizedBlock(models).body();
 		IJExpression modelAssigner = models.invoke("get").arg(position);
 		if (castNeeded) modelAssigner = cast(Model, models.invoke("get").arg(position));
-		syncBlock.assign(model, modelAssigner);
+		methodBody.assign(model, modelAssigner);
 		
 		if (modelClassName.equals(String.class.getCanonicalName())) {
 			String viewClass = viewsHolder.getClassNameFromId("text");

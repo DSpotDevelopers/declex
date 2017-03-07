@@ -27,7 +27,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.action.ActionHandler;
-import com.dspot.declex.api.populator.Populator;
+import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
@@ -56,7 +56,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 				
 				if (elem.getSimpleName().toString().equals(referecedId)) {
 					
-					Populator populator = elem.getAnnotation(Populator.class);
+					Populate populator = elem.getAnnotation(Populate.class);
 					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
 						
 						String className = elem.asType().toString();
@@ -86,7 +86,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 					
 					break;
 				} else 	if (referecedId.startsWith(elem.getSimpleName().toString()) && 
-						    elem.getAnnotation(Populator.class)!=null) {
+						    elem.getAnnotation(Populate.class)!=null) {
 					
 					String className = elem.asType().toString();
 					String fieldName = elem.getSimpleName().toString();
@@ -190,6 +190,8 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 		JInvocation invoke = JExpr.invoke(methodName);
 		
 		ExecutableElement exeElem = (ExecutableElement) element;
+		
+		parameters:
 		for (VariableElement param : exeElem.getParameters()) {
 			final String paramName = param.getSimpleName().toString();
 			final String paramType = param.asType().toString();
@@ -216,36 +218,42 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 				}				
 			}
 			
-			if (isList()) {
-				//Read the Layout from the XML file
-				org.w3c.dom.Element node = viewsHolder.getXMLElementFromId(methodName);
-				if (node != null && node.hasAttribute("tools:listitem")) {
-					final String defLayoutId = viewsHolder.getDefLayoutId();
-					
-					String listItem = node.getAttribute("tools:listitem");
-					String listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
-					
-					viewsHolder.addLayout(listItemId);
-					viewsHolder.setDefLayoutId(listItemId);
-					
-					if (viewsHolder.layoutContainsId(paramName)) {
-						final JFieldRef idRef = getEnvironment().getRClass().get(Res.ID)
-			                       .getIdStaticRef(paramName, getEnvironment());
+			if (isList()) {				
+				List<String> names = getNames(element);
+				if (viewsHolder.layoutContainsId(methodName)) {
+					names.add(methodName);
+				}
+				
+				for (String name : names) {
+					//Read the Layout from the XML file
+					org.w3c.dom.Element node = viewsHolder.getDomElementFromId(name);
+					if (node != null && node.hasAttribute("tools:listitem")) {
+						final String defLayoutId = viewsHolder.getDefLayoutId();
 						
-						final String className = viewsHolder.getClassNameFromId(paramName);
-						if (className.equals(CanonicalNameConstants.VIEW)) {
-							invoke.arg(ref("view").invoke("findViewById").arg(idRef));
-						} else {
-							invoke.arg(cast(getJClass(className), ref("view").invoke("findViewById").arg(idRef)));
-						}
+						String listItem = node.getAttribute("tools:listitem");
+						String listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
+						
+						viewsHolder.addLayout(listItemId);
+						viewsHolder.setDefLayoutId(listItemId);
+						
+						if (viewsHolder.layoutContainsId(paramName)) {
+							final JFieldRef idRef = getEnvironment().getRClass().get(Res.ID)
+				                       .getIdStaticRef(paramName, getEnvironment());
+							
+							final String className = viewsHolder.getClassNameFromId(paramName);
+							if (className.equals(CanonicalNameConstants.VIEW)) {
+								invoke.arg(ref("view").invoke("findViewById").arg(idRef));
+							} else {
+								invoke.arg(cast(getJClass(className), ref("view").invoke("findViewById").arg(idRef)));
+							}
+							
+							viewsHolder.setDefLayoutId(defLayoutId);
+							continue parameters;
+						};
 						
 						viewsHolder.setDefLayoutId(defLayoutId);
-						continue;
-					};
-					
-					viewsHolder.setDefLayoutId(defLayoutId);
-					
-				}				
+					}		
+				}			
 			}
 			
 			ParamUtils.injectParam(paramName, invoke, viewsHolder);

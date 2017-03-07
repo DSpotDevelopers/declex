@@ -40,6 +40,7 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.internal.model.AnnotationElements;
 
+import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
 import com.sun.source.tree.AnnotationTree;
@@ -91,6 +92,27 @@ public class TypeUtils {
 			if (value instanceof String)
 				fieldAnnotation.param(name, (String)value);
 		}
+	}
+	
+	public static AbstractJClass classFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
+		
+		AbstractJClass elemClass;
+		
+		Matcher matcher = Pattern.compile("<([a-zA-Z_][a-zA-Z_0-9.]+(,[a-zA-Z_][a-zA-Z_0-9.]+)*)>$").matcher(type);
+		if (matcher.find()) {
+			elemClass = environment.getJClass(type.substring(0, type.length() - matcher.group(0).length()));
+			
+			String[] innerElems = matcher.group(1).split(",");
+			for (String innerElem : innerElems) {
+				elemClass = elemClass.narrow(environment.getJClass(
+						typeFromTypeString(innerElem, environment)
+					));
+			}
+		} else {
+			elemClass = environment.getJClass(typeFromTypeString(type, environment));
+		}
+		
+		return elemClass;
 	}
 	
 	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
@@ -319,6 +341,28 @@ public class TypeUtils {
 			this.generatorClassName = className;
 			this.originalClassName = originalClassName;
 			this.generatorElement = generatorElement;
+		}
+		
+		public String getGeneratorClassName() {
+			return generatorClassName;
+		}
+		
+		public String getOriginalClassName() {
+			return originalClassName;
+		}
+		
+		public boolean getList() {
+			return this.isList;
+		}
+		
+		public boolean isList() {
+			return this.isList;
+		}
+		
+		@Override
+		public String toString() {
+			return "[gen: " + generatorClassName + ", elem: " + generatorElement 
+					+ ", isList: " + isList + ", original: " + originalClassName + "]";
 		}
 	}
 
