@@ -33,7 +33,6 @@ import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.JavaDocUtils;
-import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
