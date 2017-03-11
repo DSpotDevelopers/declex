@@ -14,26 +14,6 @@ Please consult our Wiki in https://github.com/smaugho/declex/wiki
 Place the following lines in your app module build.gradle file:
 
 ```gradle
-apply plugin: 'android-apt'
-
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
-    }
-}
-
-apt {
-    arguments {
-        // you should set your package name here if you are using different application IDs
-        // resourcePackageName "YOUR PACKAGE NAME HERE"
-
-        // You can set optional annotation processing options here, like these commented options:
-        // logLevel 'INFO'
-    }
-}
 
 dependencies {
     compile 'com.dspot:declex-api:1.2.1'
@@ -42,6 +22,7 @@ dependencies {
 
 ```
 
+>If you need to use the configuration for the old version of Android Application Plugin with 'android-apt' you can check it in [Old Android Application Plugin Configuration](android_application_old.md)
 
 And that's it!...
 
