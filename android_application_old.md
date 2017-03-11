@@ -1,5 +1,5 @@
  
- ## Old Android Application Plugin Configuration
+## Old Android Application Plugin Configuration
 
 If you are developping with a previous version of Android Application Plugin, and you should use 'android-apt' plugin, this is the correct configuration:
 
