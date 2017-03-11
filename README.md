@@ -16,8 +16,8 @@ Place the following lines in your app module build.gradle file:
 ```gradle
 
 dependencies {
-    annotationProcessor 'com.dspot:declex-api:1.2.1'
-    apt 'com.dspot:declex:1.2.1'
+    annotationProcessor 'com.dspot:declex:1.2.1'
+    compile 'com.dspot:declex-api:1.2.1'
 }
 
 ```
