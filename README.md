@@ -22,9 +22,9 @@ dependencies {
 
 ```
 
->If you need to use the configuration for the old version of Android Application Plugin with 'android-apt' you can check it in [Old Android Application Plugin Configuration](android_application_old.md)
-
 And that's it!...
+
+>If you need to use the configuration for the old version of Android Application Plugin with 'android-apt' you can check it in [Old Android Application Plugin Configuration](android_application_old.md)
 
 -----------
 Sponsored by DSpot Sp. z o.o. Contact us at info@dspot.com.pl
