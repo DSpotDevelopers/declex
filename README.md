@@ -30,5 +30,10 @@ And that's it!...
 
 See our example projects in [Examples](https://github.com/smaugho/declex/wiki/Examples)
 
+## Articles
+
+ * Article written by one of our users in Medium, really nice as a quick introduction to the framework: [The Ultimate Android Development Framework](https://android.jlelse.eu/the-ultimate-android-development-framework-f4382677e0c6#.hgzs2jiqs)
+ * About Populating and Recollecting in the framework: [Ultimate Form of Views Injection](http://smaugho.blogspot.com/2016/11/ultimate-form-of-views-injection.html)
+
 -----------
 Sponsored by DSpot Sp. z o.o. Contact us at info@dspot.com.pl
