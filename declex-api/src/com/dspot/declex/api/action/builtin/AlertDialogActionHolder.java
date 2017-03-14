@@ -25,6 +25,13 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
+import android.graphics.drawable.Drawable;
+import android.support.annotation.ArrayRes;
+import android.support.annotation.AttrRes;
+import android.support.annotation.DrawableRes;
+import android.support.annotation.Nullable;
+import android.support.annotation.StringRes;
+import android.view.View;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
@@ -44,8 +51,13 @@ public class AlertDialogActionHolder {
     String negativeButtonText;
     int negativeButtonRes;
 
+    String neutralButtonText;
+    int neutralButtonRes;
+
 	String[] multiChoiceItems;
 	int multiChoiceRes;
+	
+	boolean[] checkedItems;
 	
 	String[] items;
 	int itemsRes;
@@ -60,9 +72,20 @@ public class AlertDialogActionHolder {
     }
     
 	//Here you can infer any parameter, the first parameter is the next listener 
+    /**
+     * @param PositiveButtonPressed This Action Selector will be executed when the positive button is pressed in
+     * the AlertDialog
+     * @param NegativeButtonPressed This Action Selector will be executed when the negative button is pressed in
+     * the AlertDialog
+     * @param NeutralButtonPressed This Action Selector will be executed when the neutral button is pressed in
+     * the AlertDialog 
+     * @param Canceled This Action Selector will be executed when the AlertDialog is canceled
+     * @param Canceled This Action Selector will be executed when the AlertDialog is dismissed  
+     */
     void build(
     		final DialogClickRunnable PositiveButtonPressed, 
-    		final DialogClickRunnable NegativeButtonPressed, 
+    		final DialogClickRunnable NegativeButtonPressed,
+    		final DialogClickRunnable NeutralButtonPressed,
     		final DialogClickRunnable ItemSelected, 
     		final DialogMultiChoiceClickRunnable MultiChoiceSelected,
     		final Runnable Canceled, 
@@ -80,6 +103,12 @@ public class AlertDialogActionHolder {
 			builder.setPositiveButton(positiveButtonRes, PositiveButtonPressed);
 		}
 		
+		if (neutralButtonText != null) {
+			builder.setNeutralButton(neutralButtonText, NeutralButtonPressed);
+		} else if (neutralButtonRes != 0) {
+			builder.setNeutralButton(neutralButtonRes, NeutralButtonPressed);
+		}
+		
 		if (items != null) {
 			builder.setItems(items, ItemSelected);
 		} else if (itemsRes != 0) {
@@ -87,10 +116,12 @@ public class AlertDialogActionHolder {
 		}
 		
 		if (multiChoiceItems != null) {
-			builder.setMultiChoiceItems(multiChoiceItems, null, MultiChoiceSelected);
+			builder.setMultiChoiceItems(multiChoiceItems, checkedItems, MultiChoiceSelected);
 		} else if (multiChoiceRes != 0) {
-			builder.setMultiChoiceItems(multiChoiceRes, null, MultiChoiceSelected);
+			builder.setMultiChoiceItems(multiChoiceRes, checkedItems, MultiChoiceSelected);
 		}
+		
+
 		
         dialog = builder.create();
         
@@ -146,57 +177,185 @@ public class AlertDialogActionHolder {
     	return this.builder;
     }
 
+    
+    /**
+     * Set the title using the given resource id.
+     *
+     * @return This Builder object to allow for chaining of calls to set methods
+     */
+    public AlertDialogActionHolder title(@StringRes int titleId) {
+        builder.setTitle(context.getString(titleId));
+        return this;
+    }
+    
+    /**
+     * Set the title displayed in the {@link Dialog}.
+     */
     public AlertDialogActionHolder title(@FormattedExpression String title) {
         builder.setTitle(title);
         return this;
     }
+    
+    /**
+     * Set the title using the custom view {@code customTitleView}.
+     * <p>
+     * The methods {@link #setTitle(int)} and {@link #setIcon(int)} should
+     * be sufficient for most titles, but this is provided if the title
+     * needs more customization. Using this will replace the title and icon
+     * set via the other methods.
+     * <p>
+     * <strong>Note:</strong> To ensure consistent styling, the custom view
+     * should be inflated or constructed using the alert dialog's themed
+     * context obtained via {@link #getContext()}.
+     *
+     * @param customTitleView the custom view to use as the title
+     */
+    public AlertDialogActionHolder customTitle(@Nullable View customTitleView){
+    	builder.setCustomTitle(customTitleView)   ;
+    	return this;
+    }
 
+    
+
+    /**
+     * Set the message to display using the given resource id.
+     */
+    public AlertDialogActionHolder message(@StringRes int messageId) {
+        builder.setMessage(context.getString(messageId));
+        return this;
+    }
+
+    /**
+     * Set the message to display.
+     */
     public AlertDialogActionHolder message(@FormattedExpression String message) {
         builder.setMessage(message);
         return this;
     }
+    
+    /**
+     * Set the resource id of the {@link Drawable} to be used in the title.
+     * <p>
+     * Takes precedence over values set using {@link #setIcon(Drawable)}.
+     */
+    public AlertDialogActionHolder icon(@DrawableRes int iconId){
+    	builder.setIcon(iconId);
+    	return this;
+    }
 
-    public AlertDialogActionHolder positiveButton(@FormattedExpression String title) {
-        positiveButtonText = title;
+    /**
+     * Set the {@link Drawable} to be used in the title.
+     * <p>
+     * <strong>Note:</strong> To ensure consistent styling, the drawable
+     * should be inflated or constructed using the alert dialog's themed
+     * context obtained via {@link #getContext()}.
+     */
+    public AlertDialogActionHolder icon(@Nullable Drawable icon){
+    	builder.setIcon(icon);
+    	return this;
+    }
+
+    /**
+     * Set an icon as supplied by a theme attribute. e.g.
+     * {@link android.R.attr#alertDialogIcon}.
+     * <p>
+     * Takes precedence over values set using {@link #setIcon(int)} or
+     * {@link #setIcon(Drawable)}.
+     *
+     * @param attrId ID of a theme attribute that points to a drawable resource.
+     */
+    public AlertDialogActionHolder setIconAttribute(@AttrRes int attrId){
+    	builder.setIconAttribute(attrId);
+    	return this;
+    }
+    
+    /**
+     * Set a listener to be invoked when the positive button of the dialog is pressed.
+     * @param textId The resource id of the text to display in the positive button
+     */
+    public AlertDialogActionHolder positiveButton(int textId) {
+        positiveButtonRes = textId;
+        return this;
+    }
+    
+    /**
+     * Set a listener to be invoked when the positive button of the dialog is pressed.
+     * @param text The text to display in the positive button
+     */
+    public AlertDialogActionHolder positiveButton(@FormattedExpression String text) {
+        positiveButtonText = text;
         return this;
     }
 
-    public AlertDialogActionHolder positiveButton(int res) {
-        positiveButtonRes = res;
+    /**
+     * Set a listener to be invoked when the negative button of the dialog is pressed.
+     * @param textId The resource id of the text to display in the negative button
+     */
+    public AlertDialogActionHolder negativeButton(int textId) {
+        negativeButtonRes = textId;
         return this;
     }
 
-    public AlertDialogActionHolder negativeButton(@FormattedExpression String title) {
-        negativeButtonText = title;
+    /**
+     * Set a listener to be invoked when the negative button of the dialog is pressed.
+     * @param text The text to display in the negative button
+     */
+    public AlertDialogActionHolder negativeButton(@FormattedExpression String text) {
+        negativeButtonText = text;
         return this;
     }
 
-    public AlertDialogActionHolder negativeButton(int res) {
-        negativeButtonRes = res;
+
+    /**
+     * Set a listener to be invoked when the neutral button of the dialog is pressed.
+     * @param textId The resource id of the text to display in the neutral button
+     */
+    public AlertDialogActionHolder neutralButton(int textId) {
+    	neutralButtonRes = textId;
+        return this;
+    }
+    
+    /**
+     * Set a listener to be invoked when the negative button of the dialog is pressed.
+     * @param text The text to display in the negative button
+     */
+    public AlertDialogActionHolder neutralButton(@FormattedExpression String text) {
+        neutralButtonText = text;
+        return this;
+    }
+    
+    /**
+     * Sets whether the dialog is cancelable or not.  Default is true.
+     */
+    public AlertDialogActionHolder cancelable(boolean cancelable){
+    	builder.setCancelable(cancelable);
+    	return this;
+    }
+    
+    
+
+    /**
+     * Set a list of items to be displayed in the dialog as the content, you will be notified of the
+     * selected item via the supplied listener. This should be an array type i.e. R.array.foo
+     */
+	public AlertDialogActionHolder items(int res) {
+		this.itemsRes = res;
         return this;
     }
 	
-	public AlertDialogActionHolder multiChoice(String ... items) {
-		multiChoiceItems = items;
-        return this;
-    }
-	
-	public AlertDialogActionHolder multiChoice(List<String> items) {
-		multiChoiceItems = new String[items.size()];
-		multiChoiceItems = items.toArray(multiChoiceItems);
-        return this;
-    }
-	
-	public AlertDialogActionHolder multiChoice(int res) {
-		multiChoiceRes = res;
-        return this;
-    }
-	
+    /**
+     * Set a list of items to be displayed in the dialog as the content, you will be notified of the
+     * selected item via the supplied listener.
+     */
 	public AlertDialogActionHolder items(String ... items) {
 		this.items = items;
         return this;
     }
 
+    /**
+     * Set a list of items to be displayed in the dialog as the content, you will be notified of the
+     * selected item via the supplied listener.
+     */
 	public AlertDialogActionHolder items(List<?> items) {
 		this.items = new String[items.size()];
 		for (int i = 0; i < items.size(); i++) {
@@ -205,9 +364,129 @@ public class AlertDialogActionHolder {
         return this;
     }
 	
-	public AlertDialogActionHolder items(int res) {
-		this.itemsRes = res;
+    /**
+     * Set a list of items to be displayed in the dialog as the content,
+     * you will be notified of the selected item via the supplied listener.
+     * This should be an array type, e.g. R.array.foo. The list will have
+     * a check mark displayed to the right of the text for each checked
+     * item. Clicking on an item in the list will not dismiss the dialog.
+     * Clicking on a button will dismiss the dialog.
+     *
+     * @param itemsId the resource id of an array i.e. R.array.foo
+     * @param checkedItems specifies which items are checked. It should be null in which case no
+     *        items are checked. If non null it must be exactly the same length as the array of
+     *        items.
+     */
+	public AlertDialogActionHolder multiChoice(int res, boolean[] checkedItemsArray) {
+		multiChoiceRes = res;
+		checkedItems = checkedItemsArray;
         return this;
     }
+	
+	
+    /**
+     * Set a list of items to be displayed in the dialog as the content,
+     * you will be notified of the selected item via the supplied listener.
+     * This should be an array type, e.g. R.array.foo. The list will have
+     * a check mark displayed to the right of the text for each checked
+     * item. Clicking on an item in the list will not dismiss the dialog.
+     * Clicking on a button will dismiss the dialog.
+     *
+     * @param itemsId the resource id of an array i.e. R.array.foo
+     */
+	public AlertDialogActionHolder multiChoice(int res) {
+		multiChoiceRes = res;
+        return this;
+    }
+	
+	
+	
+    /**
+     * Set a list of items to be displayed in the dialog as the content,
+     * you will be notified of the selected item via the supplied listener.
+     * The list will have a check mark displayed to the right of the text
+     * for each checked item. Clicking on an item in the list will not
+     * dismiss the dialog. Clicking on a button will dismiss the dialog.
+     *
+     * @param items the text of the items to be displayed in the list.
+     */
+	public AlertDialogActionHolder multiChoice(String ... items) {
+		multiChoiceItems = items;
+        return this;
+    }
+	
+
+    /**
+     * Set a list of items to be displayed in the dialog as the content,
+     * you will be notified of the selected item via the supplied listener.
+     * The list will have a check mark displayed to the right of the text
+     * for each checked item. Clicking on an item in the list will not
+     * dismiss the dialog. Clicking on a button will dismiss the dialog.
+     *
+     * @param items the text of the items to be displayed in the list.
+     */
+	public AlertDialogActionHolder multiChoice(List<?> items) {
+		this.multiChoiceItems = new String[items.size()];
+		for (int i = 0; i < items.size(); i++) {
+			this.multiChoiceItems[i] = items.get(i).toString();
+		}
+        return this;
+    }
+	
+    /**
+     * Set a list of items to be displayed in the dialog as the content,
+     * you will be notified of the selected item via the supplied listener.
+     * The list will have a check mark displayed to the right of the text
+     * for each checked item. Clicking on an item in the list will not
+     * dismiss the dialog. Clicking on a button will dismiss the dialog.
+     *
+     * @param items the text of the items to be displayed in the list.
+     * @param checkedItems specifies which items are checked. It should be null in which case no
+     *        items are checked. If non null it must be exactly the same length as the array of
+     *        items.
+     */
+	public AlertDialogActionHolder multiChoice(List<String> items, boolean[] checkedItemsArray) {
+		multiChoiceItems = new String[items.size()];
+		multiChoiceItems = items.toArray(multiChoiceItems);
+		checkedItems = checkedItemsArray;
+        return this;
+    }
+	
+	
+    /**
+     * Set a custom view resource to be the contents of the Dialog. The
+     * resource will be inflated, adding all top-level views to the screen.
+     *
+     * @param layoutResId View Resource ID to be inflated.
+     */
+    public AlertDialogActionHolder view(int layoutResId) {
+        builder.setView(layoutResId);
+        return this;
+    }
+    
+
+    /**
+     * Sets a custom view to be the contents of the alert dialog.
+     * <p>
+     * When using a pre-Holo theme, if the supplied view is an instance of
+     * a {@link ListView} then the light background will be used.
+     * <p>
+     * <strong>Note:</strong> To ensure consistent styling, the custom view
+     * should be inflated or constructed using the alert dialog's themed
+     * context obtained via {@link #getContext()}.
+     *
+     * @param view the view to use as the contents of the alert dialog
+     */
+    public AlertDialogActionHolder view(View view) {
+        builder.setView(view);
+        return this;
+    }	
+	
+	
+
+	
+
+	
+
 
 }
