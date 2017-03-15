@@ -33,7 +33,7 @@ See our example projects in [Examples](https://github.com/smaugho/declex/wiki/Ex
 ## Articles
 
  * Article written by one of our users in Medium, really nice as a quick introduction to the framework: [The Ultimate Android Development Framework](https://android.jlelse.eu/the-ultimate-android-development-framework-f4382677e0c6#.hgzs2jiqs)
- * About Populating and Recollecting in the framework: [Dependency Injection Into Views in Android with DecleX](https://medium.com/@smaugho/dependency-injection-into-views-in-android-with-declex-5e7b6537c3a2#.59mbry4bv)
+ * About Populating and Recollecting in the framework: [Dependency Injection Into Views in Android with DecleX](https://medium.com/@smaugho/dependency-injection-into-views-in-android-with-declex-5e7b6537c3a2)
 
 -----------
 Sponsored by DSpot Sp. z o.o. Contact us at info@dspot.com.pl
