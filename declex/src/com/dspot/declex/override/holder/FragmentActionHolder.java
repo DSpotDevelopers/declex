@@ -75,6 +75,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private JFieldVar contextField;
 	private JFieldVar startedField;
 	private JFieldVar builderField;
+	private JFieldVar tagField;
 	private JMethod initMethod;
 	private JFieldVar containerField;
 	private JFieldVar transactionField;
@@ -111,6 +112,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		actionInfo.addMethod(ADD_NAME, actionName);
 		
 		actionInfo.addMethod(INIT_NAME, env.getCodeModel().VOID.fullName());
+		actionInfo.addMethod(
+				INIT_NAME, 
+				env.getCodeModel().VOID.fullName(),
+				Arrays.asList(new ActionMethodParam("tag", env.getClasses().STRING))
+			);
 		
 		actionInfo.addMethod(
 				BUILD_NAME, 
@@ -293,11 +299,18 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		startedField = FragmentAction.field(JMod.PRIVATE, getJClass(Runnable.class), "Started");
 		builderField = FragmentAction.field(JMod.PRIVATE, holder().getBuilderClass(), "builder");
 		
+		tagField = FragmentAction.field(JMod.PRIVATE, getClasses().STRING, "tag");
+		
 		transactionMethodField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, "transactionMethod", lit(0));
 	}
 	
 	private void setInit() {
 		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
+		initMethod.body().invoke(INIT_NAME).arg(_null());
+		
+		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
+		JVar tagParam = initMethod.param(getClasses().STRING, "tag");
+		initMethod.body().assign(_this().ref("tag"), tagParam);
 		initMethod.body().assign(builderField, getGeneratedClass().staticInvoke("builder"));
 	}
 	
@@ -313,11 +326,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		executeMethod.body()._if(transactionField.eq(_null()))._then()._return();
 		
 		JInvocation transactionReplaceInvoke = transactionField.invoke("replace").arg(containerField)
-				.arg(builderField.invoke("build"))
+				.arg(builderField.invoke("build")).arg(tagField)
 				.invoke("commit"); 
 
 		JInvocation transactionAddInvoke = transactionField.invoke("add").arg(containerField)
-				.arg(builderField.invoke("build"))
+				.arg(builderField.invoke("build")).arg(tagField)
 				.invoke("commit"); 
 		
 		JConditional ifReplace = executeMethod.body()._if(transactionMethodField.eq(lit(0)));
