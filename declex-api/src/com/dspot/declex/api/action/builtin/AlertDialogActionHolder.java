@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.ArrayRes;
 import android.support.annotation.AttrRes;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.view.View;
+import android.widget.ListView;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
@@ -176,7 +176,6 @@ public class AlertDialogActionHolder {
     public AlertDialog.Builder builder() {
     	return this.builder;
     }
-
     
     /**
      * Set the title using the given resource id.
@@ -214,8 +213,6 @@ public class AlertDialogActionHolder {
     	builder.setCustomTitle(customTitleView)   ;
     	return this;
     }
-
-    
 
     /**
      * Set the message to display using the given resource id.
@@ -305,7 +302,6 @@ public class AlertDialogActionHolder {
         return this;
     }
 
-
     /**
      * Set a listener to be invoked when the neutral button of the dialog is pressed.
      * @param textId The resource id of the text to display in the neutral button
@@ -331,8 +327,6 @@ public class AlertDialogActionHolder {
     	builder.setCancelable(cancelable);
     	return this;
     }
-    
-    
 
     /**
      * Set a list of items to be displayed in the dialog as the content, you will be notified of the
@@ -382,8 +376,7 @@ public class AlertDialogActionHolder {
 		checkedItems = checkedItemsArray;
         return this;
     }
-	
-	
+
     /**
      * Set a list of items to be displayed in the dialog as the content,
      * you will be notified of the selected item via the supplied listener.
@@ -399,8 +392,6 @@ public class AlertDialogActionHolder {
         return this;
     }
 	
-	
-	
     /**
      * Set a list of items to be displayed in the dialog as the content,
      * you will be notified of the selected item via the supplied listener.
@@ -415,7 +406,6 @@ public class AlertDialogActionHolder {
         return this;
     }
 	
-
     /**
      * Set a list of items to be displayed in the dialog as the content,
      * you will be notified of the selected item via the supplied listener.
@@ -452,7 +442,6 @@ public class AlertDialogActionHolder {
         return this;
     }
 	
-	
     /**
      * Set a custom view resource to be the contents of the Dialog. The
      * resource will be inflated, adding all top-level views to the screen.
@@ -463,7 +452,6 @@ public class AlertDialogActionHolder {
         builder.setView(layoutResId);
         return this;
     }
-    
 
     /**
      * Sets a custom view to be the contents of the alert dialog.
@@ -482,11 +470,4 @@ public class AlertDialogActionHolder {
         return this;
     }	
 	
-	
-
-	
-
-	
-
-
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			return super.process(annotations, roundEnv);
 		} catch (Throwable e) {
 			LOGGER.error("An error occured", e);
-			LoggerContext.getInstance().close();
+			LoggerContext.getInstance().close(true);
 			
 			e.printStackTrace();
 			
