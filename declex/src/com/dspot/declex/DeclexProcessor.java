@@ -48,6 +48,11 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	}
 	
 	@Override
+	protected String getFramework() {
+		return "DecleX";
+	}
+	
+	@Override
 	public synchronized void init(ProcessingEnvironment processingEnv) {
 		try {
 			layoutsParser = new LayoutsParser(processingEnv, LOGGER);

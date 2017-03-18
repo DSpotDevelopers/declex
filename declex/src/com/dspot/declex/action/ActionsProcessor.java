@@ -562,7 +562,6 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			} else {
 				
 				if (Actions.getInstance().hasActionNamed(idName)) {
-					System.out.println("LL: " + currentIfCondition);
 					if (parseForSpecials(currentIfCondition, false).contains(idName)) {
 						throw new ActionProcessingException(
 								"Action Selector out of context: " + idName + " in if" + currentIfCondition 
@@ -1460,7 +1459,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 							}
 
 							if (finded) {
-								arguments.add(currentParam);
+								arguments.add(parseForSpecials(currentParam, false));
 								param.metaData.put("value", currentParam);								
 								currentParam = null;
 								useArguments = true;								
@@ -1497,7 +1496,9 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 							}
 						}
 						
-						if (currentParam != null) arguments.add(currentParam);
+						if (currentParam != null) {
+							arguments.add(parseForSpecials(currentParam, false));
+						}
 					}
 					
 					if (useArguments) return arguments;
@@ -1508,7 +1509,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (!matchFound) {
 			arguments.clear();
 			for (ExpressionTree arg : invocation.getArguments()) {
-				arguments.add(arg.toString());
+				arguments.add(parseForSpecials(arg.toString(), false));
 			}
 		}
 		

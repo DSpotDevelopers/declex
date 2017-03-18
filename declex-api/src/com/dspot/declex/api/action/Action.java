@@ -65,7 +65,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.FIELD, ElementType.METHOD})
 public @interface Action {
-	String[] value() default "";
-	
 	boolean debug() default false;
 }

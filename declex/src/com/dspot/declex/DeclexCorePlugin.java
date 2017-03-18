@@ -23,6 +23,7 @@ import java.util.List;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.Option;
 import org.androidannotations.handler.AnnotationHandler;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.core.handler.AfterExtrasHandler;
 import org.androidannotations.internal.core.handler.AfterPreferencesHandler;
 import org.androidannotations.internal.core.handler.AfterTextChangeHandler;
@@ -99,15 +100,6 @@ import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.ActionForHandler;
 import com.dspot.declex.action.ActionHandler;
-import com.dspot.declex.action.EActivityActionHandler;
-import com.dspot.declex.action.EFragmentActionHandler;
-import com.dspot.declex.action.EventsActionHandler;
-import com.dspot.declex.action.android.AlertDialogActionHandler;
-import com.dspot.declex.action.android.ProgressDialogActionHandler;
-import com.dspot.declex.action.android.ToastActionHandler;
-import com.dspot.declex.action.sequence.ParallelActionHandler;
-import com.dspot.declex.action.sequence.SequenceActionHandler;
-import com.dspot.declex.define.DefineHandler;
 import com.dspot.declex.eventbus.EventHandler;
 import com.dspot.declex.eventbus.UseEventBusHandler;
 import com.dspot.declex.eventbus.UseEventsHandler;
@@ -145,10 +137,17 @@ import com.dspot.declex.viewsinjection.RecollectHandler;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
+	private final String DECLEX_ISSUES_URL = "https://github.com/androidannotations/androidannotations/issues";
+	
 	private static final String NAME = "DecleX";
 
 	public DeclexCorePlugin() {
 		SharedRecords.reset();
+	}
+	
+	@Override
+	public String getIssuesUrl() {
+		return DECLEX_ISSUES_URL;
 	}
 	
 	@Override
@@ -180,7 +179,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new SharedPrefHandler(androidAnnotationEnv));
 
 		annotationHandlers.add(new ActionForHandler(androidAnnotationEnv));
-		annotationHandlers.add(new DefineHandler(androidAnnotationEnv));
 
 		//Events Handlers
 		annotationHandlers.add(new EventHandler(androidAnnotationEnv));
@@ -215,16 +213,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new ExtraHandler(androidAnnotationEnv));
 		
 		//Actions and its plugins
-		annotationHandlers.add(new ActionHandler(androidAnnotationEnv));
-		ActionHandler.clearPlugins();
-		ActionHandler.addPlugin(new EActivityActionHandler());
-		ActionHandler.addPlugin(new EFragmentActionHandler());
-		ActionHandler.addPlugin(new EventsActionHandler());
-		ActionHandler.addPlugin(new ToastActionHandler());
-		ActionHandler.addPlugin(new ProgressDialogActionHandler());
-		ActionHandler.addPlugin(new AlertDialogActionHandler());
-		ActionHandler.addPlugin(new SequenceActionHandler(ActionHandler.getPlugins()));
-		ActionHandler.addPlugin(new ParallelActionHandler(ActionHandler.getPlugins()));
+		annotationHandlers.add(new ActionHandler<EComponentHolder>(androidAnnotationEnv));
 
 		//Listeners Handlers
 		annotationHandlers.add(new ClickHandler(androidAnnotationEnv));
