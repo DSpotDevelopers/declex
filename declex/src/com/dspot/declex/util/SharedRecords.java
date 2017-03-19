@@ -122,7 +122,7 @@ public class SharedRecords {
 		return events;
 	}
 	
-	public static String getEvent(String className,  AndroidAnnotationsEnvironment environment) {
+	public static String getEvent(String className, AndroidAnnotationsEnvironment environment) {
 		if (className == null) return null;
 		
 		if (className.endsWith(ModelConstants.generationSuffix())) className = className.substring(0, className.length()-1);
@@ -151,9 +151,7 @@ public class SharedRecords {
 			if (!eventClassNames.containsKey(className)) {
 				eventClassNames.put(className, generator);
 			}
-		}
-		
-				
+		}	
 	}
 	
 	public static void writeEvents(ProcessingEnvironment processingEnv) {

@@ -41,13 +41,16 @@ public class AnimateActionHolder {
     private View view;
 
     /**
-     * @param view The View to which the application will be applied
+     * @param view The View to which the animation will be applied
      *
      * @param anim The resource id of the animation to load
      */
     void init(View view, @AnimRes int anim) {
         this.view = view;
-        this.animation = AnimationUtils.loadAnimation(context, anim);
+        
+        if (context != null) {
+        	this.animation = AnimationUtils.loadAnimation(context, anim);
+        }
     }
 
     /**
@@ -63,6 +66,8 @@ public class AnimateActionHolder {
         final Runnable Ended,
         final Runnable Repeated
     ) {
+    	
+    	if (animation == null) return;
 
         this.animation.setAnimationListener(new Animation.AnimationListener() {
             @Override
@@ -83,7 +88,9 @@ public class AnimateActionHolder {
     }
 
     void execute() {
-        view.startAnimation(animation);
+    	if (animation != null) {
+    		view.startAnimation(animation);
+    	}        
     }
     
     /**
