@@ -41,7 +41,6 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.api.eventbus.Event;
 import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.api.util.FormatsUtils;
@@ -106,8 +105,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (annotation == null) {
 				valid.addError("The enclosing class should be annotated with @UseEventBus");
 			}
-			
-			ActionsProcessor.validateActions(element, valid, getEnvironment());
 
 			if (!valid.isValid()) return;
 			
@@ -198,9 +195,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				}	
 			}	
 			
-			ExecutableElement executableElement = (ExecutableElement) element;				
-			ActionsProcessor.processActions(executableElement, holder);
-			
+			ExecutableElement executableElement = (ExecutableElement) element;
 			EventUtils.getEventMethod(EventClass.fullName(), executableElement, holder, viewsHolder, getEnvironment());		
 		}
 				

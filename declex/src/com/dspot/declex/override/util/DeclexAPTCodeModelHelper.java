@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
@@ -30,6 +31,7 @@ import org.androidannotations.holder.GeneratedClassHolder;
 
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 
 
@@ -41,6 +43,12 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 	public DeclexAPTCodeModelHelper(AndroidAnnotationsEnvironment environment) {
 		super(environment);
 		this.environment = environment;
+	}
+	
+	@Override
+	public JMethod findAlreadyGeneratedMethod(
+			ExecutableElement executableElement, GeneratedClassHolder holder, boolean checkForAction) {
+		return super.findAlreadyGeneratedMethod(executableElement, holder, checkForAction);
 	}
 	
 	@Override

@@ -25,7 +25,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.util.ParamUtils;
 import com.helger.jcodemodel.JInvocation;
 
@@ -46,14 +45,10 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 		validatorHelper.isNotPrivate(element, valid);
 
 		validatorHelper.doesntThrowException(executableElement, valid);
-		
-		ActionsProcessor.validateActions(element, valid, getEnvironment());
 	}
 
 	@Override
 	public void process(Element element, EComponentHolder holder) {
-		
-		ActionsProcessor.processActions(element, holder);
 		
 		final String methodName = element.getSimpleName().toString();		
 		JInvocation invoke = invoke(methodName);

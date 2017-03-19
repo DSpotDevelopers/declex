@@ -23,12 +23,14 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.internal.model.AnnotationElements;
+import org.androidannotations.internal.model.AnnotationElementsHolder;
 import org.androidannotations.internal.process.ModelProcessor.ProcessResult;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerContext;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
+import com.dspot.declex.action.ActionHelper;
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.util.LayoutsParser;
 import com.dspot.declex.util.MenuParser;
@@ -94,11 +96,35 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	}
 	
 	@Override
+	protected AnnotationElements validateAnnotations(
+			AnnotationElements extractedModel,
+			AnnotationElementsHolder validatingHolder) {
+		
+		AnnotationElements annotationElements = super.validateAnnotations(extractedModel, validatingHolder);
+		
+		//Run validations for Actions (it should be run after all the normal validations)
+		timeStats.start("Validate Actions");
+		LOGGER.info("Validating Actions");
+		ActionHelper.getInstance(androidAnnotationsEnv).validate();
+		timeStats.stop("Validate Actions");
+		
+		return annotationElements;
+	}
+	
+	@Override
 	protected ProcessResult processAnnotations(AnnotationElements validatedModel)
 			throws Exception {
+		
 		ProcessResult result = super.processAnnotations(validatedModel);
 		
 		SharedRecords.priorityExecute();
+
+		//Process Actions (it should be run after all the normal process)
+		timeStats.start("Process Actions");
+		LOGGER.info("Processing Actions");
+		ActionHelper.getInstance(androidAnnotationsEnv).process();
+		ActionHelper.getInstance(androidAnnotationsEnv).clear();
+		timeStats.stop("Process Actions");
 		
 		return result;
 	}

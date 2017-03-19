@@ -26,11 +26,9 @@ import javax.lang.model.element.VariableElement;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
-import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.action.Action;
 import com.dspot.declex.event.BaseEventHandler;
-import com.dspot.declex.share.holder.EnsureImportsHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.helger.jcodemodel.AbstractJClass;
@@ -57,14 +55,13 @@ public class ActionHandler<T extends EComponentHolder> extends BaseEventHandler<
 		super.validate(element, valid);
 				
 		if (ActionsProcessor.hasAction(element, getEnvironment())) {
-			ActionsProcessor.validateActions(element, valid, getEnvironment());
 			return;
 		} 
 		
 		if (element instanceof ExecutableElement) {
 			return;
 		} else {
-			valid.addError("@Action can be applied only to fields containing Actions");
+			valid.addError("@" + getTarget() + " can be applied only to fields containing Actions");
 		}
 	}
 	
@@ -94,31 +91,6 @@ public class ActionHandler<T extends EComponentHolder> extends BaseEventHandler<
 		}
 		
 		return null;
-	}
-
-	@Override
-	public void process(Element element, T holder) {
-		
-		if (ActionsProcessor.hasAction(element, getEnvironment())) {
-			ActionsProcessor.processActions(element, holder);
-			super.process(element, holder);
-			return;
-		}
-		
-		//Action methods that were not process as DecleX Actions
-		if (element instanceof ExecutableElement) {
-			super.process(element, holder);
-			return;
-		}
-		
-		//Ensure R import for actions
-		if (holder instanceof EComponentWithViewSupportHolder) {
-			EnsureImportsHolder importsHolder = holder.getPluginHolder(new EnsureImportsHolder(holder));
-			String importClass = getEnvironment().getAndroidManifest().getApplicationPackage() + ".R";
-			importsHolder.ensureImport(importClass);	
-		}
-		
-		super.process(element, holder);
 	}
 
 }

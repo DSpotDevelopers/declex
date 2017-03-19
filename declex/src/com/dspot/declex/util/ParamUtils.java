@@ -30,7 +30,7 @@ public class ParamUtils {
 		if (viewsHolder != null) {
 			return viewsHolder.checkFieldNameInInvocation(paramName, invocation);
 		} else {
-			if (paramName.equals("$this")) return invocation.arg(_this());
+			if (paramName.equals("_this")) return invocation.arg(_this());
 			return invocation.arg(ref(paramName));
 		}
 	}

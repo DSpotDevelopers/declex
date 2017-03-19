@@ -45,11 +45,11 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
-import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.holder.EComponentHolder;
@@ -67,6 +67,7 @@ import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.share.holder.EnsureImportsHolder;
 import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -114,7 +115,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
-public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
+class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private String debugIndex = "";
 
@@ -124,7 +125,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private List<StatementTree> statements = new LinkedList<>();
 	
+	private JMethod delegatingMethod;
+	private JBlock delegatingMethodStart;
 	private JBlock delegatingMethodBody = null;
+	private List<String> methodActionParamNames = new LinkedList<>();
+	
 	private List<JBlock> blocks = new LinkedList<>();
 	private List<JBlock> parallelBlock = new LinkedList<>();
 	
@@ -154,7 +159,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private AndroidAnnotationsEnvironment env;
 	private EComponentHolder holder;
-	private APTCodeModelHelper codeModelHelper;
+	private DeclexAPTCodeModelHelper codeModelHelper;
 	private Element element;
 	
 	private List<? extends ImportTree> imports;
@@ -239,15 +244,12 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (!hasActionMap.containsKey(element)) {
 			throw new RuntimeException("Action not validated: " + element + " in " + holder.getAnnotatedElement());
 		}
-		
-    	if (hasAction(element, holder.getEnvironment())) {
-    		
-    		final Trees trees = Trees.instance(holder.getEnvironment().getProcessingEnvironment());
-        	final TreePath treePath = trees.getPath(element);
-        	
-        	ActionsProcessor scanner = new ActionsProcessor(element, holder, null, treePath, holder.getEnvironment());
-        	scanner.scan(treePath, trees);
-    	}
+		    		
+		final Trees trees = Trees.instance(holder.getEnvironment().getProcessingEnvironment());
+    	final TreePath treePath = trees.getPath(element);
+    	
+    	ActionsProcessor scanner = new ActionsProcessor(element, holder, null, treePath, holder.getEnvironment());
+    	scanner.scan(treePath, trees);
 	}
 	
 	private ActionsProcessor(Element element, EComponentHolder holder, ElementValidation valid, TreePath treePath, AndroidAnnotationsEnvironment env) {
@@ -319,20 +321,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		//Inferred variables must start with $ sign
 		final String name = variable.getName().toString();
 		if (sharedVariablesHolder == null) {
-			sharedVariablesHolder = getCodeModel().anonymousClass(Runnable.class);
-			JMethod anonymousRunnableRun = sharedVariablesHolder.method(JMod.PUBLIC, getCodeModel().VOID, "run");
-			anonymousRunnableRun.annotate(Override.class);
-			
-			//Add all the created code to the sharedVariablesHolder
-			anonymousRunnableRun.body().add(initialBlock);
-			
-			initialBlock = new JBlock();
-			JVar sharedVariablesHolderVar = initialBlock.decl(
-					getJClass(Runnable.class.getCanonicalName()), 
-					"sharedVariablesHolder", 
-					_new(sharedVariablesHolder)
-				);
-			initialBlock.invoke(sharedVariablesHolderVar, "run");
+			createSharedVariablesHolder();
 		}
 		
 		String variableClass = variableClassFromImports(variable.getType().toString(), true);		
@@ -378,6 +367,23 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				block.assign(ref(name), initializer);
 			}
 		}
+	}
+	
+	private void createSharedVariablesHolder() {
+		sharedVariablesHolder = getCodeModel().anonymousClass(Runnable.class);
+		JMethod anonymousRunnableRun = sharedVariablesHolder.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+		anonymousRunnableRun.annotate(Override.class);
+		
+		//Add all the created code to the sharedVariablesHolder
+		anonymousRunnableRun.body().add(initialBlock);
+		
+		initialBlock = new JBlock();
+		JVar sharedVariablesHolderVar = initialBlock.decl(
+				getJClass(Runnable.class.getCanonicalName()), 
+				"sharedVariablesHolder", 
+				_new(sharedVariablesHolder)
+			);
+		initialBlock.invoke(sharedVariablesHolderVar, "run");
 	}
 	
 	private void writePreviousStatements() {
@@ -504,6 +510,14 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (!processStarted) return true;
 				
 		final String idName = id.toString();
+		
+		//If it is used one of the method parameters, then use sharedVariablesHolder
+		if (methodActionParamNames.contains(idName)) {
+			if (sharedVariablesHolder == null) {
+				createSharedVariablesHolder();
+			}
+		}
+		
 		if (visitingIfCondition) {
 			
 			if (idName.equals(currentAction.get(0))) {
@@ -633,8 +647,9 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	@Override
 	public Boolean visitMethodInvocation(MethodInvocationTree invoke,
 			Trees trees) {
-		if (ignoreActions) return super.visitMethodInvocation(invoke, trees);
-		if (visitingIfCondition) return super.visitMethodInvocation(invoke, trees);
+		if (ignoreActions || visitingIfCondition) {
+			return super.visitMethodInvocation(invoke, trees);
+		}
 
 		String methodSelect = invoke != null? invoke.getMethodSelect().toString() 
 				                            : actionInFieldWithoutInitializer;
@@ -664,10 +679,41 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						}
 					} else {
 						if (element instanceof ExecutableElement) {
-							//Methods
-							JMethod delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder);
+							
+							for (VariableElement param : ((ExecutableElement)element).getParameters()) {
+								methodActionParamNames.add(param.getSimpleName().toString());
+								if (param.getSimpleName().toString().startsWith("$")) {
+									throw new ActionProcessingException(
+											"Parameter names starting with \"$\" are not permitted for action methods"
+										);
+								}
+							}
+							
+							//Create the Action method
+							delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, true);							
 							codeModelHelper.removeBody(delegatingMethod);
-							delegatingMethodBody = delegatingMethod.body();
+							
+							delegatingMethodBody = delegatingMethod.body();							
+							delegatingMethodStart = delegatingMethodBody.blockVirtual();
+
+							String javaDocRef = JavaDocUtils.referenceFromElement(element);
+							delegatingMethod.javadoc().add(javaDocRef);
+							
+							JMethod overrideMethod = codeModelHelper.findAlreadyGeneratedMethod((ExecutableElement) element, holder, false);
+							if (overrideMethod != null) {
+								//TODO Replace calls to super
+							} else {
+								overrideMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder);
+								codeModelHelper.removeBody(overrideMethod);
+								overrideMethod.javadoc().add(javaDocRef);
+								
+								JInvocation actionInvoke = invoke(delegatingMethod);								
+								for (JVar param : overrideMethod.params()) {
+									actionInvoke.arg(ref(param.name()));
+								}
+								
+								overrideMethod.body().add(actionInvoke);
+							}
 						} else {
 							//Fields
 							JDefinedClass anonymous = getCodeModel().anonymousClass(
@@ -938,7 +984,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			
 		}
 	}
-	    		
+	
 	@Override
 	public Boolean visitBlock(BlockTree blockTree, Trees tree) {
 		if (ignoreActions) return super.visitBlock(blockTree, tree);
@@ -1132,6 +1178,26 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		//If the method concluded, populate it
 		if (currentAction.size() == 0) {
+			
+			//Crate the parameter variables
+			if (delegatingMethodStart != null) {
+				
+				for (JVar param : delegatingMethod.listParams()) {
+					
+					String paramName = param.name();
+					if (paramName.startsWith("$")) {
+						paramName = paramName.substring(1);
+					}
+					
+					if (sharedVariablesHolder != null) {
+						sharedVariablesHolder.field(JMod.NONE, param.type(), paramName, param);
+					} else {
+						delegatingMethodStart.decl(param.type(), paramName, param);
+					}
+				}
+				
+			} 
+			
 			delegatingMethodBody.add(initialBlock);
 		}	
 	}
@@ -1310,7 +1376,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		return result;
 	}
 	
-	public void addAnonymouseStatements(final String expression) {
+	private void addAnonymouseStatements(final String expression) {
 		
 		if (anonymousClassTree != null) {
 			StatementTree lastStatement = statements.get(statements.size()-1);

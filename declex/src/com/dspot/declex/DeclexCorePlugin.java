@@ -137,7 +137,7 @@ import com.dspot.declex.viewsinjection.RecollectHandler;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
-	private final String DECLEX_ISSUES_URL = "https://github.com/androidannotations/androidannotations/issues";
+	private final String DECLEX_ISSUES_URL = "https://github.com/smaugho/declex/issues";
 	
 	private static final String NAME = "DecleX";
 
