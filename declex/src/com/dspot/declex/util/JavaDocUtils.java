@@ -17,6 +17,8 @@ package com.dspot.declex.util;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 public class JavaDocUtils {
 	
@@ -32,8 +34,26 @@ public class JavaDocUtils {
 			final String parentElementType = element.getEnclosingElement().asType().toString();
 			final String parentElementName = element.getEnclosingElement().getSimpleName().toString();
 			
-			reference = reference + parentElementType + "#" + elementName 
-					+ " " + parentElementName + "#" + elementName + "}";
+			reference = reference + parentElementType + "#" + elementName;
+			
+			if (element.getKind().equals(ElementKind.METHOD)) {
+				
+				ExecutableElement executableElement = (ExecutableElement) element;
+				
+				reference = reference + "(";
+				for (int i = 0; i < executableElement.getParameters().size(); i++) {
+					VariableElement param  = executableElement.getParameters().get(i); 
+					reference = reference + param.asType().toString();
+					if (i < executableElement.getParameters().size()) {
+						reference = reference + ",";
+					}
+				}
+				reference = reference + ")";
+				
+					
+			} 
+			
+			reference = reference + " " + parentElementName + "#" + elementName + "}";
 		}
 		
 		return reference;

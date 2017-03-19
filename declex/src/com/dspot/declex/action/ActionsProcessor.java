@@ -100,6 +100,7 @@ import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
@@ -174,6 +175,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	//Cache to stored the elements that were already scanned for Actions
 	private static Map<Element, Boolean> hasActionMap = new HashMap<>();
+	private static List<Element> overrideAction = new LinkedList<>();
 	
 	public static boolean hasAction(final Element element, AndroidAnnotationsEnvironment env) {
 		
@@ -210,12 +212,22 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
             	} catch (ActionDetectedException e) {  
             		//This means that an Action identifier was found
             		hasActionMap.put(element, true);
+            		
                 	return true;
             	}
             	
             	break;
             }
         }
+    	
+    	//Actions extended elements are marked in front with "$"
+		if (element.getKind().equals(ElementKind.METHOD) 
+			&& element.getSimpleName().toString().startsWith("$")) {
+			
+			hasActionMap.put(element, true);
+			overrideAction.add(element);
+        	return true;
+		}
     	
     	hasActionMap.put(element, false);
     	return false;		
@@ -224,6 +236,29 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	public static void validateActions(final Element element, ElementValidation valid, AndroidAnnotationsEnvironment env) {
 		
 		if (hasAction(element, env)) {
+		
+			if (element instanceof ExecutableElement) {
+				String returnClass = ((ExecutableElement) element).getReturnType().toString(); 
+				if (!(returnClass.equals("void"))) {
+					valid.addError("Actions cannot be used in functions, this method returns \"" + returnClass + "\"");
+					return;
+				}
+			}
+			
+			//Validate overrideActions
+			if (overrideAction.contains(element) ||
+				(element.getKind().equals(ElementKind.METHOD) 
+				&& element.getSimpleName().toString().startsWith("$"))) {
+				
+				//Check that the method exists in the parent
+				if (!isSuperMethodInParents((TypeElement)element.getEnclosingElement(), (ExecutableElement) element, env.getProcessingEnvironment())) {
+					String message = "This override actions is not valid, the method ";
+					message =  message + element.toString().substring(1);
+					valid.addError(message + " is not found in the parent tree");
+				}
+				
+				return;
+			}
 			
     		final Trees trees = Trees.instance(env.getProcessingEnvironment());
         	final TreePath treePath = trees.getPath(element);
@@ -231,12 +266,62 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			try {
         		ActionsProcessor scanner = new ActionsProcessor(element, null, valid, treePath, env);
             	scanner.scan(treePath, trees);
+			} catch (ActionCallSuperException e) {
+				throw e;
 			} catch (ActionProcessingException e) {
 				valid.addError(e.getMessage());
 			} catch (IllegalStateException e) {
 				valid.addError(e.getMessage());
 			}
 		}
+	}
+	
+	private static boolean isSuperMethodInParents(TypeElement element, ExecutableElement executableElement, 
+			ProcessingEnvironment env) {
+		
+		List<? extends Element> elems = element.getEnclosedElements();
+		elements: for (Element elem : elems) {
+			final String elemName = elem.getSimpleName().toString();
+			
+			if (elem.getModifiers().contains(Modifier.STATIC)
+				|| elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+			
+			if (elem instanceof ExecutableElement) {
+								
+				String executableElementName = executableElement.getSimpleName().toString();
+				if (executableElementName.startsWith("$")) {
+					executableElementName = executableElementName.substring(1);
+				}
+				
+				if (elemName.equals(executableElementName)) {
+					
+					if (((ExecutableElement) elem).getParameters().size() != executableElement.getParameters().size())  {
+						continue;
+					}
+					
+					for (int i = 0; i < executableElement.getParameters().size(); i++) {
+						
+						String elemParameterType = ((ExecutableElement) elem).getParameters().get(i).asType().toString();
+						String executableElementParameterType = executableElement.getParameters().get(i).asType().toString();
+						
+						if (!elemParameterType.equals(executableElementParameterType)) 
+							continue elements;
+					}
+					
+					return true;
+				}
+			}
+		}
+		
+		//Apply to Extensions
+		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			
+			if (isSuperMethodInParents(superElement, executableElement, env)) return true;			
+		}
+		
+		return false;
 	}
 	
 	public static void processActions(final Element element, EComponentHolder holder) {
@@ -249,7 +334,11 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
     	final TreePath treePath = trees.getPath(element);
     	
     	ActionsProcessor scanner = new ActionsProcessor(element, holder, null, treePath, holder.getEnvironment());
-    	scanner.scan(treePath, trees);
+    	
+    	if (!overrideAction.contains(element)) {
+    		scanner.scan(treePath, trees);
+    	}
+    	
 	}
 	
 	private ActionsProcessor(Element element, EComponentHolder holder, ElementValidation valid, TreePath treePath, AndroidAnnotationsEnvironment env) {
@@ -260,10 +349,28 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		this.valid = valid;
 		
 		this.codeModelHelper = new DeclexAPTCodeModelHelper(env);
+		imports = treePath.getCompilationUnit().getImports();
+		
+		if (overrideAction.contains(element)) {
+
+			createActionMethod(true);
+			
+			return;
+		}
+		
+		//Reference and check method parameters
+		if (element instanceof ExecutableElement) {	
+			for (VariableElement param : ((ExecutableElement)element).getParameters()) {
+				methodActionParamNames.add(param.getSimpleName().toString());
+				if (param.getSimpleName().toString().startsWith("$")) {
+					throw new ActionProcessingException(
+							"Parameter names starting with \"$\" are not permitted for action methods"
+						);
+				}
+			}
+		}
 		
 		pushBlock(initialBlock, null);
-		
-		imports = treePath.getCompilationUnit().getImports();
 
 		if (showDebugInfo()) System.out.println("PROCESSING: " + holder.getAnnotatedElement());
 	}
@@ -479,6 +586,46 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	@Override
 	public Boolean visitExpressionStatement(
 			ExpressionStatementTree expr, Trees trees) {
+		
+		if (expr.toString().startsWith("super.") && anonymousClassTree == null) {
+			//Calling to a super method, it should be checked if it is an action
+			Matcher matcher = Pattern.compile("super.([a-zA-Z_$][a-zA-Z_$0-9]*)\\(").matcher(expr.toString());
+			if (matcher.find()) {
+				String methodName = matcher.group(1);
+				String parameters = expr.toString().replace(matcher.group(0), "");
+				parameters = parameters.substring(0, parameters.lastIndexOf(')'));
+				
+				//Count parameters TODO: determine parameter types
+				int deep = 0;
+				int parametersCount = 0;
+				for (int i = 0; i < parameters.length(); i++) {
+					char ch = parameters.charAt(i);
+					if (ch == '(') deep++;
+					if (ch == ')') deep--;
+					if (ch == ',' && deep == 0) parametersCount++;
+				}
+				if (!parameters.equals("")) parametersCount++;
+				
+				List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
+				for (Element elem : elems) {
+					final String elemName = elem.getSimpleName().toString();
+					
+					if (elem.getModifiers().contains(Modifier.STATIC)
+						|| elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					if (elem instanceof ExecutableElement) {
+						if (elemName.equals(methodName) ) {
+							if (((ExecutableElement) elem).getParameters().size() == parametersCount) {
+								if (hasAction(elem, env) && !overrideAction.contains(elem)) {
+									throw new ActionCallSuperException(elem);
+								}
+							}
+						}						
+					}
+				}
+			}
+		}
+
 		if (ignoreActions) return super.visitExpressionStatement(expr, trees);
 		
 		statements.add(expr);
@@ -512,7 +659,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		final String idName = id.toString();
 		
 		//If it is used one of the method parameters, then use sharedVariablesHolder
-		if (methodActionParamNames.contains(idName)) {
+		if ((currentAction.get(0) != null || currentAction.size() > 1 || anonymousClassTree != null) 
+			&& methodActionParamNames.contains(idName)) {
+			
 			if (sharedVariablesHolder == null) {
 				createSharedVariablesHolder();
 			}
@@ -680,40 +829,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					} else {
 						if (element instanceof ExecutableElement) {
 							
-							for (VariableElement param : ((ExecutableElement)element).getParameters()) {
-								methodActionParamNames.add(param.getSimpleName().toString());
-								if (param.getSimpleName().toString().startsWith("$")) {
-									throw new ActionProcessingException(
-											"Parameter names starting with \"$\" are not permitted for action methods"
-										);
-								}
-							}
-							
 							//Create the Action method
-							delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, true);							
-							codeModelHelper.removeBody(delegatingMethod);
+							createActionMethod(false);
 							
-							delegatingMethodBody = delegatingMethod.body();							
-							delegatingMethodStart = delegatingMethodBody.blockVirtual();
-
-							String javaDocRef = JavaDocUtils.referenceFromElement(element);
-							delegatingMethod.javadoc().add(javaDocRef);
-							
-							JMethod overrideMethod = codeModelHelper.findAlreadyGeneratedMethod((ExecutableElement) element, holder, false);
-							if (overrideMethod != null) {
-								//TODO Replace calls to super
-							} else {
-								overrideMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder);
-								codeModelHelper.removeBody(overrideMethod);
-								overrideMethod.javadoc().add(javaDocRef);
-								
-								JInvocation actionInvoke = invoke(delegatingMethod);								
-								for (JVar param : overrideMethod.params()) {
-									actionInvoke.arg(ref(param.name()));
-								}
-								
-								overrideMethod.body().add(actionInvoke);
-							}
 						} else {
 							//Fields
 							JDefinedClass anonymous = getCodeModel().anonymousClass(
@@ -970,6 +1088,129 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		return super.visitMethodInvocation(invoke, trees);
 	}
 	
+	private void createActionMethod(boolean isOverrideAction) {
+		delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, true);
+		
+		if (!isOverrideAction) {
+			codeModelHelper.removeBody(delegatingMethod);
+			
+			delegatingMethodBody = delegatingMethod.body();							
+			delegatingMethodStart = delegatingMethodBody.blockVirtual();			
+		} else {
+			delegatingMethod.annotate(Override.class);
+		}
+
+		String javaDocRef = "<br><hr><br>\nAction Method " + JavaDocUtils.referenceFromElement(element);
+		delegatingMethod.javadoc().add(javaDocRef);
+		
+		JMethod overrideMethod = codeModelHelper.findAlreadyGeneratedMethod((ExecutableElement) element, holder, false);
+		if (overrideMethod != null) {
+			
+			JBlock newBody = replaceSuperCallInBlock(overrideMethod.body(), (ExecutableElement)element);
+			if (newBody != null) {
+				codeModelHelper.removeBody(overrideMethod);
+				overrideMethod.body().add(newBody);
+			}
+			
+		} else {
+			overrideMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder);
+			codeModelHelper.removeBody(overrideMethod);
+			
+			if (isOverrideAction) {
+				javaDocRef = "<br><hr><br>\nOverride Action Method " + JavaDocUtils.referenceFromElement(element);
+				overrideMethod.javadoc().add(javaDocRef);
+			}
+			
+			JInvocation actionInvoke = invoke(delegatingMethod);								
+			for (JVar param : overrideMethod.params()) {
+				actionInvoke.arg(ref(param.name()));
+			}
+			
+			overrideMethod.body().add(actionInvoke);
+		}
+	}
+
+	private JBlock replaceSuperCallInBlock(JBlock block, ExecutableElement executableElement) {
+				
+		boolean replace = false;
+		JBlock newBody = new JBlock();
+		
+		//TODO Replace calls to super, if any
+		for (Object content : block.getContents()) {
+			
+			boolean contentReplaced = false;
+			StringWriter writer = new StringWriter();
+			JFormatter formatter = new JFormatter(writer);
+			IJStatement statement = (IJStatement) content;
+			statement.state(formatter);
+			String statementString = writer.getBuffer().toString();
+			
+			Matcher matcher = Pattern.compile(
+					"((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
+					+ "([a-zA-Z_$][a-zA-Z_$0-9]*)\\(([^;]*);"
+				).matcher(statementString);
+			
+			while (matcher.find()) {
+				String methodName = matcher.group(2);
+				String parameters = matcher.group(3);
+				parameters = parameters.substring(0, parameters.lastIndexOf(')'));
+				
+				//Count parameters TODO: determine parameter types
+				int deep = 0;
+				int parametersCount = 0;
+				for (int i = 0; i < parameters.length(); i++) {
+					char ch = parameters.charAt(i);
+					if (ch == '(') deep++;
+					if (ch == ')') deep--;
+					if (ch == ',' && deep == 0) parametersCount++;
+				}
+				if (!parameters.equals("")) parametersCount++;
+				
+				String executableElementName = executableElement.getSimpleName().toString();
+				if (executableElementName.startsWith("$")) {
+					executableElementName = executableElementName.substring(1);
+				}
+				
+				if (parametersCount == executableElement.getParameters().size()
+					&& methodName.equals(executableElementName)) {
+					
+					statementString = statementString.replace(matcher.group(1), "$");
+					replace = true;
+					contentReplaced = true;
+				}
+			}
+			
+			if (contentReplaced) {
+				newBody.directStatement("//Action " + executableElement + " was injected");
+				String[] lines = statementString.split(System.lineSeparator());
+				for (String line : lines) {
+					newBody.directStatement(line);
+				}
+				continue;
+			}
+			
+			if (statement instanceof JVar) {
+				JVar var = (JVar) statement;
+				try {
+					java.lang.reflect.Field varInitField = JVar.class.getDeclaredField("m_aInitExpr");
+					varInitField.setAccessible(true);
+					IJExpression varInit = (IJExpression) varInitField.get(var);
+
+					newBody.decl(var.type(), var.name(), varInit);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else {
+				newBody.add((IJStatement) statement);
+			}
+		}
+		
+		if (replace) return newBody;
+		
+		return null;
+		
+	}
+
 	private void externalInvokeInBlock(JBlock block, JInvocation invocation, VariableTree variable) {
 		if (visitingVariable) {							
 			writeVariable(variable, block, invocation);
@@ -1362,6 +1603,12 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		ignoreActions = false;
 		
 		return result;
+	}
+	
+	@Override
+	public Boolean visitMethod(MethodTree arg0, Trees arg1) {
+		// TODO Auto-generated method stub
+		return super.visitMethod(arg0, arg1);
 	}
 	
 	@Override
@@ -1791,4 +2038,21 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}
 		
 	}
+	
+	public static class ActionCallSuperException extends ActionProcessingException {
+
+		private static final long serialVersionUID = 1L;
+		private Element element;
+		
+		public ActionCallSuperException(Element element) {
+			super("");
+			this.element = element;
+		}
+		
+		public Element getElement() {
+			return element;
+		}
+		
+	}
+
 }

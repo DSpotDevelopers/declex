@@ -20,6 +20,7 @@ import org.androidannotations.internal.model.AnnotationElements.AnnotatedAndRoot
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
+import com.dspot.declex.action.ActionsProcessor.ActionCallSuperException;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 
 public class ActionHelper {
@@ -95,6 +96,23 @@ public class ActionHelper {
 						}
 						
 					}					
+				} catch (ActionCallSuperException e) {
+					
+					String message = "Method referenced from " 
+					                 + (e.getElement() == elem? "within itself" : elem) 
+					                 + ", in order to permit this, ";
+					if (e.getElement() instanceof ExecutableElement) {
+						if (((ExecutableElement) e.getElement()).getAnnotation(Override.class) != null) {
+							message = message + "please remove the @Override annotation and ";
+						}
+					}
+					
+					message = message + "you should preappend the symbol \"$\" to your method name. ";
+					message = message + "Instad of \"" + e.getElement().getSimpleName() 
+							  + "\" it should be named \"$" + e.getElement().getSimpleName() + "\""; 
+					
+					LOGGER.error(message, e.getElement());
+					LOGGER.warn("Element {} contains an action error", e.getElement());
 				} catch (Throwable e) {
 					LOGGER.error(
 							"Internal crash while validating action with element " + elem + ". \n"
