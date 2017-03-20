@@ -101,6 +101,7 @@ import com.sun.source.tree.ForLoopTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
@@ -137,6 +138,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private JBlock initialBlock = new JBlock();
 	private JAnonymousClass sharedVariablesHolder = null;
+	
+	private LiteralTree literalDiscovered;
 	
 	private boolean processingTry;
 	private boolean visitingTry;
@@ -1612,7 +1615,18 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			}
 			
 			String caseExpression = caseTree.getExpression().toString();
-			JBlock caseBlock = _switch._case(direct(caseExpression)).body();
+			
+			literalDiscovered = null;
+			scan(caseTree.getExpression(), trees);
+			
+			IJExpression expr;
+			if (literalDiscovered != null || caseExpression.contains(".")) {
+				expr = direct(caseExpression);
+			} else {
+				expr = ref(caseExpression);
+			}
+			
+			JBlock caseBlock = _switch._case(expr).body();
 			
 			pushCompleteBlock(caseBlock, "caseBlock: " + caseExpression);
 			scan(caseTree.getStatements(), trees);
@@ -1620,6 +1634,12 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}
 		
 		return true;
+	}
+	
+	@Override
+	public Boolean visitLiteral(LiteralTree literalTree, Trees trees) {
+		literalDiscovered = literalTree;
+		return super.visitLiteral(literalTree, trees);
 	}
 	
 	@Override
