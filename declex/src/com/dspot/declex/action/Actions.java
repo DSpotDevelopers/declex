@@ -239,7 +239,7 @@ public class Actions {
 
 	public void addAction(String action) {
 		ACTIONS.add(action);
-		getInformationForAction(action);
+		createInformationForAction(action);
 	}
 		
 	public boolean hasActionNamed(String actionName) {
@@ -272,7 +272,7 @@ public class Actions {
 		ACTION_INFOS.put(clazz, info);
 	}
 	
-	private void getInformationForAction(String action) {
+	private void createInformationForAction(String action) {
 		
 		TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(action);
 		if (typeElement == null && action.startsWith(BUILTIN_DIRECT_PKG)) {
@@ -448,7 +448,7 @@ public class Actions {
 		}
 		
 		for (String action : ACTIONS) {
-			getInformationForAction(action);
+			createInformationForAction(action);
 		}
 	}
 	

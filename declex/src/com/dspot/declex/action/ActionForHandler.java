@@ -30,12 +30,12 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.override.util.OverrideAPTCodeModelHelper;
 
-public class ActionForHandler extends BaseAnnotationHandler<BaseGeneratedClassHolder> {
+public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
 	
 	public ActionForHandler(AndroidAnnotationsEnvironment environment) {
 		super(ActionFor.class, environment);
@@ -56,7 +56,7 @@ public class ActionForHandler extends BaseAnnotationHandler<BaseGeneratedClassHo
 	}
 	
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, EComponentWithViewSupportHolder holder) {
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
@@ -65,7 +65,9 @@ public class ActionForHandler extends BaseAnnotationHandler<BaseGeneratedClassHo
 					codeModelHelper.overrideAnnotatedMethod((ExecutableElement) elem, holder);
 				}
 			}
-		}		
+		}
+		
+		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
 	}
 
 }

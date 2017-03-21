@@ -32,6 +32,8 @@ public class ActionInfo {
 	public String holderClass;
 	public String references;
 	public boolean isGlobal;
+
+	public Object actionForHolder;
 	
 	public boolean generated;
 	

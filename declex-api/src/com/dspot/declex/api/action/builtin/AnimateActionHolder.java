@@ -54,16 +54,16 @@ public class AnimateActionHolder {
     }
 
     /**
-     * @param Started Notifies the start of the animation.
-     *
-     * @param Ended Notifies the end of the animation. This callback is not invoked
+     * @param Ended <i><b>(default)</b></i> Notifies the end of the animation. This callback is not invoked
      * for animations with repeat count set to INFINITE.
+     * 
+     * @param Started Notifies the start of the animation.
      *
      * @param Repeated Notifies the repetition of the animation.
      */
     void build(
-        final Runnable Started,
         final Runnable Ended,
+        final Runnable Started,
         final Runnable Repeated
     ) {
     	

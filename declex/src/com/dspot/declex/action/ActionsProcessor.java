@@ -29,12 +29,14 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,6 +55,8 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.internal.helper.ViewNotifierHelper;
 import org.androidannotations.internal.process.ProcessHolder.Classes;
 
 import com.dspot.declex.api.action.annotation.Assignable;
@@ -170,6 +174,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private AssignmentTree assignment;
 	
 	private ElementValidation valid;
+	
+	private Map<String, String> staticImports = new HashMap<>();
 	
 	//Cache to stored the elements that were already scanned for Actions
 	private static Map<Element, Boolean> hasActionMap = new HashMap<>();
@@ -388,6 +394,28 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private String parseForSpecials(String expression, boolean ignoreThis) {
 		if (isValidating()) return expression;
 		
+		
+		
+		//Split by string literals (Specials should not be placed inside Strings)
+		List<String> literalsSplit = Arrays.asList(expression.split("(?<!\\\\)\""));
+		if (literalsSplit.size() <= 1) return parseStringForSpecial(expression, ignoreThis);		
+		
+		String newExpression = "";
+		int i = 0;
+		for (String part : literalsSplit) {
+			if (i % 2 == 0) { //Not string literals
+				newExpression = newExpression + parseStringForSpecial(part, ignoreThis);		
+			} else {  //String literals
+				newExpression = newExpression + "\"" + part + "\"";
+			}
+			i++;
+		}
+		
+		return newExpression;
+	}
+	
+	private String parseStringForSpecial(String expression, boolean ignoreThis) {
+		
 		String generatedClass = holder.getGeneratedClass().name();
 		String annotatedClass = holder.getAnnotatedElement().getSimpleName().toString();
 		
@@ -401,6 +429,13 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		if (currentActionSelectors.size() > 0) {
 			expression = expression.replace(currentActionSelectors.get(0), "");
+		}
+		
+		//Static imports
+		for (Entry<String, String> staticImport : staticImports.entrySet()) {
+			expression = expression.replaceAll(
+					"(?<![a-zA-Z_$.0-9])" + staticImport.getKey() + "(?![a-zA-Z_$.0-9])", staticImport.getValue()
+				);
 		}
 		
 		return expression;
@@ -940,7 +975,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					context = holder.getGeneratedClass().staticRef("this");
 				}
 				
-				AbstractJClass injectedClass = getJClass(actionClass + ModelConstants.generationSuffix());
+				AbstractJClass injectedClass = getJClass(actionClass + ModelConstants.generationSuffix());				
+				JBlock preInstantiate = block.blockVirtual();
 				
 				final JVar action;
 				if (actionInfo.isGlobal && !isValidating()) {
@@ -955,7 +991,21 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					);
 				}
 				
-								
+
+				if (holder instanceof EComponentWithViewSupportHolder
+					&& actionInfo.actionForHolder instanceof EComponentWithViewSupportHolder) {
+					
+					if (((EComponentWithViewSupportHolder) actionInfo.actionForHolder).hasOnViewChanged()) {
+						ViewNotifierHelper viewNotifierHelper = ((EComponentWithViewSupportHolder) holder).getViewNotifierHelper();
+						
+						JVar previousNotifier = viewNotifierHelper.replacePreviousNotifier(preInstantiate);
+						viewNotifierHelper.resetPreviousNotifier(block, previousNotifier);
+						viewNotifierHelper.ifWasCalledNotifier(block)
+						                  .invoke(action, "onViewChanged")
+						                  .arg(holder.getGeneratedClass().staticRef("this"));							
+					}
+					
+				}
 				
 				actionInfo.clearMetaData();
 				
@@ -2003,11 +2053,15 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			
 			if (lastElementImport.equals(firstElementName)) {
 				
-				if (!isValidating() && ensureImport && !importTree.isStatic()) {
+				if (!isValidating() && ensureImport) {
 					EnsureImportsHolder importsHolder = holder.getPluginHolder(new EnsureImportsHolder(holder));
-					importsHolder.ensureImport(importTree.getQualifiedIdentifier().toString());	
+					if (!importTree.isStatic()) {						
+						importsHolder.ensureImport(importTree.getQualifiedIdentifier().toString());							
+					} else {
+						staticImports.put(lastElementImport, importTree.getQualifiedIdentifier().toString());
+					}
 				}
-				
+
 				return importTree.getQualifiedIdentifier() + currentVariableClass;
 			}
 		}
