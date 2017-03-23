@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.action.annotation;
+package com.dspot.declex.api.runwith;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import com.dspot.declex.api.action.process.ActionProcessor;
-
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-public @interface ActionFor {
-	String[] value();
-	boolean global() default false;
-	boolean timeConsuming() default true;
-	Class<? extends ActionProcessor>[] processors() default {};
+@Target({ElementType.FIELD, ElementType.METHOD})
+public @interface RunWith {
+	boolean debug() default false;
 }

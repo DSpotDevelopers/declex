@@ -36,13 +36,15 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.IdValidatorHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.action.ActionHandler;
 import com.dspot.declex.api.viewsinjection.Populate;
+import com.dspot.declex.runwith.RunWithHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
@@ -56,10 +58,26 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFormatter;
 import com.helger.jcodemodel.JInvocation;
 
-public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSupportHolder> {
+public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSupportHolder> {
 
 	public BaseViewListenerHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
+	}
+	
+	@Override
+	public void validate(Element element, ElementValidation valid) {
+		super.validate(element, valid);
+		
+		validatorHelper.enclosingElementHasEnhancedViewSupportAnnotation(element, valid);
+
+		validatorHelper.resIdsExist(element, Res.ID, IdValidatorHelper.FallbackStrategy.USE_ELEMENT_NAME, valid);
+
+		validatorHelper.isNotPrivate(element, valid);
+
+		if (element instanceof ExecutableElement) {
+			validatorHelper.doesntThrowException(element, valid);
+		}
+		
 	}
 	
 	protected void createDeclarationForLists(String referecedId, Map<AbstractJClass, IJExpression> declForListener, 
@@ -271,7 +289,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 				}			
 			}
 			
-			ParamUtils.injectParam(paramName, invoke, viewsHolder);
+			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 		}
 		
 		return invoke;

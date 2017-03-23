@@ -87,7 +87,8 @@ public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
 		
 		for (VariableElement param : parameters) {
 			final String paramName = param.getSimpleName().toString();
-			ParamUtils.injectParam(paramName, invocation);
+			final String paramType = param.asType().toString();
+			ParamUtils.injectParam(paramName, paramType, invocation);
 		}
 	}
 }

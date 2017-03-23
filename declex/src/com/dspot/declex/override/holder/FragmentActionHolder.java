@@ -95,6 +95,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
+		actionInfo.isTimeConsuming = false;
 		
 		//This will avoid generation for parent classes, not used in the project
 		actionInfo.generated = false; 

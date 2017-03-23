@@ -116,20 +116,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			
 			viewsHolder.addLayout(listItemId);
 			viewsHolder.setDefLayoutId(listItemId);
-		} else {
-			//If the layout is not found, read it from the param value of the annotation
-			List<JFieldRef> fieldRefs = annotationHelper.extractAnnotationFieldRefs(element, handler.getTarget(), environment.getRClass().get(IRClass.Res.LAYOUT), false);			
-			if (fieldRefs.size() == 1) {
-				contentViewId = fieldRefs.get(0);
-			}
-			if (contentViewId == null) return;
-			
-			//TODO not sure of behavior
-		}
-
-//		if (element.getAnnotation(Populator.class).debug())
-//			LOGGER.warn("\nPopulator layouts: " + layoutObjects, element, element.getAnnotation(Populator.class));
- 
+		} 
 		
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();

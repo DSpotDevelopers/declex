@@ -27,7 +27,7 @@ import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
 
 @EBean
-@ActionFor("Toast")
+@ActionFor(value="Toast", timeConsuming = false)
 public class ToastActionHolder {
 
     String text;

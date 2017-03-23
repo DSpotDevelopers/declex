@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.action;
+package com.dspot.declex.runwith;
 
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -27,7 +27,8 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.api.action.Action;
+import com.dspot.declex.action.ActionHelper;
+import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.event.BaseEventHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
@@ -36,25 +37,26 @@ import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
 
-public class ActionHandler<T extends EComponentHolder> extends BaseEventHandler<T> {
+public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler<T> {
 	
 	protected Class<? extends Annotation> targetAnnotation;
+	private ActionHelper actionHelper;
 	
-	public ActionHandler(AndroidAnnotationsEnvironment environment) {
-		super(Action.class, environment);
-		targetAnnotation = Action.class;
+	public RunWithHandler(AndroidAnnotationsEnvironment environment) {
+		this(RunWith.class, environment);
 	}
 
-	public ActionHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
+	public RunWithHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
 		this.targetAnnotation = (Class<? extends Annotation>) targetClass;
+		actionHelper = ActionHelper.getInstance(environment);
 	}
 	
 	@Override
 	public void validate(final Element element, final ElementValidation valid) {
 		super.validate(element, valid);
 				
-		if (ActionsProcessor.hasAction(element, getEnvironment())) {
+		if (actionHelper.hasAction(element)) {
 			return;
 		} 
 		
@@ -76,7 +78,8 @@ public class ActionHandler<T extends EComponentHolder> extends BaseEventHandler<
 			ExecutableElement exeElem = (ExecutableElement) element;
 			for (VariableElement param : exeElem.getParameters()) {
 				final String paramName = param.getSimpleName().toString();
-				ParamUtils.injectParam(paramName, invoke, viewsHolder);
+				final String paramType = param.asType().toString();
+				ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 			}
 			
 			return invoke;
@@ -84,7 +87,7 @@ public class ActionHandler<T extends EComponentHolder> extends BaseEventHandler<
 		
 		if (viewsHolder != null) {
 			
-			if (ActionsProcessor.hasAction(element, getEnvironment())) {
+			if (actionHelper.hasAction(element)) {
 				return ref(element.getSimpleName().toString()).invoke("fire");
 			};
 			

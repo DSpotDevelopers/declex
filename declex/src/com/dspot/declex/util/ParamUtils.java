@@ -22,13 +22,13 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.helger.jcodemodel.JInvocation;
 
 public class ParamUtils {
-	public static JInvocation injectParam(String paramName, JInvocation invocation) {
-		return injectParam(paramName, invocation, null);
+	public static JInvocation injectParam(String paramName, String paramType, JInvocation invocation) {
+		return injectParam(paramName, paramType, invocation, null);
 	}
 	
-	public static JInvocation injectParam(String paramName, JInvocation invocation, ViewsHolder viewsHolder) {
+	public static JInvocation injectParam(String paramName, String paramType, JInvocation invocation, ViewsHolder viewsHolder) {
 		if (viewsHolder != null) {
-			return viewsHolder.checkFieldNameInInvocation(paramName, invocation);
+			return viewsHolder.checkFieldNameInInvocation(paramName, paramType, invocation);
 		} else {
 			if (paramName.equals("_this")) return invocation.arg(_this());
 			return invocation.arg(ref(paramName));

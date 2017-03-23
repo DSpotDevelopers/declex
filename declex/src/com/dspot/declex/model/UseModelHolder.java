@@ -44,11 +44,11 @@ import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.api.action.Action;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.dspot.declex.api.model.UseModel;
+import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.api.server.ServerModel;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
@@ -239,7 +239,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 
 			//Omit specials and private fields
-			if (elem.getAnnotation(Action.class) != null) continue;
+			if (elem.getAnnotation(RunWith.class) != null) continue;
 			if (elem.getAnnotation(ServerModel.class) != null) continue;
 			if (elem.getAnnotation(LocalDBModel.class) != null) continue;
 			if (elem.getAnnotation(UseModel.class) != null) continue;

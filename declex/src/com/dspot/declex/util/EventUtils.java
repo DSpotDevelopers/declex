@@ -180,7 +180,7 @@ public class EventUtils {
 								
 								invocation = invocation.arg(ref("event"));
 							} else {
-								ParamUtils.injectParam(paramName, invocation, viewsHolder);
+								ParamUtils.injectParam(paramName, paramType, invocation, viewsHolder);
 							}
 						}
 					}

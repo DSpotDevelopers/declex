@@ -64,7 +64,8 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		ExecutableElement exeElem = (ExecutableElement) element;
 		for (VariableElement param : exeElem.getParameters()) {
 			final String paramName = param.getSimpleName().toString();
-			ParamUtils.injectParam(paramName, invoke, viewsHolder);
+			final String paramType = param.asType().toString();
+			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 		}
 		
 		SharedRecords.priorityAdd(holder.getOnViewChangedBody(), block, uniquePriorityCounter);

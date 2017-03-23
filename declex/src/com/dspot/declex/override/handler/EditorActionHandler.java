@@ -18,8 +18,10 @@ package com.dspot.declex.override.handler;
 import java.util.Map;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EditorAction;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
@@ -33,6 +35,16 @@ public class EditorActionHandler extends BaseViewListenerHandler {
 
 	public EditorActionHandler(AndroidAnnotationsEnvironment environment) {
 		super(EditorAction.class, environment);
+	}
+	
+	@Override
+	public void validate(Element element, ElementValidation valid) {
+		super.validate(element, valid);
+		
+		if (element instanceof ExecutableElement) {
+			ExecutableElement executableElement = (ExecutableElement) element;
+			validatorHelper.returnTypeIsVoidOrBoolean(executableElement, valid);
+		}
 	}
 	
 	@Override

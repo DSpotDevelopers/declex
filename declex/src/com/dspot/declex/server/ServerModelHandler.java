@@ -306,7 +306,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			List<? extends VariableElement> parameters = serverModelPut.getParameters();
 			for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
-				ParamUtils.injectParam(paramName, invocation);
+				final String paramType = param.asType().toString();
+				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
 		}
 		
@@ -349,13 +350,14 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
+				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("model")) {
 					invocation.arg(_null());
 					continue;
 				}
 				
-				ParamUtils.injectParam(paramName, invocation);
+				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
 		}
 		block._return(serverModels);
@@ -391,13 +393,14 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
+				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("model")) {
 					invocation.arg(_null());
 					continue;
 				}
 				
-				ParamUtils.injectParam(paramName, invocation);
+				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
 		}
 		notNull._return(serverModels);
@@ -437,13 +440,14 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
+				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("models")) {
 					invocation.arg(_null());
 					continue;
 				}
 				
-				ParamUtils.injectParam(paramName, invocation);
+				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
 			
 		}
@@ -482,13 +486,14 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
+				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("models")) {
 					invocation.arg(_null());
 					continue;
 				}
 				
-				ParamUtils.injectParam(paramName, invocation);
+				ParamUtils.injectParam(paramName, paramType, invocation);
 			}			
 		}
 		notNull._return(serverModel);

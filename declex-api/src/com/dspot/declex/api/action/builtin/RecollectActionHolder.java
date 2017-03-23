@@ -36,7 +36,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * @see com.dspot.declex.Action.$PutModel $PutModel
  */
 
-@ActionFor(value="Recollect", processors=RecollectActionProcessor.class)
+@ActionFor(value="Recollect", processors=RecollectActionProcessor.class, timeConsuming = false)
 public class RecollectActionHolder {
 
 	private Runnable Done;

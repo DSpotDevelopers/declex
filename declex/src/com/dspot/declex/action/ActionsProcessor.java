@@ -67,6 +67,7 @@ import com.dspot.declex.api.action.annotation.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.action.structure.ActionResult;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.share.holder.EnsureImportsHolder;
@@ -132,8 +133,10 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private List<StatementTree> statements = new LinkedList<>();
 	
+	private String delegatingMethodResultVar;
 	private JMethod delegatingMethod;
 	private JBlock delegatingMethodStart;
+	private JBlock delegatingMethodEnd;
 	private JBlock delegatingMethodBody = null;
 	private List<String> methodActionParamNames = new LinkedList<>();
 	
@@ -153,6 +156,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private boolean visitingVariable;
 	private String actionInFieldWithoutInitializer = null;
 	
+	private List<String> actionsTree = new LinkedList<>();
 	private List<String> currentAction = new LinkedList<>();
 	private List<String> currentActionSelectors = new LinkedList<>();
 	private List<JInvocation> currentBuildInvocation = new LinkedList<>();
@@ -393,8 +397,6 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private String parseForSpecials(String expression, boolean ignoreThis) {
 		if (isValidating()) return expression;
-		
-		
 		
 		//Split by string literals (Specials should not be placed inside Strings)
 		List<String> literalsSplit = Arrays.asList(expression.split("(?<!\\\\)\""));
@@ -681,19 +683,58 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	public Boolean visitReturn(ReturnTree returnTree, Trees trees) {
 		if (ignoreActions) return super.visitReturn(returnTree, trees);
 		
+		boolean insideAction = false;
 		if (!((ExecutableElement)element).getReturnType().toString().equals("void")) {
-			for (String action : currentAction) {
-				if (action != null) {
+			
+			for (String action : actionsTree) {
+				
+				if (action == null) continue;
+				
+				String actionClass = Actions.getInstance().getActionNames().get(action);
+				ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(actionClass);
+				
+				if (actionInfo.isTimeConsuming) {
 					throw new ActionProcessingException(
-							"The return statement of action method, cannot be inside an action structure."
-							+ " Ensure to have your actions inside blocks for function. Error: \"" + returnTree
-							+ "\" is inside the action \"" + action + "\""
+							"The return statement of action method cannot be inside a time consumming action."
+							+ " The action " + action + " will finish it's operation in a different thread. "
+							+ "Error: \"" + returnTree + "\" is inside \"" + actionsTree + "\""
 					);
+				} else {
+					insideAction = true;
 				}
+												
 			}	
 		}
 		
-		statements.add(new StringExpressionStatement(returnTree.toString()));
+		if (!isValidating() && (insideAction || delegatingMethodResultVar != null)) {
+			if (delegatingMethodResultVar == null) {
+				AbstractJClass ActionResult = env.getJClass(ActionResult.class);
+				JVar result = delegatingMethodStart.decl(
+					JMod.FINAL,
+					ActionResult, 
+					delegatingMethod.name() + "_result",
+					_new(ActionResult)
+				);
+				
+				String resultRef;
+				if (((ExecutableElement)element).getReturnType().getKind().isPrimitive()) {
+					resultRef = ((ExecutableElement)element).getReturnType().toString() + "Val";
+				} else {
+					resultRef = "objectVal";
+				}
+				
+				delegatingMethodResultVar = result.name() + "." + resultRef;
+				
+				delegatingMethodEnd = new JBlock();
+				delegatingMethodEnd._return(result.ref(resultRef));
+			}
+			
+			statements.add(
+				new StringExpressionStatement(delegatingMethodResultVar + " = " + returnTree.getExpression() + ";")
+			);
+		} else {
+			statements.add(new StringExpressionStatement(returnTree.toString()));	
+		}		
 		
 		Boolean result = super.visitReturn(returnTree, trees);
 		addAnonymousStatements(returnTree.toString());
@@ -954,6 +995,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				block.directStatement("//===========ACTION: " + actionName + "===========");
 				
 				buildPreviousAction();
+				actionsTree.add(methodSelect);
 				
 				VariableTree variable = null;
 				if (visitingVariable) {
@@ -1504,6 +1546,10 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		writePreviousStatements();						
 		buildPreviousAction();
 		
+		if (actionsTree.size() > 0) {
+			actionsTree.remove(actionsTree.size()-1);
+		}
+		
 		currentAction.remove(0);
 		currentBuildInvocation.remove(0);
 		currentBuildParams.remove(0);
@@ -1535,6 +1581,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			} 
 			
 			delegatingMethodBody.add(initialBlock);
+			if (delegatingMethodEnd != null) {
+				delegatingMethodBody.add(delegatingMethodEnd);
+			}
 		}	
 	}
 

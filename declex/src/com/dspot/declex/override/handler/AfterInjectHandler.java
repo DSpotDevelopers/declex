@@ -56,7 +56,8 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 		ExecutableElement exeElem = (ExecutableElement) element;
 		for (VariableElement param : exeElem.getParameters()) {
 			final String paramName = param.getSimpleName().toString();
-			ParamUtils.injectParam(paramName, invoke);
+			final String paramType = param.asType().toString();
+			ParamUtils.injectParam(paramName, paramType, invoke);
 		}
 		
 		holder.getInitBodyAfterInjectionBlock().add(invoke);

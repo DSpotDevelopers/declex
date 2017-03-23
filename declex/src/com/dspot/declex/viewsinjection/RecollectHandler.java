@@ -50,12 +50,14 @@ import com.dspot.declex.api.action.error.ValidationException;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.viewsinjection.Recollect;
+import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.model.ModelHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -85,27 +87,17 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		
+		final String elementName = element.getSimpleName().toString();
+		
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
-
 		validatorHelper.isNotPrivate(element, valid);
 		
-		//Check if the field is a primitive or a String
-		if (element.asType().getKind().isPrimitive() || 
-			element.asType().toString().equals(String.class.getCanonicalName())) {
-			
-			if (!annotationHelper.containsField(element.getSimpleName().toString(), Res.ID)) {
-				valid.addError("The Resource Id " + element.getSimpleName() + " cannot be found");
-			}
-		}
-				
-		boolean isList = TypeUtils.isSubtype(element, "java.util.Collection", getProcessingEnvironment());		
-		if (isList) {
-			valid.addError("@Recollect cannot be used over a Collection of models");
-		} 		
+		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
 		
 		//Validate special methods
+		boolean specialAssignField = false;
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems)
+		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.METHOD) {
 				ExecutableElement executableElement = (ExecutableElement) elem;
 
@@ -127,10 +119,39 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						}
 					}
 					
+					specialAssignField = true;
+					
 					break;
 				}
 				
 			}
+		}
+		
+		//Check if the field is a primitive or a String
+		if (element.asType().getKind().isPrimitive() || 
+			element.asType().toString().equals(String.class.getCanonicalName())) {
+			
+			if (!viewsHelper.getLayoutObjects().containsKey(elementName)) {
+				valid.addError("The element with Id \"" + elementName + "\" cannot be found in the Layout ");
+			} else if (!specialAssignField) {
+				LayoutObject layoutObject = viewsHelper.getLayoutObjects().get(elementName);
+				String className = layoutObject.className;
+				
+				if (!specialAssignField) {
+					if (!TypeUtils.isSubtype(className, "android.widget.TextView", getProcessingEnvironment()) &&
+						!TypeUtils.isSubtype(className, "android.widget.ImageView", getProcessingEnvironment())) {
+						valid.addError("You should provide an assignField method for the class \"" + className + 
+								"\" used on the field " + elementName);
+					}
+				}
+			}
+		}
+				
+		boolean isList = TypeUtils.isSubtype(element, "java.util.Collection", getProcessingEnvironment());		
+		if (isList) {
+			valid.addError("@Recollect cannot be used over a Collection of models");
+		} 		
+		
 	}
 
 	@Override

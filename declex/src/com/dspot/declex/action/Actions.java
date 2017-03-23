@@ -288,6 +288,7 @@ public class Actions {
 			//Get model info
 			final ActionInfo actionInfo = new ActionInfo(action);
 			actionInfo.isGlobal = actionForAnnotation.global();
+			actionInfo.isTimeConsuming = actionForAnnotation.timeConsuming();
 			addAction(name, action, actionInfo, false);
 			
 			String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(typeElement);

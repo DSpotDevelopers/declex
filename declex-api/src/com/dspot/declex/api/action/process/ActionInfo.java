@@ -32,6 +32,7 @@ public class ActionInfo {
 	public String holderClass;
 	public String references;
 	public boolean isGlobal;
+	public boolean isTimeConsuming;
 
 	public Object actionForHolder;
 	

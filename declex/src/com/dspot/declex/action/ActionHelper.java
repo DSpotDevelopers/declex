@@ -46,6 +46,10 @@ public class ActionHelper {
 		this.codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 	
+	public boolean hasAction(Element element) {
+		return ActionsProcessor.hasAction(element, environment);
+	}
+	
 	public void clear() {
 		actionsMap.clear();
 	}
@@ -121,7 +125,6 @@ public class ActionHelper {
 							 elem
 						 );
 					LOGGER.error("Crash Report: {}", e);
-					e.printStackTrace();
 				}
 			}
 			
@@ -183,8 +186,7 @@ public class ActionHelper {
 							 + elementDetail.handler.getAndroidAnnotationPlugin().getIssuesUrl(), 
 							 elem
 						 );
-					LOGGER.error("Crash Report: {}", e);
-					e.printStackTrace();
+					LOGGER.error("Crash Report: {}", e);					
 				}
 				
 			}

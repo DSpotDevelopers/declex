@@ -99,7 +99,6 @@ import org.androidannotations.internal.core.model.AndroidRes;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.ActionForHandler;
-import com.dspot.declex.action.ActionHandler;
 import com.dspot.declex.eventbus.EventHandler;
 import com.dspot.declex.eventbus.UseEventBusHandler;
 import com.dspot.declex.eventbus.UseEventsHandler;
@@ -129,6 +128,7 @@ import com.dspot.declex.override.handler.ItemClickHandler;
 import com.dspot.declex.override.handler.ItemLongClickHandler;
 import com.dspot.declex.override.handler.LongClickHandler;
 import com.dspot.declex.plugin.JClassPlugin;
+import com.dspot.declex.runwith.RunWithHandler;
 import com.dspot.declex.server.ServerModelHandler;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.viewsinjection.AdapterClassHandler;
@@ -213,7 +213,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new ExtraHandler(androidAnnotationEnv));
 		
 		//Actions and its plugins
-		annotationHandlers.add(new ActionHandler<EComponentHolder>(androidAnnotationEnv));
+		annotationHandlers.add(new RunWithHandler<EComponentHolder>(androidAnnotationEnv));
 
 		//Listeners Handlers
 		annotationHandlers.add(new ClickHandler(androidAnnotationEnv));

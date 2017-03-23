@@ -39,7 +39,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * @see com.dspot.declex.Action.$PutModel $PutModel
  */
 
-@ActionFor(value="Populate", processors=PopulateActionProcessor.class)
+@ActionFor(value="Populate", processors=PopulateActionProcessor.class, timeConsuming = false)
 public class PopulateActionHolder {
 
 	private Runnable Done;

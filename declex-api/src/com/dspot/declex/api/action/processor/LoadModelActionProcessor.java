@@ -56,6 +56,8 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				ActionMethod noPopulate = getActionMethod("noPopulate");
 				if (noPopulate.metaData != null) {
 					Populate populatorAnnotation = field.getAnnotation(Populate.class);

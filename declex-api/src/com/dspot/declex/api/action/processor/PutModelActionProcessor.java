@@ -54,6 +54,8 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.asyncPut();
+				
 				ActionMethod noRecollecte = getActionMethod("noRecollect");
 				if (noRecollecte.metaData != null) {
 					Recollect recollectorAnnotation = field.getAnnotation(Recollect.class);

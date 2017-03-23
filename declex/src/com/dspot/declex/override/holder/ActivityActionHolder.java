@@ -106,6 +106,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.processors.add(new ActivityActionProcessor());
 		actionInfo.isGlobal = true;
+		actionInfo.isTimeConsuming = false;
 		
 		//This will avoid generation for parent classes, not used in the project
 		actionInfo.generated = false; 
