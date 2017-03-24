@@ -53,6 +53,7 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.helper.ViewsHelper;
@@ -568,7 +569,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		boolean castNeeded = false;
 		String className = element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
-			if (SharedRecords.getModel(className, getEnvironment()) != null) {
+			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 				className = className + ModelConstants.generationSuffix();
 				castNeeded = true;
 			}

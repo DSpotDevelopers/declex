@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.util;
 
+import java.lang.annotation.Annotation;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
@@ -162,7 +164,7 @@ public class TypeUtils {
 		}
 		
 		classesName.addAll(SharedRecords.getEventGeneratedClasses(environment).keySet());
-		classesName.addAll(SharedRecords.getModelGeneratedClasses(environment));
+		classesName.addAll(SharedRecords.getDBModelGeneratedClasses(environment));
 		
 		return classesName;
 	}	
@@ -295,6 +297,25 @@ public class TypeUtils {
 			}
 		
 		return false;
+	}
+	
+	public static boolean isClassAnnotatedWith(String className, Class<? extends Annotation> annotation, AndroidAnnotationsEnvironment environment) {
+		ADIHelper adiHelper = new ADIHelper(environment);
+		
+		TypeElement element = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);				
+		if (element == null) return false;
+		
+		return adiHelper.hasAnnotation(element, annotation);
+
+	}
+	
+	public static <T extends Annotation> T getClassAnnotation(String className, Class<T> annotation, AndroidAnnotationsEnvironment environment) {
+		ADIHelper adiHelper = new ADIHelper(environment);
+		
+		TypeElement element = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);				
+		if (element == null) return null;
+		
+		return adiHelper.getAnnotation(element, annotation);		
 	}
 	
 	public static ClassInformation getClassInformation(Element element, AndroidAnnotationsEnvironment environment) {

@@ -43,12 +43,12 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.runwith.RunWithHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
-import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -102,7 +102,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						
 						boolean castNeeded = false;
 						if (!className.endsWith(ModelConstants.generationSuffix())) {
-							if (SharedRecords.getModel(className, getEnvironment()) != null) {
+							if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 								className = className + ModelConstants.generationSuffix();
 								castNeeded = true;
 							}

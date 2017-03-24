@@ -137,7 +137,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		actions.buildActionsObject();
 				
 		SharedRecords.writeEvents(processingEnv);
-		SharedRecords.writeModels(processingEnv);
+		SharedRecords.writeDBModels(processingEnv);
 		
 		super.generateSources(processResult);
 		

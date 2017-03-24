@@ -94,6 +94,8 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					}
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				JMethod getModelMethod = getMethodInHolder(
 						"getLoadModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);

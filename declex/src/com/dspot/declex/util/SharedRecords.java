@@ -45,13 +45,13 @@ public class SharedRecords {
 	private static Map<JBlock, Map<Integer, IJStatement>> priorityMethods = new HashMap<>();
 	
 	private static Map<String, String> events;
-	private static Collection<String> models;
+	private static Collection<String> db_models;
 	private static Collection<String> actions;
 	
 	public static void reset() {
 		priorityMethods = new HashMap<>();
 		events = null;
-		models = null;
+		db_models = null;
 		actions = null;
 	}
 	
@@ -178,13 +178,13 @@ public class SharedRecords {
 	
 	//=====================================MODELS===========================
 	
-	public static Collection<String> getModelGeneratedClasses(AndroidAnnotationsEnvironment environment) {
+	public static Collection<String> getDBModelGeneratedClasses(AndroidAnnotationsEnvironment environment) {
 		final AnnotationElements validatedModel = environment.getValidatedElements(); 
 		final ProcessingEnvironment processingEnv = environment.getProcessingEnvironment();
 		
 		//Get all the events from the event file
-		if (models == null) {
-			models = new TreeSet<>();
+		if (db_models == null) {
+			db_models = new TreeSet<>();
 			
 			File outputEventsDir = FileUtils.getConfigFile("models", processingEnv);
 			File eventsFile = new File(outputEventsDir.getAbsolutePath() + File.separator + "models.txt");
@@ -201,7 +201,7 @@ public class SharedRecords {
 				for (String model : modelsArray) {
 					if (model.trim().equals("")) continue;
 					
-					models.add(model);
+					db_models.add(model);
 				}
 				
 			} catch (IOException e) {
@@ -210,21 +210,21 @@ public class SharedRecords {
 			Set<? extends Element> annotatedElements = validatedModel.getRootAnnotatedElements(EBean.class.getCanonicalName());
 			for (Element elem : annotatedElements) {
 				if (elem.getAnnotation(LocalDBModel.class) != null) {
-					if (models.contains(elem.toString())) continue;
-					models.add(elem.toString());
+					if (db_models.contains(elem.toString())) continue;
+					db_models.add(elem.toString());
 				}
 			}
 		} 
 		
-		return models;
+		return db_models;
 	}
 	
-	public static String getModel(String className,  AndroidAnnotationsEnvironment environment) {
+	public static String getDBModel(String className,  AndroidAnnotationsEnvironment environment) {
 		if (className == null) return null;
 		
 		if (className.endsWith(ModelConstants.generationSuffix())) className = className.substring(0, className.length()-1);
 		
-		final Collection<String> modelClassNames = getModelGeneratedClasses(environment);
+		final Collection<String> modelClassNames = getDBModelGeneratedClasses(environment);
 		
 		for (String model : modelClassNames) {
 			if (model.equals(className) || (!className.contains(".") && model.endsWith("."+className)))
@@ -234,22 +234,21 @@ public class SharedRecords {
 		return null;
 	}
 	
-	public static void addModelGeneratedClass(String className, AndroidAnnotationsEnvironment environment) {
-		final Collection<String> eventClassNames = getModelGeneratedClasses(environment);
-		
-		eventClassNames.add(className);		
+	public static void addDBModelGeneratedClass(String className, AndroidAnnotationsEnvironment environment) {
+		final Collection<String> dbModelNames = getDBModelGeneratedClasses(environment);
+		dbModelNames.add(className);
 	}
 	
-	public static void writeModels(ProcessingEnvironment processingEnv) {
+	public static void writeDBModels(ProcessingEnvironment processingEnv) {
 		//Write all the events to the event file
 		try {
 			File outputModelsDir = FileUtils.getConfigFile("models", processingEnv);
-			File modelsFile = new File(outputModelsDir.getAbsolutePath() + File.separator + "models.txt");
+			File modelsFile = new File(outputModelsDir.getAbsolutePath() + File.separator + "db_models.txt");
 			PrintWriter out = new PrintWriter(modelsFile);
 			
 			String data = "";
-			if (models != null) {
-				for (String model : models) {
+			if (db_models != null) {
+				for (String model : db_models) {
 					if (!data.equals("")) data = data + "\r\n";
 					data = data + model;
 				}				

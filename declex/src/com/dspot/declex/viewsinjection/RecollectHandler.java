@@ -49,6 +49,7 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.action.error.ValidationException;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Recollect;
 import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.model.ModelHolder;
@@ -388,7 +389,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		boolean castNeeded = false;
 		String className = element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
-			if (SharedRecords.getModel(className, getEnvironment()) != null) {
+			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 				className = className + ModelConstants.generationSuffix();
 				castNeeded = true;
 			}

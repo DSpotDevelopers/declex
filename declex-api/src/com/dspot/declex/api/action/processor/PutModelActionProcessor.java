@@ -92,6 +92,8 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					}
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				JMethod putModelMethod = getMethodInHolder(
 						"getPutModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);

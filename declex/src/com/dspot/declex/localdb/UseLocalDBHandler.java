@@ -15,10 +15,13 @@
  */
 package com.dspot.declex.localdb;
 
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
-import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -32,6 +35,7 @@ import org.androidannotations.holder.EComponentHolder;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.dspot.declex.api.localdb.UseLocalDB;
 import com.dspot.declex.util.SharedRecords;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
@@ -42,10 +46,16 @@ public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassH
 	public UseLocalDBHandler(AndroidAnnotationsEnvironment environment) {
 		super(UseLocalDB.class, environment);
 	}
+	
+	@Override
+	public Set<Class<? extends Annotation>> getDependencies() {
+		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
+					EApplication.class
+			   ));
+	}
 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.typeHasAnnotation(EApplication.class, element, valid);		
 	}
 
 	@Override
@@ -59,14 +69,15 @@ public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassH
 			IJExpression configuration = JExpr._new(ConfigurationBuilder)
           		  							  .arg(((EApplicationHolder) holder).getContextRef());
 
-			Collection<String> models = SharedRecords.getModelGeneratedClasses(getEnvironment());
+			Collection<String> models = SharedRecords.getDBModelGeneratedClasses(getEnvironment());
 			for (String model : models) {
-				TypeElement elem = getProcessingEnvironment().getElementUtils().getTypeElement(model);
-				LocalDBModel localDBModel = elem.getAnnotation(LocalDBModel.class); 
+				
+				LocalDBModel localDBModel = TypeUtils.getClassAnnotation(model, LocalDBModel.class, getEnvironment()); 
 				if ( localDBModel != null && localDBModel.hasTable()) {
 					configuration = configuration.invoke("addModelClass")
 							           .arg(getJClass(model + ModelConstants.generationSuffix()).dotclass());
 				}
+				
 			}
 			
 			JInvocation invokeInitialize = ActiveAndroid.staticInvoke("initialize")

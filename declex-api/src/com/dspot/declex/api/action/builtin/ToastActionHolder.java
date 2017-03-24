@@ -61,8 +61,10 @@ public class ToastActionHolder {
 			public void run() {
 				if (text != null) {
 		            Toast.makeText(context, text, duration).show();
-		        } else {
+		        } else if (res != 0) {
 		            Toast.makeText(context, res, duration).show();
+		        } else {
+		        	Toast.makeText(context, "Toast Error: Toast message was not provided", duration).show();
 		        }
 		        if (Shown != null) Shown.run();
 			}
