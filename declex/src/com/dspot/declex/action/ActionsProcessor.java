@@ -115,6 +115,7 @@ import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.VariableTree;
@@ -141,7 +142,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private List<String> methodActionParamNames = new LinkedList<>();
 	
 	private List<JBlock> blocks = new LinkedList<>();
-	private List<JBlock> parallelBlock = new LinkedList<>();
+	private List<JBlock> originalBlocks = new LinkedList<>();
 	
 	private JBlock initialBlock = new JBlock();
 	private JAnonymousClass sharedVariablesHolder = null;
@@ -152,6 +153,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private boolean visitingTry;
 	private TryTree currentTry;
 	private boolean visitingCatch;
+	
+	private boolean omitParallel;
 	
 	private boolean visitingVariable;
 	private String actionInFieldWithoutInitializer = null;
@@ -834,7 +837,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					if (thenParam != null) {
 						currentActionSelectors.add(0, actionName + "." + actionSelector + "().");
 						addActionSelector(actionName, actionSelector, thenParam);
-						scan(ifTree.getThenStatement(), trees);
+						scanForActionsOmitingBlock(ifTree.getThenStatement(), trees);
 						finishBlock();
 						currentActionSelectors.remove(0);
 					} else {
@@ -853,7 +856,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						
 						currentActionSelectors.add(0, actionName + "." + actionSelector + "().");
 						addActionSelector(actionName, elseParam.param.name, elseParam);
-						scan(ifTree.getElseStatement(), trees);
+						scanForActionsOmitingBlock(ifTree.getElseStatement(), trees);
 						finishBlock();
 						currentActionSelectors.remove(0);
 					}						
@@ -874,13 +877,13 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		JBlock thenBlock = _if._then();
 		
 		pushCompleteBlock(thenBlock, "newIf: " + ifCondition);
-		scan(ifTree.getThenStatement(), trees);
+		scanForActionsOmitingBlock(ifTree.getThenStatement(), trees);
 		finishBlock();
 		
 		if (ifTree.getElseStatement() != null) {
 			JBlock elseBlock = _if._else();
 			pushCompleteBlock(elseBlock, "elseBlock:");
-			scan(ifTree.getElseStatement(), trees);
+			scanForActionsOmitingBlock(ifTree.getElseStatement(), trees);
 			finishBlock();
 		}
 
@@ -916,6 +919,14 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			debugIndex = debugIndex + "    ";
 		}
 
+	}
+	
+	//Method should be called only after a pushCompleteBlock
+	private void scanForActionsOmitingBlock(Tree expression, Trees trees) {
+		if (expression.getKind().equals(Kind.BLOCK)) {
+			omitParallel = true;
+		}
+		scan(expression, trees);
 	}
 	
 	@Override
@@ -1444,34 +1455,45 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 		if (!processStarted) {
 			if (showDebugInfo()) {
-				System.out.println(debugPrefix() + "MethodStart:");
+				System.out.println(debugPrefix() + "MethodStart: " + element);
 				debugIndex = debugIndex + "    ";				
 			} 
 			isParallelBlock = false;
 		}
 		
-		//Current Action Information for the new Block
-		currentAction.add(0, null);
-		currentBuildInvocation.add(0, null);
-		currentBuildParams.add(0, new LinkedHashMap<String, ParamInfo>());
+		boolean finishCurrentBlock = true;
+		if (omitParallel) {
+			omitParallel = false;
+			finishCurrentBlock = false;
+			isParallelBlock = false;
+		} else {
+			//Current Action Information for the new Block
+			currentAction.add(0, null);
+			currentBuildInvocation.add(0, null);
+			currentBuildParams.add(0, new LinkedHashMap<String, ParamInfo>());			
+		}
 
 		if (hasAdditionalBlock()) {
 			pushAdditionalBlock();
 			isParallelBlock = false;
 		}
-		
+				
 		//Used for execution of actions in parallel
 		if (isParallelBlock) {			
 			writePreviousStatements();
 			
-			JBlock block = parallelBlock.get(0);			
+			JBlock block = blocks.get(0);			
 			pushBlock(block.block(), "newBlock: ");
 		}
 		
 		processStarted = true;
 		
 		Boolean result = super.visitBlock(blockTree, tree); 
-		finishBlock();
+		
+		if (finishCurrentBlock) {
+			finishBlock();
+		}
+		
 		return result;
 	}
 	
@@ -1524,7 +1546,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private void pushBlock(JBlock block, String blockName) {
 		blocks.add(0, block);
-		parallelBlock.add(0, block);
+		originalBlocks.add(0, block);
 		
 		if (showDebugInfo() && blockName != null) {
 			System.out.println(debugPrefix() + blockName);
@@ -1539,7 +1561,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}		
 		
 		blocks.remove(0);
-		parallelBlock.remove(0);
+		originalBlocks.remove(0);
 	}
 	
 	private void finishBlock() {
@@ -1612,22 +1634,30 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		if (ignoreActions) return super.visitTry(tryTree, trees);
 			
-		if (visitingTry) {
-			throw new ActionProcessingException(
-					"Nested try are not supported: " + tryTree
-				);
-		}
+		writeDirectStructure(tryTree.toString());
 		
-		writePreviousStatements();
-		
-		currentTry = tryTree;
-		processingTry = true;
-		
-		visitingTry = true;		
+		ignoreActions = true;
 		Boolean result = super.visitTry(tryTree, trees);
-		visitingTry = false;
+		ignoreActions = false;
 		
 		return result;
+		
+//		if (visitingTry) {
+//			throw new ActionProcessingException(
+//					"Nested try are not supported: " + tryTree
+//				);
+//		}
+//		
+//		writePreviousStatements();
+//		
+//		currentTry = tryTree;
+//		processingTry = true;
+//		
+//		visitingTry = true;		
+//		Boolean result = super.visitTry(tryTree, trees);
+//		visitingTry = false;
+//		
+//		return result;
 	}
 	
 	@Override
@@ -1749,7 +1779,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (currentAction.get(0) != null) {
 			buildPreviousAction();
 			currentAction.set(0, null);
-			blocks.set(0, parallelBlock.get(0));
+			blocks.set(0, originalBlocks.get(0));
 		} 
 		
 		JBlock block = blocks.get(0);
@@ -1819,7 +1849,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	@Override
 	public Boolean visitClass(ClassTree cls, Trees trees) {
 		if (ignoreActions) return super.visitClass(cls, trees); 
-				
+		
 		ignoreActions = true;
 		anonymousClassTree = cls;
 		Boolean result = super.visitClass(cls, trees);
