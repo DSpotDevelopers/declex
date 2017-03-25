@@ -74,8 +74,11 @@ public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassH
 				
 				LocalDBModel localDBModel = TypeUtils.getClassAnnotation(model, LocalDBModel.class, getEnvironment()); 
 				if ( localDBModel != null && localDBModel.hasTable()) {
+					
+					String modelClass = TypeUtils.getGeneratedClassName(model, getEnvironment());
 					configuration = configuration.invoke("addModelClass")
-							           .arg(getJClass(model + ModelConstants.generationSuffix()).dotclass());
+							           .arg(getJClass(modelClass).dotclass());
+					
 				}
 				
 			}

@@ -102,10 +102,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	}
 	
 	protected String getClassName(Element element) {
-		String elementClass = element.asType().toString();
-		if (!elementClass.endsWith("_")) elementClass = elementClass + "_";
-		
-		return elementClass;
+		return TypeUtils.getGeneratedClassName(element, getEnvironment());
 	}
 
 	@Override

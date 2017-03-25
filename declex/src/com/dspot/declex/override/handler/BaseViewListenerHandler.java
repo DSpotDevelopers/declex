@@ -103,7 +103,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						boolean castNeeded = false;
 						if (!className.endsWith(ModelConstants.generationSuffix())) {
 							if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
-								className = className + ModelConstants.generationSuffix();
+								className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 								castNeeded = true;
 							}
 						}
@@ -138,7 +138,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					
 					if (isPrimitive || isList) continue;
 					
-					if (className.endsWith("_")) {
+					if (className.endsWith(ModelConstants.generationSuffix())) {
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						className = className.substring(0, className.length()-1);
 					}
@@ -179,7 +179,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
 							className = matcher.group(1);
-							if (className.endsWith("_")) {
+							if (className.endsWith(ModelConstants.generationSuffix())) {
 								className = TypeUtils.typeFromTypeString(className, getEnvironment());
 							}
 						}

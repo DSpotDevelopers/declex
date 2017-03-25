@@ -50,10 +50,7 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 		
 		String modelClass = modelClassType == null || modelClassType.toString().equals(getDefaultModelClass().getCanonicalName()) ? 
 				             	"" : modelClassType.toString();
-		if (!modelClass.equals("") && !modelClass.endsWith("_")) {
-			modelClass = modelClass + "_";
-		}
-		
+		modelClass = TypeUtils.getGeneratedClassName(modelClass, getEnvironment());		
 		rootDataModel.put("modelClass", modelClass);
 		
 		try {
@@ -66,9 +63,7 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 			for (Element elem : elems)
 				if (elem.getKind() == ElementKind.FIELD) {
 					if (elem.getSimpleName().toString().equals(model)) {
-						String elemClassName = elem.asType().toString();
-						if (!elemClassName.endsWith("_")) elemClassName = elemClassName + "_";
-						
+						String elemClassName = TypeUtils.getGeneratedClassName(elem, getEnvironment());						
 						rootDataModel.put("modelType", TypeUtils.typeFromTypeString(elemClassName, getEnvironment()));
 						
 						Model annotation = elem.getAnnotation(Model.class);

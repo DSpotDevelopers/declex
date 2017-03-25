@@ -143,13 +143,45 @@ public class TypeUtils {
 			
 			for (String className : getAllToBeGeneratedClassesName(environment)) {
 				if (className.endsWith("." + toInfereIfNeeded)) {
-					return type.replace(toInfereIfNeeded + ModelConstants.generationSuffix(), className + ModelConstants.generationSuffix());
+					return type.replace(
+						toInfereIfNeeded + ModelConstants.generationSuffix(), 
+						TypeUtils.getGeneratedClassName(className, environment)
+					);
 				}
 			}
 
 		}
 		
 		return type;
+	}
+	
+	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {
+		return  getGeneratedClassName(element.asType().toString(), environment);
+	}
+	
+	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment) {
+		
+		if (clazz.trim().equals("")) return "";
+		
+		if (!clazz.endsWith(ModelConstants.generationSuffix())) {
+			clazz = clazz + ModelConstants.generationSuffix();
+		}
+		
+		if (!clazz.contains(".")) {
+			return typeFromTypeString(clazz, environment);
+		}
+		
+		int lastPoint = clazz.lastIndexOf('.');
+		TypeElement typeElement = environment.getProcessingEnvironment()
+				                             .getElementUtils()
+				                             .getTypeElement(clazz.substring(0, lastPoint));
+		if (typeElement != null) {
+			//It is a nested class
+			clazz = clazz.substring(0, lastPoint) + ModelConstants.generationSuffix() 
+					+ clazz.substring(lastPoint);  
+		}
+		
+		return clazz;
 	}
 	
 	public static List<String> getAllToBeGeneratedClassesName(AndroidAnnotationsEnvironment environment) {

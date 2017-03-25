@@ -38,6 +38,7 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.IdAnnotationHelper;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.FoundViewHolder;
 import org.androidannotations.plugin.PluginClassHolder;
@@ -452,7 +453,7 @@ public class ViewsHolder extends
 				// in that element combinations (recursive DFS)
 				if (!elem.asType().getKind().isPrimitive()) {
 					String elemType = TypeUtils.typeFromTypeString(elem.asType().toString(), environment());
-					if (elemType.endsWith("_"))
+					if (elemType.endsWith(ModelConstants.generationSuffix()))
 						elemType = elemType.substring(0, elemType.length() - 1);
 
 					TypeElement fieldTypeElement = environment()

@@ -84,8 +84,7 @@ public class EventUtils {
 	public static JMethod getEventMethod(String eventClass, Element element, BaseGeneratedClassHolder holder, 
 			ViewsHolder viewsHolder, AndroidAnnotationsEnvironment environment) {
 		
-		if (!eventClass.endsWith("_")) eventClass = eventClass + "_";
-		eventClass = TypeUtils.typeFromTypeString(eventClass, environment);
+		eventClass = TypeUtils.getGeneratedClassName(eventClass, environment);
 		
 		String eventSimpleName = eventClass;
 		Matcher matcher = Pattern.compile("\\.([A-Za-z_][A-Za-z0-9_]+)$").matcher(eventClass);

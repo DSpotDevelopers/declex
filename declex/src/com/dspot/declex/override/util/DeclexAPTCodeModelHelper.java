@@ -59,7 +59,7 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 			
 			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
 				if (name.endsWith("." + className)) {
-					className = name + ModelConstants.generationSuffix();
+					className = TypeUtils.getGeneratedClassName(className, environment);
 					
 					TypeElement typeElement = holder.getEnvironment().getProcessingEnvironment()
 							                        .getElementUtils().getTypeElement(name);
@@ -89,7 +89,7 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 			
 			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
 				if (name.endsWith("." + className)) {
-					className = name + ModelConstants.generationSuffix();
+					className = TypeUtils.getGeneratedClassName(className, environment);
 					return environment.getJClass(className);
 				}
 			}

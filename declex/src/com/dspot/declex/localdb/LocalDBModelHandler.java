@@ -163,7 +163,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 							}
 						} 
 
-						if (elemType.endsWith("_")) {
+						if (elemType.endsWith(ModelConstants.generationSuffix())) {
 							String elemGeneratedType = TypeUtils.typeFromTypeString(elemType, getEnvironment());
 							TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(elemGeneratedType.substring(0, elemGeneratedType.length()-1));
 							if (typeElement == null) continue;

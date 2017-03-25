@@ -825,7 +825,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						&& adiHelper.hasAnnotation(originalClassElement, JsonModel.class)) {
 						
 						if (!clsName.endsWith(ModelConstants.generationSuffix())) {
-							clsName = clsName + ModelConstants.generationSuffix();
+							clsName = TypeUtils.getGeneratedClassName(clsName, getEnvironment());
 						}
 						
 						if (isMethod) {

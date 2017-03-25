@@ -570,7 +570,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		String className = element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
-				className = className + ModelConstants.generationSuffix();
+				className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 				castNeeded = true;
 			}
 		}
@@ -725,7 +725,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				if (matcher.find()) {
 					className = matcher.group(1);
 					String originalClassName = className;
-					if (className.endsWith("_")) {
+					if (className.endsWith(ModelConstants.generationSuffix())) {
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						originalClassName = className;
 						className = className.substring(0, className.length()-1);

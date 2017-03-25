@@ -390,7 +390,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		String className = element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
-				className = className + ModelConstants.generationSuffix();
+				className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 				castNeeded = true;
 			}
 		}

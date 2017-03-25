@@ -38,6 +38,7 @@ import javax.lang.model.element.Modifier;
 
 import org.androidannotations.api.BackgroundExecutor;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.process.ProcessHolder;
@@ -157,9 +158,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		} 
 			
 		String converted = null;
-		if (!className.endsWith("_")) {
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			converted = className;
-			className = className + "_";
+			className = TypeUtils.getGeneratedClassName(className, environment());
 		}
 		
 		AbstractJClass ModelClass = getJClass(className);
@@ -348,9 +349,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		} 
 				
 		String converted = null;
-		if (!className.endsWith("_")) {
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			converted = className;
-			className = className + "_";
+			className = TypeUtils.getGeneratedClassName(className, environment());
 		}
 		
 		AbstractJClass ModelClass = getJClass(className);

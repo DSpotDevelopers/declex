@@ -122,7 +122,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 		if (!modelClassName.equals(String.class.getCanonicalName())) {
 			String className = modelClassName;
-			if (className.endsWith("_")) {
+			if (className.endsWith(ModelConstants.generationSuffix())) {
 				className = className.substring(0, className.length()-1);
 			}
 			viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, true, true, listItemId);
@@ -214,7 +214,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		boolean castNeeded = false;
 		if (!modelClassName.endsWith(ModelConstants.generationSuffix())) {
 			if (TypeUtils.isClassAnnotatedWith(modelClassName, UseModel.class, environment)) {
-				modelClassName = modelClassName + ModelConstants.generationSuffix();
+				modelClassName = TypeUtils.getGeneratedClassName(modelClassName, environment);
 				castNeeded = true;
 				Model = getJClass(modelClassName);
 			}
