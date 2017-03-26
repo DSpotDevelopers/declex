@@ -25,11 +25,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -37,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +53,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -68,20 +74,6 @@ import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
 import com.dspot.declex.api.action.annotation.Literal;
 import com.dspot.declex.api.action.annotation.StopOn;
-import com.dspot.declex.api.action.builtin.AlertDialogActionHolder;
-import com.dspot.declex.api.action.builtin.AnimateActionHolder;
-import com.dspot.declex.api.action.builtin.BackgroundThreadActionHolder;
-import com.dspot.declex.api.action.builtin.CallActionHolder;
-import com.dspot.declex.api.action.builtin.DateDialogActionHolder;
-import com.dspot.declex.api.action.builtin.LoadModelActionHolder;
-import com.dspot.declex.api.action.builtin.NotificationActionHolder;
-import com.dspot.declex.api.action.builtin.PopulateActionHolder;
-import com.dspot.declex.api.action.builtin.ProgressDialogActionHolder;
-import com.dspot.declex.api.action.builtin.PutModelActionHolder;
-import com.dspot.declex.api.action.builtin.RecollectActionHolder;
-import com.dspot.declex.api.action.builtin.TimeDialogActionHolder;
-import com.dspot.declex.api.action.builtin.ToastActionHolder;
-import com.dspot.declex.api.action.builtin.UIThreadActionHolder;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
@@ -103,8 +95,8 @@ public class Actions {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(Actions.class);
 	
-	private static final String BUILTIN_DIRECT_PKG = "com.dspot.declex.action.builtin.";
-	private static final String BUILTIN_PKG = "com.dspot.declex.api.action.builtin.";
+	public static final String BUILTIN_DIRECT_PKG = "com.dspot.declex.action.builtin.";
+	public static final String BUILTIN_PKG = "com.dspot.declex.api.action.builtin.";
 	private static final String BUILTIN_PATH = "com/dspot/declex/api/action/builtin/";
 
 	private static Actions instance;
@@ -114,28 +106,6 @@ public class Actions {
 	
 	private final Map<String, String> ACTION_NAMES = new HashMap<>();
 	private final Map<String, ActionInfo> ACTION_INFOS = new HashMap<>();
-	
-	
-	private final List<String> BUILTIN_CLASSES = Arrays.asList(
-			AlertDialogActionHolder.class.getSimpleName(),
-			ProgressDialogActionHolder.class.getSimpleName(),
-			TimeDialogActionHolder.class.getSimpleName(),
-			DateDialogActionHolder.class.getSimpleName(),
-
-			AnimateActionHolder.class.getSimpleName(),
-			NotificationActionHolder.class.getSimpleName(),
-			ToastActionHolder.class.getSimpleName(),
-
-			PutModelActionHolder.class.getSimpleName(),
-			LoadModelActionHolder.class.getSimpleName(),
-			PopulateActionHolder.class.getSimpleName(),
-			RecollectActionHolder.class.getSimpleName(),
-
-			UIThreadActionHolder.class.getSimpleName(),
-			BackgroundThreadActionHolder.class.getSimpleName(), 
-			
-			CallActionHolder.class.getSimpleName()
-	);
 	
 	private InternalAndroidAnnotationsEnvironment env;
 	
@@ -158,9 +128,17 @@ public class Actions {
 		//some method (like static code execution in Jars) to ensure that
 		//the classes are added to the BUILTIN_CLASSES
 		
+		Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
+		LOGGER.info("Bultin Actions Package: " + builtinClasses);
+		copyBuiltinActions(builtinClasses);
+		
 		//Copy all the built-in Actions
-		for (String builtin : BUILTIN_CLASSES) {
-			ACTIONS.add(BUILTIN_DIRECT_PKG + builtin);
+		for (String builtin : builtinClasses) {
+			TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(BUILTIN_PKG + builtin);
+			if (typeElement != null && typeElement.getAnnotation(ActionFor.class) != null) {
+				LOGGER.debug("Bultin Action: " + builtin);
+				ACTIONS.add(BUILTIN_DIRECT_PKG + builtin);
+			}
 		}
 		
 		ACTION_ANNOTATION.add(Assignable.class);
@@ -171,16 +149,66 @@ public class Actions {
 		ACTION_ANNOTATION.add(StopOn.class);
 		
 		annotationHelper = new IdAnnotationHelper(env, ActionFor.class.getCanonicalName());
-		codeModelHelper = new DeclexAPTCodeModelHelper(env);
-		
-		copyBuiltinActions();
+		codeModelHelper = new DeclexAPTCodeModelHelper(env);		
 		
 		Actions.instance = this;
 	}
 	
-	private void copyBuiltinActions() {
+	public Set<String> getClassNamesFromBuiltInPackage() {
 		
-		for (String builtin : BUILTIN_CLASSES) {
+		Set<String> names = new HashSet<>();
+		
+		try {
+		    ClassLoader classLoader = env.getClass().getClassLoader();
+		    URL packageURL = classLoader.getResource(BUILTIN_PATH);		    
+
+		    if(packageURL.getProtocol().equals("jar")){
+
+		    	// build jar file name, then loop through zipped entries
+		        String jarFileName = URLDecoder.decode(packageURL.getFile(), "UTF-8");
+		        jarFileName = jarFileName.substring(5,jarFileName.indexOf("!"));
+		        JarFile jf = new JarFile(jarFileName);
+		        Enumeration<JarEntry> jarEntries = jf.entries();
+		        
+		        while(jarEntries.hasMoreElements()){
+		        	String entryName = jarEntries.nextElement().getName();
+		            if(entryName.startsWith(BUILTIN_PATH) && entryName.length() > BUILTIN_PATH.length() + 5){
+		                entryName = entryName.substring(BUILTIN_PATH.length(), entryName.lastIndexOf('.'));
+		                if (!entryName.contains("$")) { 
+		                	names.add(entryName);
+		                }
+		            }
+		        }
+		        
+		        jf.close();
+
+		    // loop through files in classpath
+		    } else {
+			    URI uri = new URI(packageURL.toString());
+			    File folder = new File(uri.getPath());
+			    
+		        // won't work with path which contains blank (%20)
+		        // File folder = new File(packageURL.getFile()); 
+		        File[] contenuti = folder.listFiles();
+		        String entryName;
+		        for(File actual: contenuti){
+		            entryName = actual.getName();
+		            entryName = entryName.substring(0, entryName.lastIndexOf('.'));
+		            if (!entryName.contains("$")) {
+		            	names.add(entryName);
+		            }
+		        }
+		    }	
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+	    return names;
+	}
+	
+	private void copyBuiltinActions(Set<String> builtinClasses) {
+		
+		for (String builtin : builtinClasses) {
 			try {
 				String builtInFileName = BUILTIN_PATH + builtin + ".java";
 				
@@ -298,6 +326,7 @@ public class Actions {
 					typeElement, ActionFor.class.getCanonicalName(), "processors"
 				);
 			
+			//Load processors
 			if (processors != null) {
 				for (DeclaredType processor : processors) {
 					try {
@@ -326,66 +355,87 @@ public class Actions {
 				}
 			}
 									
-			for (Element elem : typeElement.getEnclosedElements()) {
+			List<String> methodsHandled = new LinkedList<>();
+			createInformationForMethods(typeElement, actionInfo, methodsHandled);
+		}		
+	}
+	
+	private void createInformationForMethods(Element typeElement, ActionInfo actionInfo, 
+			 List<String> methodsHandled) {
+
+		for (Element elem : typeElement.getEnclosedElements()) {
+			
+			if (elem.getKind() == ElementKind.METHOD) {
+				if (methodsHandled.contains(elem.toString())) continue;
 				
-				if (elem.getKind() == ElementKind.METHOD) {
-					final ExecutableElement element = (ExecutableElement) elem;
-					
-					List<ActionMethodParam> params = new LinkedList<>();
-					for (VariableElement param : element.getParameters()) {
-						
-						List<Annotation> annotations = new LinkedList<>();
-						for (Class<? extends Annotation> annotation : ACTION_ANNOTATION) {
-							Annotation containedAnnotation = param.getAnnotation(annotation);
-							if (containedAnnotation != null) {
-								annotations.add(containedAnnotation);
-							}
-						}
-						
-						//Use direct package for builtin classes
-						AbstractJClass paramType = codeModelHelper.typeMirrorToJClass(param.asType());
-						String clazz = param.asType().toString();
-						if (clazz.startsWith(BUILTIN_PKG)) {
-							clazz = clazz.replace(BUILTIN_PKG, BUILTIN_DIRECT_PKG);
-							paramType = env.getJClass(clazz);
-						}
-						
-						ActionMethodParam actionMethodParam = 
-								new ActionMethodParam(
-										param.getSimpleName().toString(), 
-										paramType,
-										annotations
-									);
-						actionMethodParam.internal = param;
-						params.add(actionMethodParam);
-					}
+				final ExecutableElement element = (ExecutableElement) elem;
+				
+				List<ActionMethodParam> params = new LinkedList<>();
+				for (VariableElement param : element.getParameters()) {
 					
 					List<Annotation> annotations = new LinkedList<>();
 					for (Class<? extends Annotation> annotation : ACTION_ANNOTATION) {
-						Annotation containedAnnotation = element.getAnnotation(annotation);
+						Annotation containedAnnotation = param.getAnnotation(annotation);
 						if (containedAnnotation != null) {
 							annotations.add(containedAnnotation);
 						}
 					}
 					
-					javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(element);	
-					
 					//Use direct package for builtin classes
-					String clazz = element.getReturnType().toString();
+					AbstractJClass paramType = codeModelHelper.typeMirrorToJClass(param.asType());
+					String clazz = param.asType().toString();
 					if (clazz.startsWith(BUILTIN_PKG)) {
 						clazz = clazz.replace(BUILTIN_PKG, BUILTIN_DIRECT_PKG);
+						paramType = env.getJClass(clazz);
 					}
 					
-					actionInfo.addMethod(
-							element.getSimpleName().toString(),
-							clazz, 								 
-							javaDoc,
-							params, 
-							annotations
-						);
+					ActionMethodParam actionMethodParam = 
+							new ActionMethodParam(
+									param.getSimpleName().toString(), 
+									paramType,
+									annotations
+								);
+					actionMethodParam.internal = param;
+					params.add(actionMethodParam);
 				}
+				
+				List<Annotation> annotations = new LinkedList<>();
+				for (Class<? extends Annotation> annotation : ACTION_ANNOTATION) {
+					Annotation containedAnnotation = element.getAnnotation(annotation);
+					if (containedAnnotation != null) {
+						annotations.add(containedAnnotation);
+					}
+				}
+				
+				String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(element);	
+				
+				//Use direct package for builtin classes
+				String clazz = element.getReturnType().toString();
+				if (clazz.startsWith(BUILTIN_PKG)) {
+					clazz = clazz.replace(BUILTIN_PKG, BUILTIN_DIRECT_PKG);
+				}
+				
+				actionInfo.addMethod(
+						element.getSimpleName().toString(),
+						clazz, 								 
+						javaDoc,
+						params, 
+						annotations
+					);
+				
+				methodsHandled.add(element.toString());
 			}
-		}		
+		}
+		
+		List<? extends TypeMirror> superTypes = env.getProcessingEnvironment().getTypeUtils().directSupertypes(typeElement.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
+			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
+			createInformationForMethods(superElement, actionInfo, methodsHandled);
+		}
+		
 	}
 	
 	private Object compileAndLoadClass(TypeElement element) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
@@ -552,12 +602,21 @@ public class Actions {
 								
 								List<String> specials = Arrays.asList("init", "build", "execute");
 								
-								if (actionMethod.resultClass.equals(actionInfo.holderClass) 
+								String holderClass = actionInfo.holderClass;
+								String resultClass = actionMethod.resultClass;
+								
+								if (holderClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
+									holderClass = holderClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
+								}
+								if (resultClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
+									resultClass = resultClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
+								}
+								
+								if (TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment()) 
 									|| (actionMethod.resultClass.equals("void") && !specials.contains(actionMethod.name))) {
 																		
 									JMethod method;
-									if (actionMethod.resultClass.equals("void")) {
-										
+									if (actionMethod.resultClass.equals("void")) {										
 										method = ActionGate.method(JMod.PUBLIC, env.getCodeModel().VOID, actionMethod.name);
 									} else {
 										method = ActionGate.method(JMod.PUBLIC, ActionGate, actionMethod.name);

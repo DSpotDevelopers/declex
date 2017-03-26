@@ -306,6 +306,8 @@ public class TypeUtils {
 	}
 
 	public static boolean isSubtype(String t1, String t2, ProcessingEnvironment processingEnv) {
+		if (t1.equals(t2)) return true;
+		
 		if (t1.contains("<")) t1 = t1.substring(0, t1.indexOf('<'));
 
 		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(t1);

@@ -1086,7 +1086,17 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					if (externalInvoke == null) {
 						List<ActionMethod> methods = actionInfo.methods.get(name);
 						if (methods != null && methods.size() > 0) {
-							if (!methods.get(0).resultClass.equals(actionInfo.holderClass)) {
+							String holderClass = actionInfo.holderClass;
+							String resultClass = methods.get(0).resultClass;
+							
+							if (holderClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
+								holderClass = holderClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
+							}
+							if (resultClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
+								resultClass = resultClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
+							}
+							
+							if (!TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment())) {
 								externalInvoke = invoke(action, name);					
 								
 								if (methods.get(0).annotations != null) {

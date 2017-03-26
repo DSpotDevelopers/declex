@@ -37,15 +37,14 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  */
 
 @ActionFor(value="Recollect", processors=RecollectActionProcessor.class, timeConsuming = false)
-public class RecollectActionHolder {
-
-	private Runnable Done;
-	private OnFailedRunnable Failed;
+public class RecollectActionHolder extends BaseFieldActionHolder {
 	
 	/**
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
 	 */
+	@Override
     void init(@Field Object object) {
+    	super.init(object);
     }
 
     /**
@@ -57,19 +56,8 @@ public class RecollectActionHolder {
      * {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}  
      * annotated field fails recollecting.
      */
+	@Override
     void build(Runnable Done, OnFailedRunnable Failed) {
-    	this.Done = Done;
-    	this.Failed = Failed;
-    }
-
-    void execute() {
-    }
-    
-    Runnable getDone() {
-    	return this.Done;
-    }
-    
-    OnFailedRunnable getFailed() {
-    	return this.Failed;
+    	super.build(Done, Failed);
     }
 }

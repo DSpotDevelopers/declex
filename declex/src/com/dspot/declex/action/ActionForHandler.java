@@ -18,6 +18,7 @@ package com.dspot.declex.action;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -25,7 +26,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -58,83 +61,101 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		boolean initFound = false;
 		boolean buildFound = false;
 		boolean executeFound = false;
-		for (Element elem : element.getEnclosedElements()) {
-			
-			if (elem instanceof ExecutableElement) {
+		
+		Element elementWithBuild = null;
+		
+		Element superElement = element;
+		validation: while (superElement != null) {
+			for (Element elem : superElement.getEnclosedElements()) {
 				
-				ExecutableElement executableElement = (ExecutableElement) elem;
-								
-				if (executableElement.getSimpleName().toString().equals("init")) {
-					if (!executableElement.getReturnType().toString().equals("void")) {
-						valid.addError(elem, "\"init\" method of the Action Holder should not return a value");
-					}
+				if (elem instanceof ExecutableElement) {
 					
-					if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
-						valid.addError(elem, "\"init\" method of the Action Holder should not be \"public\"");
-					}
-
-					initFound = true;
-				}
-				
-				if (executableElement.getSimpleName().toString().equals("build")) {
-					
-					if (buildFound) {
-						valid.addError(elem, "Only one \"build\" method is permitted inside Action Holders");
-					}
-					
-					if (!executableElement.getReturnType().toString().equals("void")) {
-						valid.addError(elem, "\"build\" method of the Action Holder should not return a value");
-					}
-					
-					if (executableElement.getParameters().isEmpty()) {
-						valid.addError(elem, "\"build\" method of the Action Holder should take at least one parameters");
-					}
-					
-					for (VariableElement param : executableElement.getParameters()) {
-					
-						boolean isRunnable = false;
-						
-						if (!param.asType().getKind().isPrimitive()) {
-							if (TypeUtils.isSubtype(param, Runnable.class.getCanonicalName(), getProcessingEnvironment())) {
-								isRunnable = true;
-							}						
+					ExecutableElement executableElement = (ExecutableElement) elem;
+									
+					if (executableElement.getSimpleName().toString().equals("init")) {
+						if (!executableElement.getReturnType().toString().equals("void")) {
+							valid.addError(elem, "\"init\" method of the Action Holder should not return a value");
 						}
 						
-						if (!isRunnable) {
-							valid.addError(
-									param, 
-									"Parameter \"" + param.getSimpleName() 
-									+ "\" of the \"build\" method of the Action Holder should implemente Runnable interface"
-								);
+						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
+							valid.addError(elem, "\"init\" method of the Action Holder should not be \"public\"");
+						}
+	
+						initFound = true;
+					}
+					
+					if (executableElement.getSimpleName().toString().equals("build")) {
+						
+						if (elem == elementWithBuild) {
+							valid.addError(elem, "Only one \"build\" method is permitted inside Action Holders");
 						}
 						
+						if (!executableElement.getReturnType().toString().equals("void")) {
+							valid.addError(elem, "\"build\" method of the Action Holder should not return a value");
+						}
+						
+						if (executableElement.getParameters().isEmpty()) {
+							valid.addError(elem, "\"build\" method of the Action Holder should take at least one parameters");
+						}
+						
+						for (VariableElement param : executableElement.getParameters()) {
+						
+							boolean isRunnable = false;
+							
+							if (!param.asType().getKind().isPrimitive()) {
+								if (TypeUtils.isSubtype(param, Runnable.class.getCanonicalName(), getProcessingEnvironment())) {
+									isRunnable = true;
+								}						
+							}
+							
+							if (!isRunnable) {
+								valid.addError(
+										param, 
+										"Parameter \"" + param.getSimpleName() 
+										+ "\" of the \"build\" method of the Action Holder should implemente Runnable interface"
+									);
+							}
+							
+						}
+						
+						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
+							valid.addError(elem, "\"build\" method of the Action Holder should not be \"public\"");
+						}
+						
+						buildFound = true;
+						elementWithBuild = elem;
 					}
 					
-					if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
-						valid.addError(elem, "\"build\" method of the Action Holder should not be \"public\"");
+					if (executableElement.getSimpleName().toString().equals("execute")) {
+						if (!executableElement.getReturnType().toString().equals("void")) {
+							valid.addError(elem, "\"execute\" method of the Action Holder should not return a value");
+						}
+						
+						if (!executableElement.getParameters().isEmpty()) {
+							valid.addError(elem, "\"execute\" method of the Action Holder should not take parameters");
+						}
+						
+						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
+							valid.addError(elem, "\"execute\" method of the Action Holder should not be \"public\"");
+						}
+						
+						executeFound = true;
 					}
 					
-					buildFound = true;
 				}
-				
-				if (executableElement.getSimpleName().toString().equals("execute")) {
-					if (!executableElement.getReturnType().toString().equals("void")) {
-						valid.addError(elem, "\"execute\" method of the Action Holder should not return a value");
-					}
-					
-					if (!executableElement.getParameters().isEmpty()) {
-						valid.addError(elem, "\"execute\" method of the Action Holder should not take parameters");
-					}
-					
-					if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
-						valid.addError(elem, "\"execute\" method of the Action Holder should not be \"public\"");
-					}
-					
-					executeFound = true;
-				}
-				
 			}
+			
+			List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(superElement.asType());
+			for (TypeMirror type : superTypes) {
+				superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+				if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+				if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
+				continue validation;
+			}
+			
+			superElement = null;
 		}
+
 		
 		if (!initFound) {
 			valid.addError(element, "The Action Holder should implement a method \"init\". Ex. \"void init(){}\"");
@@ -156,16 +177,34 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) {
 		
-		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.METHOD) {
-				if (elem.getModifiers().isEmpty() || elem.getModifiers().contains(Modifier.PROTECTED)) {
-					codeModelHelper.overrideAnnotatedMethod((ExecutableElement) elem, holder);
-				}
-			}
-		}
+		List<String> overrideMethods = new LinkedList<>();
+		overrideMethods(element, holder, overrideMethods);
 		
 		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
 	}
 
+	private void overrideMethods(Element element, EComponentWithViewSupportHolder holder, 
+								 List<String> overrideMethods) {
+		
+		List<? extends Element> elems = element.getEnclosedElements();
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.METHOD) {
+				if (overrideMethods.contains(elem.toString())) continue;
+				if (elem.getModifiers().isEmpty() || elem.getModifiers().contains(Modifier.PROTECTED)) {
+					codeModelHelper.overrideAnnotatedMethod((ExecutableElement) elem, holder);
+					overrideMethods.add(elem.toString());
+				}
+			}
+		}
+		
+		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
+			overrideMethods(superElement, holder, overrideMethods);
+		}
+
+	}
+	
 }

@@ -40,15 +40,13 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  */
 
 @ActionFor(value="Populate", processors=PopulateActionProcessor.class, timeConsuming = false)
-public class PopulateActionHolder {
-
-	private Runnable Done;
-	private OnFailedRunnable Failed;
-	
+public class PopulateActionHolder extends BaseFieldActionHolder {
 	/**
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
 	 */
+	@Override
     void init(@Field Object field) {
+    	super.init(field);
     }
 
     /**
@@ -60,19 +58,8 @@ public class PopulateActionHolder {
      * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  
      * annotated field fails populating.
      */
+	@Override
     void build(Runnable Done, OnFailedRunnable Failed) {
-    	this.Done = Done;
-    	this.Failed = Failed;
-    }
-
-    void execute() {
-    }
-    
-    Runnable getDone() {
-    	return this.Done;
-    }
-    
-    OnFailedRunnable getFailed() {
-    	return this.Failed;
+    	super.build(Done, Failed);
     }
 }

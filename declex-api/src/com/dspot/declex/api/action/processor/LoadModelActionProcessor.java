@@ -130,7 +130,7 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				JInvocation invoke = invoke(getModelMethod)
 										.arg(contextExpr)
 										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
-						                .arg(getAction().invoke("getAfterLoad"))
+						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
 				
 				ActionMethod noPopulate = getActionMethod("noPopulate");

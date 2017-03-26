@@ -121,7 +121,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				
 				JInvocation invoke = invoke(putModelMethod)
 										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
-						                .arg(getAction().invoke("getAfterPut"))
+						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
 				
 				ActionMethod noPopulate = getActionMethod("noRecollect");
