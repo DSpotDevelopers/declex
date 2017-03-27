@@ -106,6 +106,7 @@ import com.sun.source.tree.ForLoopTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
+import com.sun.source.tree.LabeledStatementTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -1801,6 +1802,12 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		block._break();
 		
 		return super.visitBreak(breakTree, trees);
+	}
+	
+	@Override
+	public Boolean visitLabeledStatement(LabeledStatementTree labeled, Trees trees) {
+		statements.add(new StringExpressionStatement(labeled.getLabel().toString() + ":"));
+		return super.visitLabeledStatement(labeled, trees);
 	}
 		
 	@Override
