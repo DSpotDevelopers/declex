@@ -174,7 +174,7 @@ public class Actions {
 		        	String entryName = jarEntries.nextElement().getName();
 		            if(entryName.startsWith(BUILTIN_PATH) && entryName.length() > BUILTIN_PATH.length() + 5){
 		                entryName = entryName.substring(BUILTIN_PATH.length(), entryName.lastIndexOf('.'));
-		                if (!entryName.contains("$")) { 
+		                if (!entryName.contains("$") && !entryName.contains("/")) { 
 		                	names.add(entryName);
 		                }
 		            }
@@ -194,7 +194,7 @@ public class Actions {
 		        for(File actual: contenuti){
 		            entryName = actual.getName();
 		            entryName = entryName.substring(0, entryName.lastIndexOf('.'));
-		            if (!entryName.contains("$")) {
+		            if (!entryName.contains("$") && !entryName.contains("/")) {
 		            	names.add(entryName);
 		            }
 		        }
@@ -355,14 +355,21 @@ public class Actions {
 				}
 			}
 									
-			List<String> methodsHandled = new LinkedList<>();
-			createInformationForMethods(typeElement, actionInfo, methodsHandled);
+			createInformationForMethods(typeElement, actionInfo);
 		}		
 	}
 	
-	private void createInformationForMethods(Element typeElement, ActionInfo actionInfo, 
+	public void createInformationForMethods(Element typeElement, ActionInfo actionInfo) {
+		this.createInformationForMethods(typeElement, actionInfo, null);
+	}
+	
+	public void createInformationForMethods(Element typeElement, ActionInfo actionInfo, 
 			 List<String> methodsHandled) {
 
+		if (methodsHandled == null) {
+			methodsHandled = new LinkedList<>();
+		}
+		
 		for (Element elem : typeElement.getEnclosedElements()) {
 			
 			if (elem.getKind() == ElementKind.METHOD) {

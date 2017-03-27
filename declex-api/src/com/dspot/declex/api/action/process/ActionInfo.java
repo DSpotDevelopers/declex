@@ -30,10 +30,12 @@ public class ActionInfo {
 	public Map<String, List<ActionMethod>> methods = new HashMap<>();
 	
 	public String holderClass;
+	public String superHolderClass; 
+	
 	public String references;
 	public boolean isGlobal;
 	public boolean isTimeConsuming;
-
+	
 	public Object actionForHolder;
 	
 	public boolean generated;

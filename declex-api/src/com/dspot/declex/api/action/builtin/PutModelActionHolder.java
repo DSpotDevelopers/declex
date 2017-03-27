@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.builtin;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.PutModelActionProcessor;
 
 /**

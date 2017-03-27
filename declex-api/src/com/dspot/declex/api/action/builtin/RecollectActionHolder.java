@@ -17,6 +17,7 @@ package com.dspot.declex.api.action.builtin;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.api.action.builtin.base.BaseFieldActionHolder;
 import com.dspot.declex.api.action.processor.RecollectActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
@@ -43,7 +44,7 @@ public class RecollectActionHolder extends BaseFieldActionHolder {
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
 	 */
 	@Override
-    void init(@Field Object object) {
+    protected void init(@Field Object object) {
     	super.init(object);
     }
 
@@ -57,7 +58,7 @@ public class RecollectActionHolder extends BaseFieldActionHolder {
      * annotated field fails recollecting.
      */
 	@Override
-    void build(Runnable Done, OnFailedRunnable Failed) {
+    protected void build(Runnable Done, OnFailedRunnable Failed) {
     	super.build(Done, Failed);
     }
 }

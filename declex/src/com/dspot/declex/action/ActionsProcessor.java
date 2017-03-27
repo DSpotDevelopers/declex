@@ -1097,15 +1097,20 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 							}
 							
 							if (!TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment())) {
-								externalInvoke = invoke(action, name);					
 								
-								if (methods.get(0).annotations != null) {
-									for (Annotation annotation : methods.get(0).annotations) {	
-										if (annotation instanceof StopOn) {
-											stopOn = ((StopOn) annotation).value();
+								if (actionInfo.superHolderClass == null 
+									|| !TypeUtils.isSubtype(actionInfo.superHolderClass, resultClass, env.getProcessingEnvironment())) {
+
+									externalInvoke = invoke(action, name);					
+									
+									if (methods.get(0).annotations != null) {
+										for (Annotation annotation : methods.get(0).annotations) {	
+											if (annotation instanceof StopOn) {
+												stopOn = ((StopOn) annotation).value();
+											}
 										}
 									}
-								}
+								}								
 							}
 						}
 
@@ -1116,7 +1121,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					} else {
 						externalInvoke = externalInvoke.invoke(name);
 						for (ExpressionTree arg : invocation.getArguments()) {
-							externalInvoke = externalInvoke.arg(direct(arg.toString()));
+							externalInvoke = externalInvoke.arg(direct(parseForSpecials(arg.toString(), false)));
 	    				}
 						
 						if (stopOn != null) {

@@ -1,4 +1,4 @@
-package com.dspot.declex.api.action.builtin;
+package com.dspot.declex.api.action.builtin.base;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -20,7 +20,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
 	 */
 	@Override
-    void init(@Field Object field) {
+    protected void init(@Field Object field) {
     	super.init(field);
     }  
 	
@@ -33,7 +33,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
      * {@link com.dspot.declex.api.model.Model @Model}  annotated field fails loading.
      */
 	@Override
-    void build(Runnable Done, OnFailedRunnable Failed) {
+    protected void build(Runnable Done, OnFailedRunnable Failed) {
     	super.build(Done, Failed);
     }
     
@@ -78,20 +78,20 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
     	return this;
     }
     
-    String getQuery() {
+    protected String getQuery() {
     	return this.query;
     }
     
-    String getOrderBy() {
+    protected String getOrderBy() {
     	return this.orderBy;
     }
     
-    String getFields() {
+    protected String getFields() {
     	return this.fields;
     }
     
     @Override
-    Runnable getDone() {    	
+    protected Runnable getDone() {    	
     	if (!keepCallingThread && this.Done != null) {
     		
     		//Return to the main thread    		
@@ -114,7 +114,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
     }
     
     @Override
-    OnFailedRunnable getFailed() {
+    protected OnFailedRunnable getFailed() {
     	if (!keepCallingThread && this.Failed != null) {
     		
     		//Return to the main thread    		

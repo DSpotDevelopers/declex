@@ -80,6 +80,10 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
 							valid.addError(elem, "\"init\" method of the Action Holder should not be \"public\"");
 						}
+						
+						if (executableElement.getModifiers().contains(Modifier.PRIVATE)) {
+							valid.addError(elem, "\"init\" method of the Action Holder should not be \"private\"");
+						}
 	
 						initFound = true;
 					}
@@ -121,7 +125,11 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
 							valid.addError(elem, "\"build\" method of the Action Holder should not be \"public\"");
 						}
-						
+
+						if (executableElement.getModifiers().contains(Modifier.PRIVATE)) {
+							valid.addError(elem, "\"build\" method of the Action Holder should not be \"private\"");
+						}
+
 						buildFound = true;
 						elementWithBuild = elem;
 					}
@@ -137,6 +145,10 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						
 						if (executableElement.getModifiers().contains(Modifier.PUBLIC)) {
 							valid.addError(elem, "\"execute\" method of the Action Holder should not be \"public\"");
+						}
+						
+						if (executableElement.getModifiers().contains(Modifier.PRIVATE)) {
+							valid.addError(elem, "\"execute\" method of the Action Holder should not be \"private\"");
 						}
 						
 						executeFound = true;
@@ -177,14 +189,18 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) {
 		
-		List<String> overrideMethods = new LinkedList<>();
-		overrideMethods(element, holder, overrideMethods);
+		
+		overrideMethods(element, holder, null);
 		
 		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
 	}
 
 	private void overrideMethods(Element element, EComponentWithViewSupportHolder holder, 
 								 List<String> overrideMethods) {
+		
+		if (overrideMethods == null) {
+			overrideMethods = new LinkedList<>();
+		}
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
