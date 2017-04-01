@@ -84,6 +84,7 @@ import com.helger.jcodemodel.JClassAlreadyExistsException;
 import com.helger.jcodemodel.JCodeModel;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
+import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFormatter;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
@@ -135,7 +136,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private List<StatementTree> statements = new LinkedList<>();
 	
-	private String delegatingMethodResultVar;
+	private JFieldRef delegatingMethodResultValueVar;
+	private JFieldRef delegatingMethodFinishedVar;
 	private JMethod delegatingMethod;
 	private JBlock delegatingMethodStart;
 	private JBlock delegatingMethodEnd;
@@ -161,6 +163,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private String actionInFieldWithoutInitializer = null;
 	
 	private List<String> actionsTree = new LinkedList<>();
+	private List<JBlock> actionsTreeAfterExecute = new LinkedList<>();
+	
 	private List<String> currentAction = new LinkedList<>();
 	private List<String> currentActionSelectors = new LinkedList<>();
 	private List<JInvocation> currentBuildInvocation = new LinkedList<>();
@@ -688,37 +692,42 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (ignoreActions) return super.visitReturn(returnTree, trees);
 		
 		boolean insideAction = false;
-		if (!((ExecutableElement)element).getReturnType().toString().equals("void")) {
+		for (String action : actionsTree) {
 			
-			for (String action : actionsTree) {
-				
-				if (action == null) continue;
-				
-				String actionClass = Actions.getInstance().getActionNames().get(action);
-				ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(actionClass);
-				
-				if (actionInfo.isTimeConsuming) {
-					throw new ActionProcessingException(
-							"The return statement of action method cannot be inside a time consumming action."
-							+ " The action " + action + " will finish it's operation in a different thread. "
-							+ "Error: \"" + returnTree + "\" is inside \"" + actionsTree + "\""
-					);
-				} else {
-					insideAction = true;
-				}
-												
-			}	
+			if (action == null) continue;
+			
+			String actionClass = Actions.getInstance().getActionNames().get(action);
+			ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(actionClass);
+			
+			if (actionInfo.isTimeConsuming) {
+				throw new ActionProcessingException(
+						"The return statement of action method cannot be inside a time consumming action."
+						+ " The action " + action + " will finish it's operation in a different thread. "
+						+ "Error: \"" + returnTree + "\" is inside \"" + actionsTree + "\". "
+						+ "If you want to simply break the action \"" + action + "\" execution, consider using instead: "
+						+ "\"'{'" + returnTree + "'}'\""
+				);
+			} else {
+				insideAction = true;
+			}
+											
 		}
 		
-		if (!isValidating() && (insideAction || delegatingMethodResultVar != null)) {
-			if (delegatingMethodResultVar == null) {
+		if (!isValidating() && (insideAction || delegatingMethodFinishedVar != null)) {
+			
+			final String resultName = delegatingMethod.name() + "_result"; 
+			
+			if (delegatingMethodFinishedVar == null) {
+				
 				AbstractJClass ActionResult = env.getJClass(ActionResult.class);
 				JVar result = delegatingMethodStart.decl(
 					JMod.FINAL,
 					ActionResult, 
-					delegatingMethod.name() + "_result",
+					resultName,
 					_new(ActionResult)
 				);
+				
+				delegatingMethodFinishedVar = result.ref("finished");
 				
 				String resultRef;
 				if (((ExecutableElement)element).getReturnType().getKind().isPrimitive()) {
@@ -727,15 +736,57 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					resultRef = "objectVal";
 				}
 				
-				delegatingMethodResultVar = result.name() + "." + resultRef;
-				
-				delegatingMethodEnd = new JBlock();
-				delegatingMethodEnd._return(result.ref(resultRef));
+				if (!((ExecutableElement)element).getReturnType().toString().equals("void")) {
+					delegatingMethodResultValueVar = result.ref(resultRef);
+					
+					delegatingMethodEnd = new JBlock();
+					delegatingMethodEnd._return(result.ref(resultRef));
+				}
 			}
 			
-			statements.add(
-				new StringExpressionStatement(delegatingMethodResultVar + " = " + returnTree.getExpression() + ";")
-			);
+			//Assign value and return
+			if (delegatingMethodResultValueVar != null) {
+				statements.add(
+					new StringExpressionStatement(
+						resultName + "." + delegatingMethodResultValueVar.name() + " = " + returnTree.getExpression() + ";"
+					)
+				);
+			}
+		
+			if (delegatingMethodFinishedVar != null) {
+				statements.add(
+					new StringExpressionStatement(
+						resultName + "." + delegatingMethodFinishedVar.name() + " = true;"
+					)
+				);
+			}
+			
+			if (insideAction || delegatingMethodResultValueVar == null) {
+				statements.add(
+					new StringExpressionStatement("return;")
+				);
+			} else {
+				statements.add(
+					new StringExpressionStatement(
+						"return " + resultName + "." + delegatingMethodResultValueVar.name() + ";"
+					)
+				);
+			}
+			
+			for (int i = 0; i < actionsTreeAfterExecute.size(); i++) {
+				JBlock block = actionsTreeAfterExecute.get(i);
+				
+				//This block contains only this condition
+				if (!block.isEmpty()) continue;
+				
+				JBlock finishBlock = block._if(delegatingMethodFinishedVar)._then();
+				if (delegatingMethodResultValueVar != null && i == 0) {
+					finishBlock._return(delegatingMethodResultValueVar);
+				} else {
+					finishBlock._return();
+				}	
+			}
+			
 		} else {
 			statements.add(new StringExpressionStatement(returnTree.toString()));	
 		}		
@@ -1232,6 +1283,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						}
 					
 						block.invoke(action, "execute");
+						
 					} else {
 						currentBuildInvocation.set(0, null);
 						currentBuildParams.get(0).clear();
@@ -1242,6 +1294,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					}
 				}
 			
+				actionsTreeAfterExecute.add(block.blockVirtual());
 				block.directStatement("//============================================");
 				
 				if (!(element instanceof ExecutableElement)) {
@@ -1401,7 +1454,34 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	@Override
 	public Boolean visitBlock(BlockTree blockTree, Trees tree) {
+			
 		if (ignoreActions) return super.visitBlock(blockTree, tree);
+	
+		if (blockTree.getStatements().size() == 1 && actionsTree.size() > 0
+			&& blockTree.getStatements().get(0).toString().startsWith("return")) {
+			
+			if (blockTree.getStatements().get(0).toString().equals("return;")) {
+				JBlock block = blocks.get(0);
+				block._return();
+				return true;
+			} else {
+				if (blockTree.getStatements().get(0).toString().equals("return null;")
+					|| blockTree.getStatements().get(0).toString().equals("return 0;")
+					|| blockTree.getStatements().get(0).toString().equals("return false;")
+					|| blockTree.getStatements().get(0).toString().equals("return 0.0")) {
+					
+					JBlock block = blocks.get(0);
+					block._return(direct(blockTree.getStatements().get(0).toString()));
+					return true;
+					
+				} else {
+					throw new ActionProcessingException(
+							"A return block for an action can only contain a default value or none for \"void\" methods."
+							+ "Error in: " + blockTree.getStatements().get(0)
+					);
+				}
+			}
+		}
 		
 		boolean isParallelBlock = true;
 		
@@ -1586,6 +1666,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		if (actionsTree.size() > 0) {
 			actionsTree.remove(actionsTree.size()-1);
+			actionsTreeAfterExecute.remove(actionsTreeAfterExecute.size()-1);
 		}
 		
 		currentAction.remove(0);

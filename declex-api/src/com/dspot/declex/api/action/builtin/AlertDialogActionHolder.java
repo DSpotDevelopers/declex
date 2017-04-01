@@ -31,6 +31,7 @@ import android.support.annotation.DrawableRes;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ListView;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
@@ -66,6 +67,8 @@ public class AlertDialogActionHolder {
 
     @RootContext
     Context context;
+
+	private View customView;
         
     void init() {
         builder = new AlertDialog.Builder(context);
@@ -135,11 +138,15 @@ public class AlertDialogActionHolder {
 			});
     	}
         
-        if (Dismissed != null) {
+        if (Dismissed != null || customView != null) {
 			dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
 				
 				@Override
 				public void onDismiss(DialogInterface arg0) {
+					if (customView != null) {
+						ViewGroup parent = (ViewGroup) customView.getParent();
+						parent.removeView(customView);
+					}
 					if (Dismissed != null) Dismissed.run();
 				}
 			});
@@ -466,6 +473,7 @@ public class AlertDialogActionHolder {
      * @param view the view to use as the contents of the alert dialog
      */
     public AlertDialogActionHolder view(View view) {
+    	customView = view;
         builder.setView(view);
         return this;
     }	

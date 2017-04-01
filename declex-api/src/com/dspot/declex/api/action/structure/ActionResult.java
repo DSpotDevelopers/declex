@@ -10,4 +10,6 @@ public class ActionResult {
 	public byte byteVal;
 	public boolean booleanVal;
 	public Object objectVal;
+	
+	public boolean finished;
 }
