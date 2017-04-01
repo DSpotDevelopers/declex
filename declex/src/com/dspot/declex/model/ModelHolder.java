@@ -18,6 +18,7 @@ package com.dspot.declex.model;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.cond;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -127,7 +128,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
 		final String fieldName = element.getSimpleName().toString();
-		final Model annotation = element.getAnnotation(Model.class);
+		final Model modelAnnotation = element.getAnnotation(Model.class);
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
 		
 		IJAssignmentTarget beanField = ref(fieldName);
@@ -138,12 +139,26 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JVar query = loadModelMethod.param(JMod.FINAL, STRING, "query");
 		JVar orderBy = loadModelMethod.param(JMod.FINAL, STRING, "orderBy");
 		JVar fields = loadModelMethod.param(JMod.FINAL, STRING, "fields");
-		JVar onFinished = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
-		JVar onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		JVar onDone = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
 		JBlock block = loadModelMethod.body();
-		
-		
+
+		JVar onFailed;
+		if (modelAnnotation.handleExceptions()) {
+			
+			JAnonymousClass anonymousFailed = getCodeModel().anonymousClass(getJClass(OnFailedRunnable.class));
+			JMethod handleExceptionMethod = anonymousFailed.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+			handleExceptionMethod.annotate(Override.class);
+			
+			JVar _onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "_onFailed");
+			onFailed = block.decl(
+				JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed",
+				cond(_onFailed.neNull(), _onFailed, _new(anonymousFailed))
+			);
+		} else {
+			onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		} 
+				
 		//Check if this is a list @Model
 		boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment().getProcessingEnvironment());		
 		if (isList) {
@@ -219,7 +234,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JBlock assign;
 		
 		JTryBlock tryBlock;
-		if (annotation.async()) {
+		if (modelAnnotation.async()) {
 			//Use the BackgroundExecutor for asynchronous calls
 			JDefinedClass anonymousTaskClass = getCodeModel().anonymousClass(BackgroundExecutor.Task.class);
 
@@ -282,8 +297,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		JBlock afterGetModelBlock = assign.block();
 		
-		assign._if(onFinished.ne(_null()))._then()
-			  .invoke(onFinished, "run");
+		assign._if(onDone.ne(_null()))._then()
+			  .invoke(onDone, "run");
 
 		LoadModelRecord getModelRecord = new LoadModelRecord(loadModelMethod, afterGetModelBlock);
 		loadModelMethods.put(element, getModelRecord);
@@ -311,7 +326,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	private PutModelRecord setPutModelMethod(Element element) {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
-		
+		final Model modelAnnotation = element.getAnnotation(Model.class);		
 		final String fieldName = element.getSimpleName().toString();
 
 		JFieldRef beanField = ref(fieldName);
@@ -321,16 +336,31 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JVar query = putModelMethod.param(JMod.FINAL, STRING, "query");
 		JVar orderBy = putModelMethod.param(JMod.FINAL, STRING, "orderBy");
 		JVar fields = putModelMethod.param(JMod.FINAL, STRING, "fields");
-		JVar onFinished = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
-		JVar onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		JVar onDone = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
+		JBlock block = putModelMethod.body();
+
+		JVar onFailed;
+		if (modelAnnotation.handleExceptions()) {
+			
+			JAnonymousClass anonymousFailed = getCodeModel().anonymousClass(getJClass(OnFailedRunnable.class));
+			JMethod handleExceptionMethod = anonymousFailed.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+			handleExceptionMethod.annotate(Override.class);
+			
+			JVar _onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "_onFailed");
+			onFailed = block.decl(
+				JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed",
+				cond(_onFailed.neNull(), _onFailed, _new(anonymousFailed))
+			);
+		} else {
+			onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		} 
 				
 		JAnonymousClass PutModelRunnable = getCodeModel().anonymousClass(getJClass(Runnable.class));
 		JMethod run = PutModelRunnable.method(JMod.PUBLIC, VOID, "run");
 		PutModelRunnable.annotate(Override.class);
 		
 		//Populate the _put_ method
-		JBlock block = putModelMethod.body();
 		JVar putModelRunnable = block.decl(PutModelRunnable, "putModelRunnable", _new(PutModelRunnable));
 		JBlock putModelMethodBlock = block.block();
 		putModelMethodBlock.invoke(putModelRunnable, "run");
@@ -378,10 +408,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ifNotPut._return();
 		
 		//Use the BackgroundExecutor for asynchronous calls
-		final Model annotation = element.getAnnotation(Model.class);
-		if (annotation != null) {
+		if (modelAnnotation != null) {
 			JTryBlock tryBlock;
-			if (annotation.asyncPut()) {
+			if (modelAnnotation.asyncPut()) {
 				JDefinedClass anonymousTaskClass = getCodeModel().anonymousClass(BackgroundExecutor.Task.class);
 
 				JMethod executeMethod = anonymousTaskClass.method(JMod.PUBLIC, getCodeModel().VOID, "execute");
@@ -405,8 +434,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				tryBlock.body().add(putModel);
 			}
 			
-			tryBlock.body()._if(onFinished.ne(_null()))._then()
-						   .invoke(onFinished, "run");
+			tryBlock.body()._if(onDone.ne(_null()))._then()
+						   .invoke(onDone, "run");
 			
 			JCatchBlock catchBlock = tryBlock._catch(THROWABLE);
 			JVar caughtException = catchBlock.param("e");

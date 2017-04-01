@@ -27,9 +27,10 @@ import java.lang.annotation.Target;
  * <br><br>
  * The injection process loads the models from different means (Ex. DB or Network), depending
  * of the description provided to the model itself when it was declared. It is automatically
- * executed when the Enhanced Component is loaded (at least that {@link lazy()} be set to true).
+ * executed when the Enhanced Component is loaded (at least that {@link lazy()} be set to true, 
+ * or {@link com.dspot.declex.api.eventbus.LoadOnEvent @LoadOnEvent}}) be provided).
  * This process can be triggered with the action {@link com.dspot.declex.Action.$LoadModel $LoadModel}.
- * It can be also triggered with {@link com.dspot.declex.api.eventbus.LoadOnEvent @LoadOnEvent}
+ * It can be also triggered with {@link com.dspot.declex.api.eventbus.UpdateOnEvent @UpdateOnEvent}
  * or {@link com.dspot.declex.api.eventbus.PutOnEvent @PutOnEvent}
  * 
  * <br><br>
@@ -76,4 +77,10 @@ public @interface Model {
 	 * This is permitted only when declared inside another model object (Annotated with @UseModel) 
 	 */
 	boolean lazy() default false;	
+	
+	/**
+	 * If not default handler is provided, any exception will be handled by the framework.
+	 * Current behavior: nothing would be reported.
+	 */
+	boolean handleExceptions() default true;	
 }
