@@ -7,11 +7,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
@@ -29,7 +32,7 @@ public class FilesCacheHelper {
 	
 	public static final Option OPTION_CACHE_FILES = new Option("cacheFiles", "false");
 	
-	private Map<String, List<FileDetails>> generators;
+	private Map<String, Set<FileDetails>> generators;
 	private Map<String, String> generatedClasses;
 	
 	private Trees trees;
@@ -64,17 +67,64 @@ public class FilesCacheHelper {
 			FileInputStream fin = new FileInputStream(externalCacheIndex);
 			ois = new ObjectInputStream(fin);
 			
-			Map<String, List<FileDetails>> generatorsTemp = (Map<String, List<FileDetails>>) ois.readObject();
+			Map<String, Set<FileDetails>> generatorsTemp = (Map<String, Set<FileDetails>>) ois.readObject();
 			
-			for (Entry<String, List<FileDetails>> generatorEntry: generatorsTemp.entrySet()) {
+			Map<String, TypeElement> generatorsTypeElements = new HashMap<>();
+			for (Entry<String, Set<FileDetails>> generatorEntry: generatorsTemp.entrySet()) {
 				
-				List<FileDetails> fileDetailsList = new LinkedList<>();
-				generators.put(generatorEntry.getKey(), fileDetailsList);
+				long lastModified = 0;
+				if (generatorEntry.getKey() != null) {
+					
+					TypeElement generatorElement = generatorsTypeElements.get(generatorEntry.getKey());
+					if (generatorElement == null) {
+						generatorElement = environment.getProcessingEnvironment().getElementUtils()
+ 								  					  .getTypeElement(generatorEntry.getKey());	
+						if (generatorElement == null) {
+							//The generator element doesn't exists anymore
+							System.out.println("Removing Generated because file was removed: " + generatorEntry.getKey());
+							continue;
+						}
+						
+						System.out.println("Checked generated: " + generatorEntry.getKey());
+					}
+					
+					lastModified = trees.getPath(generatorElement).getCompilationUnit()
+							            .getSourceFile().getLastModified();
+				}
+				
+				Set<FileDetails> fileDetailsList = new HashSet<>();
 				
 				for (FileDetails details : generatorEntry.getValue()) {
+					
+					if (environment.getOptionBooleanValue(OPTION_CACHE_FILES)) {
+						if (details.cachedFile == null || !(new File(details.cachedFile).exists())) continue;
+					} else {
+						if (details.cachedFile != null && new File(details.cachedFile).exists()) {
+							try {
+								new File(details.cachedFile).delete();
+							} catch (Exception e){}
+						}
+						details.cachedFile = null;
+					}
+					
+					//If the generator was modified, remove this FileDetails
+					for (FileDependency dependency : details.dependencies) {
+						if (dependency.lastModified != lastModified) {
+							System.out.println("Removing Generated because dependency changed: " + details.className);
+							continue;
+						}						
+					}
+					
+					System.out.println("Remembering Generated: " + details.className + " with Cache: " + details.cachedFile);
+					
 					fileDetailsList.add(FileDetails.fromFileDetails(details));
 					generatedClasses.put(details.className, generatorEntry.getKey());
 				}
+
+				if (!fileDetailsList.isEmpty()) {
+					generators.put(generatorEntry.getKey(), fileDetailsList);
+				}
+
 			}
 			
 		} catch (IOException | ClassNotFoundException e) {
@@ -105,7 +155,9 @@ public class FilesCacheHelper {
 					oos.close();
 				} catch (IOException e) {}
 			}
-		}			
+		}	
+		
+		System.out.println("Saving Generators: " + generators);
 	}
 	
 	public void addGeneratedClass(String clazz, Element generator) {
@@ -114,32 +166,56 @@ public class FilesCacheHelper {
 			throw new RuntimeException("Element " + generator + " should be a TypeElement");
 		}
 		
-		final String generatorName = generator==null? null : generator.asType().toString();		
-		List<FileDetails> generatedClassesByGenerator = generators.get(generatorName);
+		String generatorName = generator==null? null : generator.asType().toString();
+		long generatorLastModified = 0;
+		
+		if (generatorName != null) {
+			//If generator was also generated, use the Generator of the Generator
+			if (generatedClasses.containsKey(generatorName)) {
+				generatorName = generatedClasses.get(generatorName);
+				
+				for (FileDependency dependency : getFileDetails(generator.asType().toString()).dependencies) {
+					if (dependency.generator.equals(generatorName)) {
+						generatorLastModified = dependency.lastModified;
+						break;
+					}
+				}
+				
+			} else {
+				final TreePath treePath = trees.getPath(generator);
+				generatorLastModified = treePath.getCompilationUnit().getSourceFile().getLastModified();
+			}
+		} else {
+			//If a generator was previously assign, do not assign null generator
+			if (generatedClasses.containsKey(clazz)) {
+				return;
+			}
+		}
+		
+		//Remove reference from Null generator if any
+		if (generatorName != null && generatedClasses.containsKey(clazz) 
+			&& generatedClasses.get(clazz) == null) {
+			Set<FileDetails> generatedClassesByGenerator = generators.get(null);
+			generatedClassesByGenerator.remove(FileDetails.newFileDetails(clazz));
+		}
+		
+		Set<FileDetails> generatedClassesByGenerator = generators.get(generatorName);
 		if (generatedClassesByGenerator == null) {
-			generatedClassesByGenerator = new LinkedList<>();
+			generatedClassesByGenerator = new HashSet<>();
 			generators.put(generatorName, generatedClassesByGenerator);
 		}
 		
-		if (generator != null) {
-			final TreePath treePath = trees.getPath(generator);
-			generatedClassesByGenerator.add(
-				FileDetails.newFileDetails(clazz, treePath.getCompilationUnit().getSourceFile().getLastModified())
-			);
-		} else {
-			generatedClassesByGenerator.add(
-					FileDetails.newFileDetails(clazz, 0)
-				);
+		FileDetails details = FileDetails.newFileDetails(clazz);
+		if (generatorName != null) {
+			details.dependencies.add(FileDependency.newFileDependency(generatorName, generatorLastModified));
 		}
+		generatedClassesByGenerator.add(details);
 		
 		generatedClasses.put(clazz, generatorName);
 	}
 	
-	public List<FileDetails> getFileDetailsList(String clazz) {
-		for (FileDetails d : generators.get(generatedClasses.get(clazz))) {
-			System.out.println("DD: " + d.className + " : " + d.lastModified);
-		}
-		return generators.get(generatedClasses.get(clazz));
+	public Set<FileDetails> getFileDetailsList(String clazz) {
+		return Collections.unmodifiableSet(generators.get(generatedClasses.get(clazz)));
 	}
 	
 	public FileDetails getFileDetails(String clazz) {
@@ -148,7 +224,7 @@ public class FilesCacheHelper {
 			throw new RuntimeException("The clazz " + clazz + " is not registered as a generated class");
 		}
 		
-		List<FileDetails> detailsList = generators.get(generatedClasses.get(clazz));
+		Set<FileDetails> detailsList = generators.get(generatedClasses.get(clazz));
 		for (FileDetails details : detailsList) {
 			if (details.className.equals(clazz)) {
 				return details;
@@ -220,28 +296,32 @@ public class FilesCacheHelper {
 		public String cachedFile;
 		public String originalFile;
 		public String className;
-		public long lastModified;
+		
+		public List<FileDependency> dependencies = new LinkedList<>();
 		
 		private static FileDetails fromFileDetails(FileDetails from) {
 			
-			FileDetails newFileDetails = newFileDetails(from.className, from.lastModified);
+			FileDetails newFileDetails = newFileDetails(from.className);
 			
 			newFileDetails.cachedFile = from.cachedFile;
 			newFileDetails.originalFile = from.originalFile;
 			
+			for (FileDependency dependency : from.dependencies) {
+				newFileDetails.dependencies.add(FileDependency.fromFileDependency(dependency));
+			}
+			
 			return newFileDetails;
 		}
 		
-		private static FileDetails newFileDetails(String className, long lastModified) {
+		private static FileDetails newFileDetails(String className) {
 			
 			FileDetails details = fileDetailsMap.get(className);
 			if (details == null) {
 				details = new FileDetails();
 				fileDetailsMap.put(className, details);
 			}
-					
+	
 			details.className = className;
-			details.lastModified = lastModified;
 			
 			return details;
 		}
@@ -251,6 +331,40 @@ public class FilesCacheHelper {
 			if (!(obj instanceof FileDetails)) return false;
 			return this.className.equals(((FileDetails)obj).className);
 		}
+		
+		@Override
+		public String toString() {
+			return this.className;
+		}
+	}
+	
+	public static class FileDependency implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private static Map<String, FileDependency> fileDependencyMap = new HashMap<>();
+		
+		public String generator;
+		public long lastModified;
+		
+		private static FileDependency fromFileDependency(FileDependency from) {
+			return newFileDependency(from.generator, from.lastModified);
+		}
+		
+        private static FileDependency newFileDependency(String generator, long lastModified) {
+			
+			FileDependency dependency = fileDependencyMap.get(generator);
+			if (dependency == null) {
+				dependency = new FileDependency();
+				fileDependencyMap.put(generator, dependency);
+			}
+					
+			dependency.generator = generator;
+			dependency.lastModified = lastModified;
+			
+			return dependency;
+		}
+        		
 	}
 	
 }

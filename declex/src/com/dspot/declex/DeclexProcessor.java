@@ -18,10 +18,8 @@ package com.dspot.declex;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,7 +52,6 @@ import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;
-import com.sun.source.util.Trees;
 
 public class DeclexProcessor extends org.androidannotations.internal.AndroidAnnotationProcessor {
 	
@@ -80,7 +77,9 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	@Override
 	protected AndroidAnnotationsEnvironment getAndroidAnnotationEnvironment() {
 		AndroidAnnotationsEnvironment env = super.getAndroidAnnotationEnvironment();
+		try {
 		cacheHelper = new FilesCacheHelper(env);
+		} catch (Exception e) {e.printStackTrace();}
 		return env; 
 	}
 	
@@ -132,7 +131,6 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		
 		cachedFiles.clear();
 		
-		final Trees trees = Trees.instance(processingEnv);
 		Map<TypeElement, Set<? extends Element>> annotatedElements = new HashMap<>();
 		
 		Set<TypeElement> noCachedAnnotations = new HashSet<>();
@@ -155,22 +153,12 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				
 				final String className = rootElement.asType().toString() + ModelConstants.generationSuffix();
 				if (cacheHelper.hasCachedFile(className)) {
-					long lastModified = trees.getPath(rootElement).getCompilationUnit().getSourceFile().getLastModified();
-					System.out.println("DD: " + lastModified);
 
-					List<FileDetails> detailsList = cacheHelper.getFileDetailsList(className);
-										
-					for (FileDetails details : new ArrayList<>(detailsList)) {
-						if (details.cachedFile != null && new File(details.cachedFile).exists()
-							&& details.lastModified == lastModified) { 
-							cachedFiles.add(details);
-						} else {
-							//This FileDetails should be regenerated
-							detailsList.remove(details);
-							
-							annotatedElementsWithAnnotation.add(element);
-						}
+					Set<FileDetails> detailsList = cacheHelper.getFileDetailsList(className);
+					for (FileDetails details : detailsList) {
+						cachedFiles.add(details);
 					}
+					
 				} else {
 					annotatedElementsWithAnnotation.add(element);
 				}
