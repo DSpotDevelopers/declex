@@ -106,6 +106,7 @@ import com.dspot.declex.eventbus.oneventhandler.LoadOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnActionHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.UpdateOnEventHandler;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.json.JsonModelHandler;
 import com.dspot.declex.localdb.LocalDBModelHandler;
 import com.dspot.declex.localdb.LocalDBTransactionHandler;
@@ -157,7 +158,11 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
 	@Override
 	public List<Option> getSupportedOptions() {
-		return Arrays.asList(TraceHandler.OPTION_TRACE, SupposeThreadHandler.OPTION_THREAD_CONTROL);
+		return Arrays.asList(
+			TraceHandler.OPTION_TRACE, 
+			SupposeThreadHandler.OPTION_THREAD_CONTROL,
+			FilesCacheHelper.OPTION_CACHE_FILES
+		);
 	}
 	
 	@Override

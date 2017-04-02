@@ -49,6 +49,7 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
@@ -204,6 +205,8 @@ public class EventUtils {
 		}
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
+				
+		FilesCacheHelper.getInstance().addGeneratedClass(className, null);
 		
 		ActionInfo actionInfo = new ActionInfo(className);
 		Actions.getInstance().addAction(eventName, className, actionInfo);
@@ -236,7 +239,7 @@ public class EventUtils {
 		EventUtils.createEventInfo(className, env);
 	}
 	
-	public static AbstractJClass createNewEvent(String className, String reference, AndroidAnnotationsEnvironment env) {
+	public static AbstractJClass createNewEvent(String className, Element fromElement, AndroidAnnotationsEnvironment env) {
 		if (!className.contains(".")) {
 			className = DeclexConstant.EVENT_PATH + className;
 		}
@@ -245,6 +248,8 @@ public class EventUtils {
 
 		final ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(className);
 
+		final String reference = JavaDocUtils.referenceFromElement(fromElement);
+		
 		JDefinedClass EventClass;
 		try {
 			
@@ -252,6 +257,9 @@ public class EventUtils {
 			
 			actionInfo.setReferences(reference);
 			EventClass.javadoc().add(actionInfo.references);
+			
+			Element rootElement = TypeUtils.getRootElement(fromElement);
+			FilesCacheHelper.getInstance().addGeneratedClass(className, rootElement);
 			
 		} catch (JClassAlreadyExistsException e) {
 			

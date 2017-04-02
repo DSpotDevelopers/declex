@@ -158,7 +158,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	               element.asType().toString();
         if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
         
-        AbstractJClass EventClass = EventUtils.createNewEvent(className, JavaDocUtils.referenceFromElement(element), getEnvironment());
+        AbstractJClass EventClass = EventUtils.createNewEvent(className, element, getEnvironment());
 		Map<String, String> eventFields = EventUtils.eventsFields.get(EventClass.fullName());
 		
 		if (element instanceof ExecutableElement) {

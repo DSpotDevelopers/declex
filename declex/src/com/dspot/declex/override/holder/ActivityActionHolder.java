@@ -41,6 +41,7 @@ import com.dspot.declex.api.action.builtin.base.BaseActivityActionHolder;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.processor.ActivityActionProcessor;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
@@ -81,6 +82,8 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String activityName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + activityName + "ActionHolder";
 						
+		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.processors.add(new ActivityActionProcessor());
 		actionInfo.isGlobal = true;

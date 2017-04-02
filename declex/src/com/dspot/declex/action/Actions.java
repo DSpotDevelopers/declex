@@ -78,6 +78,7 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.process.ActionProcessor;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
@@ -108,6 +109,7 @@ public class Actions {
 	private final Map<String, ActionInfo> ACTION_INFOS = new HashMap<>();
 	
 	private InternalAndroidAnnotationsEnvironment env;
+	private FilesCacheHelper cacheHelper;
 	
 	private boolean generateInRound = false; 	//Never generate Actions in first round
 	
@@ -152,6 +154,9 @@ public class Actions {
 		codeModelHelper = new DeclexAPTCodeModelHelper(env);		
 		
 		Actions.instance = this;
+		
+		this.cacheHelper = FilesCacheHelper.getInstance();
+		this.cacheHelper.addGeneratedClass(DeclexConstant.ACTION, null);
 	}
 	
 	public Set<String> getClassNamesFromBuiltInPackage() {

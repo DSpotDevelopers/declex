@@ -53,6 +53,15 @@ import com.sun.source.util.Trees;
 
 public class TypeUtils {
 	
+	public static TypeElement getRootElement(Element element) {
+		Element rootElement = element;
+		while (!rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
+			rootElement = rootElement.getEnclosingElement();
+		} 
+		
+		return (TypeElement) rootElement;
+	}
+	
 	public static void annotateVar(JVar var, AnnotationMirror annotationMirror, AndroidAnnotationsEnvironment env) {
 		JAnnotationUse fieldAnnotation = var.annotate(env.getJClass(annotationMirror.getAnnotationType().toString()));
 

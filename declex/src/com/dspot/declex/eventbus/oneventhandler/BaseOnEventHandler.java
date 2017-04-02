@@ -32,7 +32,6 @@ import org.androidannotations.holder.EComponentHolder;
 import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
-import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
@@ -75,7 +74,6 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		classField = DeclexConstant.EVENT_PATH + classField;
 		inlineEvents.put(element, classField);
 		EventUtils.registerEvent(classField, getEnvironment());
-		
 	}
 
 	@Override
@@ -83,7 +81,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 			throws Exception {
 		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
 		classField = DeclexConstant.EVENT_PATH + classField;
-		EventUtils.createNewEvent(classField, JavaDocUtils.referenceFromElement(element), getEnvironment());
+		EventUtils.createNewEvent(classField, element, getEnvironment());
 	}
 	
 }
