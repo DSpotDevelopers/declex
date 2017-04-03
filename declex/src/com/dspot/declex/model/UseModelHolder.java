@@ -400,6 +400,22 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		return constructorBody;
 	}
 	
+	public static String getModelName() {
+		return "getModel_";
+	}
+	
+	public static String modelInitName() {
+		return "modelInit_";
+	}
+	
+	public static String putModelName() {
+		return "putModel_";
+	}
+	
+	public static String getModelListName() {
+		return "getModelList_";
+	}
+	
 	private void setConstructor() {
 		constructorMethod = getGeneratedClass().constructor(JMod.PUBLIC);
 		constructorBody = constructorMethod.body();
@@ -407,7 +423,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	}
 	
 	private void setGetModel() {
-		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), "getModel_");
+		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), getModelName());
 		JVar context = getModelMethod.param(CONTEXT, "context");
 		getModelMethod.param(STRING, "query");
 		getModelMethod.param(STRING, "orderBy");
@@ -426,10 +442,8 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		getModelMethod.body()._return( _new(getGeneratedClass()).arg(context));	
 	}
 	
-	
-	
 	private void setModelInit() {
-		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, "modelInit_");
+		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, modelInitName());
 		modelInitMethod.param(STRING, "query");
 		modelInitMethod.param(STRING, "orderBy");
 		modelInitMethod.param(STRING, "fields");
@@ -437,7 +451,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setGetModelList() {
 		//getModelList method
-		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), "getModelList_");
+		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), getModelListName());
 		JVar context = getModelListMethod.param(CONTEXT, "context");
 		JVar query = getModelListMethod.param(STRING, "query");
 		getModelListMethod.param(STRING, "orderBy");
@@ -488,7 +502,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	}
 	
 	private void setPutModel() {
-		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, "putModel_");
+		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, putModelName());
 		putModelMethod.param(STRING, "query");
 		putModelMethod.param(STRING, "orderBy");
 		putModelMethod.param(STRING, "fields");

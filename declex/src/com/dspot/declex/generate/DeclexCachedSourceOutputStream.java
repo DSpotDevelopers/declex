@@ -1,16 +1,13 @@
 package com.dspot.declex.generate;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Paths;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.tools.JavaFileObject;
 
 import com.dspot.declex.helper.FilesCacheHelper;
@@ -22,14 +19,14 @@ public class DeclexCachedSourceOutputStream extends OutputStream {
 	private FilesCacheHelper cacheHelper;
 	private JavaFileObject sourceFile;
 	private OutputStream wrappedStream;
-	private ProcessingEnvironment env;
 	private String className;
+	
+	private static Executor cacheExecutor = Executors.newFixedThreadPool(4);
 
-	public DeclexCachedSourceOutputStream(JavaFileObject sourceFile, String className, ProcessingEnvironment env)
+	public DeclexCachedSourceOutputStream(JavaFileObject sourceFile, String className)
 			throws IOException {
 		this.sourceFile = sourceFile;
 		this.wrappedStream = sourceFile.openOutputStream();
-		this.env = env;
 		this.className = className;
 		
 		this.cacheHelper = FilesCacheHelper.getInstance();
@@ -58,7 +55,14 @@ public class DeclexCachedSourceOutputStream extends OutputStream {
 	@Override
 	public void close() throws IOException {
 		wrappedStream.close();
-		copyFileToCache();
+		
+		cacheExecutor.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				copyFileToCache();
+			}
+		});
 	}
 
 	private void copyFileToCache() {
@@ -66,39 +70,24 @@ public class DeclexCachedSourceOutputStream extends OutputStream {
 		URI fileUri = sourceFile.toUri();
 		
 		//Get unique name for cached file
-		File externalCacheFolder = FileUtils.getPersistenceConfigFile("cache", env);
+		File externalCacheFolder = FileUtils.getPersistenceConfigFile("cache");
 		
-		File externalCachedFile = new File(externalCacheFolder.getAbsolutePath() 
-				+ File.separator 
-				+ className.replace('.', '_'));
+		final String pkg = className.substring(0, className.lastIndexOf('.'));
+		final String java = className.substring(className.lastIndexOf('.') + 1) + ".java";
+		File cachedFolder = new File(
+				externalCacheFolder.getAbsolutePath() + File.separator
+				+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
+			);
+		cachedFolder.mkdirs();
+			
+		File externalCachedFile = new File(
+			cachedFolder.getAbsolutePath() + File.separator + java
+		);
 		
-		copyCompletely(fileUri, externalCachedFile);
+		FileUtils.copyCompletely(fileUri, externalCachedFile);
 		
 		FileDetails details = cacheHelper.getFileDetails(className);
 		details.cachedFile = externalCachedFile.getAbsolutePath();
 		details.originalFile = Paths.get(fileUri).toString();
-	}
-	
-	private static void copyCompletely(URI input, File out) {
-		try {
-			InputStream in = null;
-			try {
-				File f = new File(input);
-				if (f.exists())
-					in = new FileInputStream(f);
-			} catch (Exception notAFile) {
-			}
-
-			File dir = out.getParentFile();
-			dir.mkdirs();
-
-			if (in == null)
-				in = input.toURL().openStream();
-
-			FileUtils.copyCompletely(in, new FileOutputStream(out));
-		} catch (IllegalArgumentException e) {
-		} catch (FileNotFoundException e) {
-		} catch (IOException e) {
-		}
-	}
+	}	
 }

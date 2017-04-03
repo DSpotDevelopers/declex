@@ -38,6 +38,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.override.util.OverrideAPTCodeModelHelper;
+import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
 
 public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
@@ -57,6 +58,15 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	
 	@Override
 	protected void validate(Element element, ElementValidation valid) {
+		
+		if (!element.asType().toString().startsWith(Actions.BUILTIN_DIRECT_PKG)) {
+			//Actions depends on not builtin Action Holders
+			filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element);
+		}
+		
+		//Mark the Cache of this file as action, to add action objects after generation
+		String generatedAction = TypeUtils.getGeneratedClassName(element, getEnvironment());
+		filesCacheHelper.getFileDetails(generatedAction).isAction = true;
 		
 		boolean initFound = false;
 		boolean buildFound = false;
@@ -182,17 +192,17 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		if (valid.isValid()) {
-			Actions.getInstance().addAction(element.asType().toString());
+			Actions.getInstance().addActionHolder(element.asType().toString());
 		}
 	}
 	
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) {
 		
-		
 		overrideMethods(element, holder, null);
 		
 		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
+		
 	}
 
 	private void overrideMethods(Element element, EComponentWithViewSupportHolder holder, 

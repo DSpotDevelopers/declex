@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.channels.FileChannel;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -30,7 +31,7 @@ import org.androidannotations.internal.helper.FileHelper;
 
 public class FileUtils {
 
-	public static File getPersistenceConfigFile(String subPath, ProcessingEnvironment processingEnv) {
+	public static File getPersistenceConfigFile(String subPath) {
 		String folderPath = new File(".declex").getAbsolutePath();		
 		
 		File file = new File(folderPath);
@@ -112,25 +113,57 @@ public class FileUtils {
 		return new File(resFolder);
 	}
 	
-	public static void copyCompletely(InputStream input, OutputStream output) throws IOException {
+	
+	public static void copyCompletely(URI input, File out) {
+		try {
+			InputStream in = null;
+			try {
+				File f = new File(input);
+				if (f.exists())
+					in = new FileInputStream(f);
+			} catch (Exception notAFile) {
+			}
+
+			File dir = out.getParentFile();
+			dir.mkdirs();
+
+			if (in == null)
+				in = input.toURL().openStream();
+
+			FileUtils.copyCompletely(in, new FileOutputStream(out), null);
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf) throws IOException {
+		copyCompletely(input, output, buf, false);
+	}
+	
+	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf, boolean closeOutput) throws IOException {
 		// if both are file streams, use channel IO
 		if ((output instanceof FileOutputStream)
 				&& (input instanceof FileInputStream)) {
 			try {
 				FileChannel target = ((FileOutputStream) output).getChannel();
 				FileChannel source = ((FileInputStream) input).getChannel();
-
-				source.transferTo(0, Integer.MAX_VALUE, target);
+				
+				source.transferTo(0, source.size(), target);
 
 				source.close();
 				target.close();
 
 				return;
 			} catch (Exception e) { /* failover to byte stream version */
+				System.out.println("Info: failover to byte stream version");
 			}
 		}
 
-		byte[] buf = new byte[8192];
+		if (buf == null) buf = new byte[8192];
 		while (true) {
 			int length = input.read(buf);
 			if (length < 0)
@@ -141,9 +174,12 @@ public class FileUtils {
 		try {
 			input.close();
 		} catch (IOException ignore) {}
-		try {
-			output.close();
-		} catch (IOException ignore) {}
+		
+		if (closeOutput) {
+			try {
+				output.close();
+			} catch (IOException ignore) {}
+		}
 	}
 
 }

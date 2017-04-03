@@ -123,7 +123,6 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				//TODO validate fields
 			}
 		}
-		
 	}
 
 	@Override

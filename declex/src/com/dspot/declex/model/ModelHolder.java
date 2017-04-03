@@ -47,6 +47,7 @@ import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
@@ -83,7 +84,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	final AbstractJClass THROWABLE;
 	final AbstractJClass THREAD;
 	final JPrimitiveType VOID;
-	
+		
 	public ModelHolder(EComponentHolder holder) {
 		super(holder);
 		
@@ -97,12 +98,36 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	}
 	
 	private UseModelHolder useModelHolderForElement(Element element) {
+		
+		//If CacheFiles is enabled, crossed references couldn't be handled
+		if (FilesCacheHelper.isCacheFilesEnabled()) return null;
+		
 		ClassInformation classInformation = TypeUtils.getClassInformation(element, environment(), true);
 		ProcessHolder processHolder = environment().getProcessHolder();
 		BaseGeneratedClassHolder useModelComponentHolder = 
 				(BaseGeneratedClassHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
 		
 		return useModelComponentHolder.getPluginHolder(new UseModelHolder(useModelComponentHolder));
+	}
+	
+	private String useModelGetModelListMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.getModelListName();
+		return useModelHolder.getGetModelListMethod().name();
+	}
+	
+	private String useModelLoadModelMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.getModelName();
+		return useModelHolder.getLoadModelMethod().name();
+	}
+	
+	private String useModelModelInitMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.modelInitName();
+		return useModelHolder.getModelInitMethod().name();
+	}
+	
+	private String useModelPutModelMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.putModelName();
+		return useModelHolder.getPutModelMethod().name();
 	}
 	
 	public JMethod getLoadModelMethod(Element element) {
@@ -222,8 +247,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			annotations_invocation.arg(dotclass(annotationEntry.getValue())); 
 		}
 		
-		JMethod getModelInjectionMethod = isList ? useModelHolder.getGetModelListMethod() 
-				                                 : useModelHolder.getLoadModelMethod();
+		String getModelInjectionMethod = isList ? useModelGetModelListMethod(useModelHolder)
+				                                 : useModelLoadModelMethod(useModelHolder);
 		JInvocation getModel = ModelClass.staticInvoke(getModelInjectionMethod)
 				  .arg(context)
 				  .arg(query)
@@ -269,7 +294,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		if (isList) {
 			
 			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", beanField).body();
-			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelHolder.getModelInitMethod())
+			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)	
 			  .arg(fields);
@@ -289,7 +314,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			syncBlock.body().invoke(view, "addAll").arg(assignField);
 						
 		} else {
-			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelHolder.getModelInitMethod())
+			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)
 			  .arg(fields);
@@ -326,6 +351,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	private PutModelRecord setPutModelMethod(Element element) {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
+		
 		final Model modelAnnotation = element.getAnnotation(Model.class);		
 		final String fieldName = element.getSimpleName().toString();
 
@@ -391,7 +417,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JBlock putModel = new JBlock();
 		JBlock ifNotPut = putModel._if(
 				(converted == null ? beanField : cast(ModelClass, beanField))
-				  	.invoke(useModelHolder.getPutModelMethod())
+				  	.invoke(useModelPutModelMethod(useModelHolder))
 				  	.arg(query)
 				  	.arg(orderBy)
 				  	.arg(fields)

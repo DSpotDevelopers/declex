@@ -9,7 +9,6 @@ import javax.annotation.processing.FilerException;
 import javax.lang.model.element.Element;
 import javax.tools.JavaFileObject;
 
-import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.internal.generation.SourceCodeWriter;
 import org.androidannotations.internal.process.OriginatingElements;
 import org.androidannotations.logger.Logger;
@@ -21,11 +20,9 @@ import com.helger.jcodemodel.JPackage;
 public class DeclexSourceCodeWriter extends SourceCodeWriter {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(DeclexSourceCodeWriter.class);
-	private AndroidAnnotationsEnvironment env;
 	
-	public DeclexSourceCodeWriter(Filer filer, OriginatingElements originatingElements, Charset charset, AndroidAnnotationsEnvironment env) {
+	public DeclexSourceCodeWriter(Filer filer, OriginatingElements originatingElements, Charset charset) {
 		super(filer, originatingElements, charset);
-		this.env = env;
 	}
 	
 	@Override
@@ -46,9 +43,9 @@ public class DeclexSourceCodeWriter extends SourceCodeWriter {
 
 			sourceFile = filer.createSourceFile(qualifiedClassName, classOriginatingElements);
 			
-			if (env.getOptionBooleanValue(FilesCacheHelper.OPTION_CACHE_FILES)) {
+			if (FilesCacheHelper.isCacheFilesEnabled()) {
 				DeclexCachedSourceOutputStream sourceOutputStream = 
-						new DeclexCachedSourceOutputStream(sourceFile, qualifiedClassName, env.getProcessingEnvironment());
+						new DeclexCachedSourceOutputStream(sourceFile, qualifiedClassName);
 				
 				return sourceOutputStream;
 			} else {

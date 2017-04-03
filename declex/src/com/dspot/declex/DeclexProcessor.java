@@ -15,8 +15,6 @@
  */
 package com.dspot.declex;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,7 +27,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
 import org.androidannotations.internal.generation.CodeModelGenerator;
 import org.androidannotations.internal.model.AnnotationElements;
 import org.androidannotations.internal.model.AnnotationElementsHolder;
@@ -46,7 +44,7 @@ import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.generate.DeclexCodeModelGenerator;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
-import com.dspot.declex.util.FileUtils;
+import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.LayoutsParser;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.SharedRecords;
@@ -62,7 +60,8 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected Actions actions;
 	
 	protected FilesCacheHelper cacheHelper;
-	protected Set<FileDetails> cachedFiles = new HashSet<>();
+	protected Set<FileDetails> cachedFiles;
+	protected int cachedFilesGenerated;
 	
 	@Override
 	protected AndroidAnnotationsPlugin getCorePlugin() {
@@ -77,9 +76,13 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	@Override
 	protected AndroidAnnotationsEnvironment getAndroidAnnotationEnvironment() {
 		AndroidAnnotationsEnvironment env = super.getAndroidAnnotationEnvironment();
-		try {
+
+		actions = new Actions((InternalAndroidAnnotationsEnvironment) env);	
+		
 		cacheHelper = new FilesCacheHelper(env);
-		} catch (Exception e) {e.printStackTrace();}
+		cachedFiles = new HashSet<>();
+		cachedFilesGenerated = 0;
+		
 		return env; 
 	}
 	
@@ -97,8 +100,6 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		}	
 			
 		super.init(processingEnv);
-		
-		actions = new Actions(androidAnnotationsEnv);		
 	}
 	
 	@Override
@@ -109,9 +110,16 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				
 		try {
 			//Update actions information in each round
-			actions.getActionsInformation();
+			actions.getActionsInformation(roundEnv);
 			
-			return super.process(annotations, roundEnv);
+			boolean processResult = super.process(annotations, roundEnv); 
+			
+			//Save classes cached when the process is over
+			if (roundEnv.processingOver()) {
+				cacheHelper.saveGeneratedClasses();
+			}
+			
+			return processResult;
 		} catch (Throwable e) {
 			LOGGER.error("An error occured", e);
 			LoggerContext.getInstance().close(true);
@@ -127,36 +135,36 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected AnnotationElementsHolder extractAnnotations(
 			Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 		
-		timeStats.start("Extract Annotations");
+		if (!FilesCacheHelper.isCacheFilesEnabled())
+			return super.extractAnnotations(annotations, roundEnv);
 		
-		cachedFiles.clear();
+		timeStats.start("Extract Annotations");
 		
 		Map<TypeElement, Set<? extends Element>> annotatedElements = new HashMap<>();
 		
 		Set<TypeElement> noCachedAnnotations = new HashSet<>();
 		for (TypeElement annotation : annotations) {
 			Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-			
-			//Actions should be always processed
-			if (annotation.asType().toString().equals(ActionFor.class.getCanonicalName())) {
-				noCachedAnnotations.add(annotation);
-				annotatedElements.put(annotation, roundEnv.getElementsAnnotatedWith(annotation));
-				continue;
-			}
-			
-			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();
+						
+			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();			
 			
 			for (Element element : elements) {
 				
-				//Get enclosingElement
-				Element rootElement = TypeUtils.getRootElement(element);
+				//Get rootElement
+				final Element rootElement = TypeUtils.getRootElement(element);			
+				final String className = TypeUtils.getGeneratedClassName(rootElement, androidAnnotationsEnv);
 				
-				final String className = rootElement.asType().toString() + ModelConstants.generationSuffix();
 				if (cacheHelper.hasCachedFile(className)) {
 
 					Set<FileDetails> detailsList = cacheHelper.getFileDetailsList(className);
-					for (FileDetails details : detailsList) {
+					for (FileDetails details : detailsList) {						
 						cachedFiles.add(details);
+					}
+					
+					//Actions should be always processed to permit the Actions object
+					//to be regenerated accordingly
+					if (annotation.asType().toString().equals(ActionFor.class.getCanonicalName())) {
+						annotatedElementsWithAnnotation.add(element);
 					}
 					
 				} else {
@@ -170,7 +178,6 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			}
 		}
 		
-		
 		ModelExtractor modelExtractor = new ModelExtractor();
 		AnnotationElementsHolder extractedModel = modelExtractor.extract(
 			noCachedAnnotations, 
@@ -179,7 +186,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		);
 		
 		timeStats.stop("Extract Annotations");
-		
+				
 		return extractedModel;
 	}
 	
@@ -220,19 +227,18 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	@Override
 	protected void generateSources(ProcessResult processResult)
 			throws IOException {
-		
-		//Generate Actions
-		actions.buildActionsObject();
 				
-		SharedRecords.writeEvents(processingEnv);
-		SharedRecords.writeDBModels(processingEnv);
-		
 		timeStats.start("Generate Sources");
 		
-		LOGGER.info(
-			"Number of files generated by DecleX: {}", 
-			processResult.codeModel.countArtifacts() + cachedFiles.size()
-		);
+		int numberOfFiles = processResult.codeModel.countArtifacts() + cachedFiles.size() - cachedFilesGenerated; 
+				
+		//Generate Actions
+		if (!cacheHelper.hasCachedFile(DeclexConstant.ACTION) 
+			|| !cachedFiles.contains(cacheHelper.getFileDetails(DeclexConstant.ACTION))) {
+			if (actions.buildActionsObject()) numberOfFiles++;			
+		}
+		
+		LOGGER.info("Number of files generated by DecleX: {}", numberOfFiles);
 		
 		CodeModelGenerator modelGenerator = new DeclexCodeModelGenerator(
 			coreVersion, 
@@ -241,36 +247,36 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		);
 		modelGenerator.generate(processResult);
 		
-		for (FileDetails details : cachedFiles) {		
-						
-			File input = new File(details.cachedFile);
-			File output = new File(details.originalFile);
-			
-			if (output.exists()) continue;
-			
-			LOGGER.debug("Generating class from cache: {}", details.className);
-			
-			//Create all the dirs
-			output.getParentFile().mkdirs();
-			
-			//Create the file
-			output.createNewFile();			
-			
-			//Copy the cached file
-			FileUtils.copyCompletely(
-				new FileInputStream(input),
-				processingEnv.getFiler().createSourceFile(details.className).openOutputStream()
-			);
+		for (FileDetails details : cachedFiles) {	
+			if (!details.generated) {
+				LOGGER.debug("Generating class from cache: {}", details.className);
+				details.generate(processingEnv);
+				cachedFilesGenerated++;
+			}
 		}
 		
-		
+		//Wait till all the documents be saved
+		while (FileDetails.isSaving()) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {};
+		}
+				
 		timeStats.stop("Generate Sources");
 		
-		cacheHelper.saveGeneratedClasses();
-		
+		timeStats.start("Save Config");				
+		SharedRecords.writeEvents(processingEnv);
+		SharedRecords.writeDBModels(processingEnv);				
+		timeStats.stop("Save Config");
+
 	}
 	
 	public static void main(String[] args) {
 		System.out.println("Declex Processor");
+		
+		if (args != null && args.length == 1 && args[0].equals("cache")) {
+			System.out.println("Running Cache Service");
+			FilesCacheHelper.runClassCacheCreation();
+		}
 	}
 }

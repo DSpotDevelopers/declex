@@ -61,6 +61,27 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			
+			<plugin>
+		        <artifactId>maven-jar-plugin</artifactId>
+		        <version>2.4</version>
+		        <configuration>
+		          <archive>
+		            <manifest>
+		              <mainClass>com.dspot.declex.DeclexProcessor</mainClass>
+		            </manifest>
+		          </archive>
+		        </configuration>
+		        <executions>
+		          <execution>
+		            <id>default-jar</id>
+		            <phase>package</phase>
+		            <goals>
+		              <goal>jar</goal>
+		            </goals>
+		          </execution>
+		        </executions>
+		    </plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

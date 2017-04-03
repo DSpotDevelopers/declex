@@ -46,6 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -99,17 +100,17 @@ public class Actions {
 	public static final String BUILTIN_DIRECT_PKG = "com.dspot.declex.action.builtin.";
 	public static final String BUILTIN_PKG = "com.dspot.declex.api.action.builtin.";
 	private static final String BUILTIN_PATH = "com/dspot/declex/api/action/builtin/";
+	private boolean builtin_copied = false;
 
 	private static Actions instance;
 	
-	private final Set<String> ACTIONS = new HashSet<>(); 
+	private final Set<String> ACTION_HOLDERS = new HashSet<>(); 
 	private final Set<Class<? extends Annotation>> ACTION_ANNOTATION = new HashSet<>();
 	
 	private final Map<String, String> ACTION_NAMES = new HashMap<>();
 	private final Map<String, ActionInfo> ACTION_INFOS = new HashMap<>();
 	
 	private InternalAndroidAnnotationsEnvironment env;
-	private FilesCacheHelper cacheHelper;
 	
 	private boolean generateInRound = false; 	//Never generate Actions in first round
 	
@@ -123,25 +124,6 @@ public class Actions {
 	public Actions(InternalAndroidAnnotationsEnvironment env) {
 		
 		this.env = env;
-				
-		//TODO read builtin classes from within the package and test
-		//if adding more classes to this package in external jar, ensures
-		//that it is found by the annotation processor, if not, try to create
-		//some method (like static code execution in Jars) to ensure that
-		//the classes are added to the BUILTIN_CLASSES
-		
-		Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
-		LOGGER.info("Bultin Actions Package: " + builtinClasses);
-		copyBuiltinActions(builtinClasses);
-		
-		//Copy all the built-in Actions
-		for (String builtin : builtinClasses) {
-			TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(BUILTIN_PKG + builtin);
-			if (typeElement != null && typeElement.getAnnotation(ActionFor.class) != null) {
-				LOGGER.debug("Bultin Action: " + builtin);
-				ACTIONS.add(BUILTIN_DIRECT_PKG + builtin);
-			}
-		}
 		
 		ACTION_ANNOTATION.add(Assignable.class);
 		ACTION_ANNOTATION.add(Field.class);
@@ -154,9 +136,6 @@ public class Actions {
 		codeModelHelper = new DeclexAPTCodeModelHelper(env);		
 		
 		Actions.instance = this;
-		
-		this.cacheHelper = FilesCacheHelper.getInstance();
-		this.cacheHelper.addGeneratedClass(DeclexConstant.ACTION, null);
 	}
 	
 	public Set<String> getClassNamesFromBuiltInPackage() {
@@ -186,8 +165,7 @@ public class Actions {
 		        }
 		        
 		        jf.close();
-
-		    // loop through files in classpath
+		    
 		    } else {
 			    URI uri = new URI(packageURL.toString());
 			    File folder = new File(uri.getPath());
@@ -265,13 +243,9 @@ public class Actions {
 			}	
 		}
 	}
-	
-	public void addAction(Class<?> action) {
-		addAction(action.getCanonicalName());
-	}
 
-	public void addAction(String action) {
-		ACTIONS.add(action);
+	public void addActionHolder(String action) {
+		ACTION_HOLDERS.add(action);
 		createInformationForAction(action);
 	}
 		
@@ -458,11 +432,11 @@ public class Actions {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
         
+        //TODO this doesn't work, the classpath return is the one of gradle, and not 
+        //the one used for DecleX annotation processor
         List<String> optionList = new ArrayList<String>();
         optionList.add("-classpath");
         optionList.add(System.getProperty("java.class.path"));
-        
-        System.out.println("DD: " + System.getProperty("java.class.path"));
         
         JavaCompiler.CompilationTask task = compiler.getTask(
             null, 
@@ -502,7 +476,55 @@ public class Actions {
         return null;
 	}
 
-	public void getActionsInformation() {
+	public void getActionsInformation(RoundEnvironment roundEnv) {
+		
+		if (roundEnv != null) {
+			if (!builtin_copied) {
+				//TODO read builtin classes from within the package and test
+				//if adding more classes to this package in external jar, ensures
+				//that it is found by the annotation processor, if not, try to create
+				//some method (like static code execution in Jars) to ensure that
+				//the classes are added to the BUILTIN_CLASSES
+				
+				Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
+				Set<String> builtinClassesNotCached = new HashSet<>();
+				
+				LOGGER.debug("Bultin Actions Package: " + builtinClasses);
+				
+				//Remove builtin that are cached
+				for (String builtin : builtinClasses) {
+					if (!FilesCacheHelper.getInstance().hasCachedFile(BUILTIN_DIRECT_PKG + builtin)) {
+						builtinClassesNotCached.add(builtin);
+					} else {
+						LOGGER.debug("Cached bultin Action: " + builtin);
+					}
+				}
+				
+				copyBuiltinActions(builtinClassesNotCached);
+				
+				//Copy all the built-in Actions
+				for (String builtin : builtinClassesNotCached) {
+					TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(BUILTIN_PKG + builtin);
+					if (typeElement != null && typeElement.getAnnotation(ActionFor.class) != null) {
+						LOGGER.debug("Adding bultin Action: " + builtin);
+						ACTION_HOLDERS.add(BUILTIN_DIRECT_PKG + builtin);
+					}
+				}
+				
+				builtin_copied = true;
+			}
+			
+			if (roundEnv.processingOver()) {
+				//Make all Action Holders depends on Actions Object
+				TypeElement actionElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(DeclexConstant.ACTION);
+				if (actionElement != null) {
+					Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
+					for (String builtin : builtinClasses) {
+						FilesCacheHelper.getInstance().addGeneratedClass(BUILTIN_DIRECT_PKG + builtin, actionElement);
+					}
+				}
+			}
+		}
 		
 		//This will ensure a correct working-flow for Actions Processing	
 		if (env.getProcessHolder() == null) {
@@ -510,21 +532,21 @@ public class Actions {
 			env.setProcessHolder(processHolder);
 		}
 		
-		for (String action : ACTIONS) {
+		for (String action : ACTION_HOLDERS) {
 			createInformationForAction(action);
 		}
 	}
 	
-	public void buildActionsObject() {
+	public boolean buildActionsObject() {
 		
 		if (!generateInRound) {
 			generateInRound = true;
-			return;
+			return false;
 		}
 		
 		try {
 			//It is important to update the Action information again when generating
-			getActionsInformation();
+			getActionsInformation(null);
 			
 			JDefinedClass Action = env.getCodeModel()._getClass(DeclexConstant.ACTION);
 			if (Action == null) {
@@ -662,8 +684,11 @@ public class Actions {
 				}
 			}			
 			
+			return true;
+			
 		} catch (Exception e) {
 			e.printStackTrace();
+			return false;
 		}				
 	}
 }

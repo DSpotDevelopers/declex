@@ -49,6 +49,7 @@ import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.api.server.ServerModel;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
@@ -153,6 +154,13 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		
 		useModelHolder.getWriteObjectMethod();
 		useModelHolder.getReadObjectMethod();
+		
+		//This avoids cross references if Cache Files is enabled
+		if (FilesCacheHelper.isCacheFilesEnabled()) {
+			useModelHolder.getGetModelListMethod();
+			useModelHolder.getLoadModelMethod();
+			useModelHolder.getModelInitMethod();
+		}
 	}
 	
 	private void generateGetterAndSetters(BaseGeneratedClassHolder holder, Map<String, String> fields, Map<String, String> methods) {
