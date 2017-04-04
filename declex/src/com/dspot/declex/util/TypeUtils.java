@@ -165,10 +165,16 @@ public class TypeUtils {
 	}
 	
 	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {
-		return  getGeneratedClassName(element.asType().toString(), environment);
+		boolean checkNested = true;
+		if (element.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) checkNested = false;
+		return  getGeneratedClassName(element.asType().toString(), environment, checkNested);
 	}
 	
 	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment) {
+		return getGeneratedClassName(clazz, environment, true);
+	}
+	
+	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment, boolean checkNested) {
 		
 		if (clazz.trim().equals("")) return "";
 		
@@ -178,16 +184,18 @@ public class TypeUtils {
 		
 		if (!clazz.contains(".")) {
 			return typeFromTypeString(clazz, environment);
-		}
+		}		
 		
-		int lastPoint = clazz.lastIndexOf('.');
-		TypeElement typeElement = environment.getProcessingEnvironment()
-				                             .getElementUtils()
-				                             .getTypeElement(clazz.substring(0, lastPoint));
-		if (typeElement != null) {
-			//It is a nested class
-			clazz = clazz.substring(0, lastPoint) + ModelConstants.generationSuffix() 
-					+ clazz.substring(lastPoint);  
+		if (checkNested) {
+			int lastPoint = clazz.lastIndexOf('.');
+			TypeElement typeElement = environment.getProcessingEnvironment()
+					                             .getElementUtils()
+					                             .getTypeElement(clazz.substring(0, lastPoint));
+			if (typeElement != null) {
+				//It is a nested class
+				clazz = clazz.substring(0, lastPoint) + ModelConstants.generationSuffix() 
+						+ clazz.substring(lastPoint);  
+			}
 		}
 		
 		return clazz;

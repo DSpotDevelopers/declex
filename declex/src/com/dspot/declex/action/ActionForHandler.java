@@ -59,14 +59,13 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	protected void validate(Element element, ElementValidation valid) {
 		
-		if (!element.asType().toString().startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-			//Actions depends on not builtin Action Holders
-			filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element);
-		}
+		//Actions depends on Action Holders
+		filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element);
 		
-		//Mark the Cache of this file as action, to add action objects after generation
-		String generatedAction = TypeUtils.getGeneratedClassName(element, getEnvironment());
-		filesCacheHelper.getFileDetails(generatedAction).isAction = true;
+		try {
+			//Mark the Cache of this file as action, to add action objects after generation
+			filesCacheHelper.getFileDetails(element.asType().toString()).isAction = true;
+		} catch (Throwable e){}
 		
 		boolean initFound = false;
 		boolean buildFound = false;

@@ -29,6 +29,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,7 +47,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.processing.Filer;
-import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -57,6 +57,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
+import javax.tools.FileObject;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -80,8 +81,10 @@ import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.process.ActionProcessor;
 import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.FileUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
@@ -117,6 +120,8 @@ public class Actions {
 	final IdAnnotationHelper annotationHelper;
 	final APTCodeModelHelper codeModelHelper;
 	
+	private static Long lastBuiltInLibModified;
+	
 	public static Actions getInstance() {
 		return instance;
 	}
@@ -138,12 +143,12 @@ public class Actions {
 		Actions.instance = this;
 	}
 	
-	public Set<String> getClassNamesFromBuiltInPackage() {
+	public static Set<String> getClassNamesFromBuiltInPackage() {
 		
 		Set<String> names = new HashSet<>();
 		
 		try {
-		    ClassLoader classLoader = env.getClass().getClassLoader();
+		    ClassLoader classLoader = Actions.class.getClassLoader();
 		    URL packageURL = classLoader.getResource(BUILTIN_PATH);		    
 
 		    if(packageURL.getProtocol().equals("jar")){
@@ -153,6 +158,9 @@ public class Actions {
 		        jarFileName = jarFileName.substring(5,jarFileName.indexOf("!"));
 		        JarFile jf = new JarFile(jarFileName);
 		        Enumeration<JarEntry> jarEntries = jf.entries();
+		        
+		        File jarFile = new File(jarFileName);
+		        lastBuiltInLibModified = jarFile.lastModified();		        
 		        
 		        while(jarEntries.hasMoreElements()){
 		        	String entryName = jarEntries.nextElement().getName();
@@ -237,11 +245,41 @@ public class Actions {
 				}
 				out.close();
 				in.close();
-									
+						
+				copyFileToCache(BUILTIN_DIRECT_PKG + builtin, sourceFile);
+				
 			} catch(FileNotFoundException e) {
 			} catch (Throwable e) {
 			}	
 		}
+	}
+	
+	private void copyFileToCache(String className, FileObject sourceFile) {
+		// Cache the closed file
+		URI fileUri = sourceFile.toUri();
+		
+		//Get unique name for cached file
+		File externalCacheFolder = FileUtils.getPersistenceConfigFile("cache");
+		
+		final String pkg = className.substring(0, className.lastIndexOf('.'));
+		final String java = className.substring(className.lastIndexOf('.') + 1) + ".java";
+		File cachedFolder = new File(
+				externalCacheFolder.getAbsolutePath() + File.separator
+				+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
+			);
+		cachedFolder.mkdirs();
+			
+		File externalCachedFile = new File(
+			cachedFolder.getAbsolutePath() + File.separator + java
+		);
+		
+		FileUtils.copyCompletely(fileUri, externalCachedFile);
+		
+		FilesCacheHelper.getInstance().addGeneratedClass(className, null);
+		FileDetails details = FilesCacheHelper.getInstance().getFileDetails(className);
+		details.cachedFile = externalCachedFile.getAbsolutePath();
+		details.originalFile = Paths.get(fileUri).toString();
+		details.metaData.put("lastBuiltInLibModified", lastBuiltInLibModified);
 	}
 
 	public void addActionHolder(String action) {
@@ -476,54 +514,49 @@ public class Actions {
         return null;
 	}
 
-	public void getActionsInformation(RoundEnvironment roundEnv) {
+	public void getActionsInformation() {
 		
-		if (roundEnv != null) {
-			if (!builtin_copied) {
-				//TODO read builtin classes from within the package and test
-				//if adding more classes to this package in external jar, ensures
-				//that it is found by the annotation processor, if not, try to create
-				//some method (like static code execution in Jars) to ensure that
-				//the classes are added to the BUILTIN_CLASSES
-				
-				Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
-				Set<String> builtinClassesNotCached = new HashSet<>();
-				
-				LOGGER.debug("Bultin Actions Package: " + builtinClasses);
-				
-				//Remove builtin that are cached
-				for (String builtin : builtinClasses) {
-					if (!FilesCacheHelper.getInstance().hasCachedFile(BUILTIN_DIRECT_PKG + builtin)) {
+		if (!builtin_copied) {
+			//TODO read builtin classes from within the package and test
+			//if adding more classes to this package in external jar, ensures
+			//that it is found by the annotation processor, if not, try to create
+			//some method (like static code execution in Jars) to ensure that
+			//the classes are added to the BUILTIN_CLASSES
+			
+			Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
+			Set<String> builtinClassesNotCached = new HashSet<>();
+			
+			LOGGER.debug("Bultin Actions Package: " + builtinClasses);
+			
+			//Remove builtin that are cached
+			for (String builtin : builtinClasses) {
+				if (!FilesCacheHelper.getInstance().hasCachedFile(BUILTIN_DIRECT_PKG + builtin)) {
+					builtinClassesNotCached.add(builtin);
+				} else {
+					Long cachedLastBuiltinModified = (Long) FilesCacheHelper.getInstance()
+							                                	.getFileDetails(BUILTIN_DIRECT_PKG + builtin)
+							                                    .metaData.get("lastBuiltInLibModified");
+					if (!cachedLastBuiltinModified.equals(lastBuiltInLibModified)) {
+						LOGGER.debug("Removing Cached Action: " + builtin);
 						builtinClassesNotCached.add(builtin);
-					} else {
+					} else {					
 						LOGGER.debug("Cached bultin Action: " + builtin);
 					}
 				}
-				
-				copyBuiltinActions(builtinClassesNotCached);
-				
-				//Copy all the built-in Actions
-				for (String builtin : builtinClassesNotCached) {
-					TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(BUILTIN_PKG + builtin);
-					if (typeElement != null && typeElement.getAnnotation(ActionFor.class) != null) {
-						LOGGER.debug("Adding bultin Action: " + builtin);
-						ACTION_HOLDERS.add(BUILTIN_DIRECT_PKG + builtin);
-					}
-				}
-				
-				builtin_copied = true;
 			}
 			
-			if (roundEnv.processingOver()) {
-				//Make all Action Holders depends on Actions Object
-				TypeElement actionElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(DeclexConstant.ACTION);
-				if (actionElement != null) {
-					Set<String> builtinClasses = getClassNamesFromBuiltInPackage();
-					for (String builtin : builtinClasses) {
-						FilesCacheHelper.getInstance().addGeneratedClass(BUILTIN_DIRECT_PKG + builtin, actionElement);
-					}
+			copyBuiltinActions(builtinClassesNotCached);
+			
+			//Copy all the built-in Actions
+			for (String builtin : builtinClassesNotCached) {
+				TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(BUILTIN_PKG + builtin);
+				if (typeElement != null && typeElement.getAnnotation(ActionFor.class) != null) {
+					LOGGER.debug("Adding bultin Action: " + builtin);
+					ACTION_HOLDERS.add(BUILTIN_DIRECT_PKG + builtin);
 				}
 			}
+			
+			builtin_copied = true;
 		}
 		
 		//This will ensure a correct working-flow for Actions Processing	
@@ -546,7 +579,7 @@ public class Actions {
 		
 		try {
 			//It is important to update the Action information again when generating
-			getActionsInformation(null);
+			getActionsInformation();
 			
 			JDefinedClass Action = env.getCodeModel()._getClass(DeclexConstant.ACTION);
 			if (Action == null) {

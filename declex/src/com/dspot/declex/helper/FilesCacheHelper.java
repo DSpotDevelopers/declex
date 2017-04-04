@@ -40,6 +40,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.Option;
 import org.androidannotations.holder.GeneratedClassHolder;
 
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.util.FileUtils;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
@@ -201,7 +202,7 @@ public class FilesCacheHelper {
 //			System.out.println("]");
 	}
 	
-	private static void printCacheErrorToLogFile(Exception e) {
+	private static void printCacheErrorToLogFile(Throwable e) {
 		try {
 			File file = new File(getExternalCache().getAbsolutePath() + File.separator + "error.log");
 			PrintStream ps = new PrintStream(file);
@@ -230,13 +231,28 @@ public class FilesCacheHelper {
 					fileDetailsList = new HashSet<>();					
 				}
 				
-				for (FileDetails details : generatorEntry.getValue()) {
+				for (FileDetails generatorDetails : generatorEntry.getValue()) {
+					
+					final FileDetails details = FileDetails.fromFileDetails(generatorDetails);
+					if (details.invalid) {
+						if (generatorEntry.getKey() != null) {
+							//Invalidate this generator so that it could generate the File Details again
+							FileDependency.newFileDependency(generatorEntry.getKey(), 0).isValid = false;
+							fileDetailsList.clear();
+						}
+						break;
+					}
 					
 					if (isCacheFilesEnabled()) {
-						if (details.cachedFile == null || !(new File(details.cachedFile).exists())) continue;
+						if (!details.isCacheValid()) {
+							System.out.println(
+									"Removing FileDetails because its cache is invalid: " + details.className
+								);
+							details.invalidate();
+						}
 					} else {
 						details.removeCache();
-					}
+					}					
 					
 					//If the generator was modified, remove this FileDetails
 					for (FileDependency dependency : details.dependencies) {
@@ -246,14 +262,20 @@ public class FilesCacheHelper {
 								"Removing FileDetails because dependency changed: " + details.className 
 								+ ", dependency : " + dependency
 							);							
-							details.invalidate();							
-							continue;
+							details.invalidate();
 						}						
 					}
 					
 					if (!details.invalid) {
-						fileDetailsList.add(FileDetails.fromFileDetails(details));
+						fileDetailsList.add(details);
 						generatedClassesDependencies.put(details.className, details.dependencies);
+					} else {
+						//Invalidate this generator so that it could generate the File Details again
+						if (generatorEntry.getKey() != null) {
+							FileDependency.newFileDependency(generatorEntry.getKey(), 0).isValid = false;
+							fileDetailsList.clear();
+						}
+						break;
 					}
 				}
 	
@@ -263,6 +285,12 @@ public class FilesCacheHelper {
 			}
 		}
 		
+	}
+	
+	public void validateCurrentCache() {
+		for (Entry<String, FileDetails> entry : FileDetails.fileDetailsMap.entrySet()) {
+			entry.getValue().validate();
+		}
 	}
 	
 	public static void runClassCacheCreation() {
@@ -302,22 +330,45 @@ public class FilesCacheHelper {
 		FileOutputStream jar = null;
 		JarOutputStream jarOut = null;
 
+		long compilerWaitTime = 0;
 		try {
 
 			jar = new FileOutputStream(tempJarFile);
 			jarOut = new JarOutputStream(jar);
-		
-			for (FileDetails details : fileDetails) {
-				
+			
+			details: for (FileDetails details : fileDetails) {
+								
 				if (details.cachedClassesSearchFolder == null) continue;
 				
 				final String pkg = details.className.substring(0, details.className.lastIndexOf('.'));
 				final String className = details.className.substring(details.className.lastIndexOf('.')+1);
 				
-				//Wait until the class files be created
+				if (details.cached) {
+					for (String cachedFile : details.cachedClassFiles.keySet()) {
+						
+						File file = new File(cachedFile);
+						
+						//Add file to Jar
+						jarOut.putNextEntry(new ZipEntry(pkg.replace('.', '/') + "/" + file.getName()));												
+						FileUtils.copyCompletely(new FileInputStream(file), jarOut, null, false);
+						jarOut.closeEntry();
+					}
+					
+					continue;
+				}
+				
+				//Wait until the class files be created	
 				while (!new File(details.cachedClassesSearchFolder + File.separator + className + ".class").exists()) {
+					
+					//Maximum time waiting for compiler
+					if (compilerWaitTime > 30000) {
+						details.invalidate();
+						continue details;
+					}
+					
 					try {
-						Thread.sleep(500);
+						Thread.sleep(100);
+						compilerWaitTime += 100;
 					} catch (InterruptedException e) {}
 				};
 				
@@ -327,43 +378,44 @@ public class FilesCacheHelper {
 						return pathname.getName().matches(className + "(\\$[a-zA-Z0-9_$]+)*\\.class");
 					}
 				};					
-										
-				File[] classes = new File(details.cachedClassesSearchFolder).listFiles(fileFilter);
-				
-				for (File file : classes) {
-					File cachedFolder = new File(
-						getExternalCache().getAbsolutePath() + File.separator
-						+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
-					);
-					cachedFolder.mkdirs();
-					
-					File externalCachedFile = new File(cachedFolder.getAbsolutePath() 
-							+ File.separator 
-							+ file.getName());
-																							
-					try {
+
+				try {
+					File[] classes = new File(details.cachedClassesSearchFolder).listFiles(fileFilter);
+	
+					for (File file : classes) {		
+						//Add file to Jar
 						jarOut.putNextEntry(new ZipEntry(pkg.replace('.', '/') + "/" + file.getName()));												
-						FileUtils.copyCompletely(
-								new FileInputStream(file), 
-								jarOut,
-								null, false
-							);
+						FileUtils.copyCompletely(new FileInputStream(file), jarOut, null, false);
 						jarOut.closeEntry();
+
+						File cachedFolder = new File(
+								getExternalCache().getAbsolutePath() + File.separator
+								+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
+							);
+							cachedFolder.mkdirs();
+							
+						File externalCachedFile = new File(cachedFolder.getAbsolutePath() 
+								+ File.separator 
+								+ file.getName());
 						
 						FileUtils.copyCompletely(
 								new FileInputStream(file), 
 								new FileOutputStream(externalCachedFile),
 								null, false
 							);
-					} catch (IOException e) {
-						printCacheErrorToLogFile(e);
+						
+						details.cachedClassFiles.put(
+								externalCachedFile.getAbsolutePath(),
+								file.getAbsolutePath()
+							);
+						details.cached = true;
 					}
-					
-					details.cachedClassFiles.put(
-						externalCachedFile.getAbsolutePath(),
-						file.getAbsolutePath()
-					);
+				
+				} catch (Throwable e) {
+					printCacheErrorToLogFile(e);
+					details.invalidate();
 				}
+
 			}
 			
 		} catch (Exception e) {
@@ -373,6 +425,24 @@ public class FilesCacheHelper {
 				
 				if (jarOut != null) jarOut.close();
 				if (jar != null) jar.close();
+				
+				//Wait for the compiler to finish checking if any generator class 
+				//has been written
+				String generatorClass = null;
+				
+				Set<String> autoGeneratedGenerators = new HashSet<>();
+				if (generators.containsKey(null)) {
+					for (FileDetails details : generators.get(null)) {
+						autoGeneratedGenerators.add(details.className);
+					}
+				}
+				
+				for (String generator : generators.keySet()) {
+					if (!autoGeneratedGenerators.contains(generator)) {
+						generatorClass = generator;
+						break;
+					}
+				}
 				
 				final File jarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
 				
@@ -385,7 +455,7 @@ public class FilesCacheHelper {
 				
 				tempJarFile.delete();
 				
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				printCacheErrorToLogFile(e);
 			} 
 		}
@@ -395,6 +465,8 @@ public class FilesCacheHelper {
 	
 	public void saveGeneratedClasses() {
 		
+		boolean cacheClassesRequired = false;
+		
 		if (isCacheFilesEnabled()) {
 			Filer filer = environment.getProcessingEnvironment().getFiler();
 			
@@ -402,6 +474,18 @@ public class FilesCacheHelper {
 				for (Entry<String, FileDetails> entry : FileDetails.fileDetailsMap.entrySet()) {
 					
 					final String clazz = entry.getKey();
+					final FileDetails details = entry.getValue();
+					
+					//The file was not generated
+					if (details.originalFile == null || details.cachedFile == null) {
+						System.out.println(
+								"Removing FileDetails because it was not generated: " + details.className
+							);
+						details.invalidate();
+						continue;
+					}
+					
+					if (details.invalid) continue;
 					if (!generatedClassesDependencies.containsKey(clazz)) continue;
 					
 					final String pkg = clazz.substring(0, clazz.lastIndexOf('.'));
@@ -410,11 +494,11 @@ public class FilesCacheHelper {
 					FileObject classFile = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg, resourceName);
 					
 					// Cache the .class file
-					final URI fileUri = classFile.toUri();
-					
-					final FileDetails details = entry.getValue();
+					final URI fileUri = classFile.toUri();					
 					details.cachedClassesSearchFolder = Paths.get(fileUri).toFile()
 							                                 .getParentFile().getAbsolutePath();
+					
+					cacheClassesRequired = true;
 				}
 				
 			} catch (Exception e) {
@@ -425,7 +509,7 @@ public class FilesCacheHelper {
 		
 		saveGeneratorsAndAncestors(generators, ancestors);
 				
-		if (isCacheFilesEnabled()) {
+		if (cacheClassesRequired) {
 			try {
 				Path thisJarPath = Paths.get(FilesCacheHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());			
 				Runtime.getRuntime().exec("java -jar " + thisJarPath + " cache");
@@ -550,6 +634,20 @@ public class FilesCacheHelper {
 		return Collections.unmodifiableSet(details);
 	}
 	
+	public Set<FileDetails> getAutogeneratedClasses() {
+		
+		if (!generators.containsKey(null)) return new HashSet<>();
+		
+		Set<FileDetails> details = new HashSet(generators.get(null));
+		for (FileDetails fileDetails : details) {
+			if (generators.containsKey(fileDetails.className)) {
+				details.addAll(generators.get(fileDetails.className));
+			}
+		}
+		
+		return details;
+	}
+	
 	public FileDetails getFileDetails(String clazz) {
 		
 		if (!generatedClassesDependencies.containsKey(clazz)) {
@@ -562,7 +660,12 @@ public class FilesCacheHelper {
 	public boolean hasCachedFile(String clazz) {
 		if (generatedClassesDependencies.containsKey(clazz)) {
 			FileDetails details = getFileDetails(clazz);
-			return details != null && details.cachedFile != null && new File(details.cachedFile).exists();
+			
+			if (!details.isCacheValid()) {
+				return false;
+			}
+			
+			return true;
 		}
 		
 		return false;
@@ -631,17 +734,21 @@ public class FilesCacheHelper {
 		private static final long serialVersionUID = 1L;
 		private static Map<String, FileDetails> fileDetailsMap = new HashMap<>();
 		
-		private static Executor cacheExecutor = Executors.newFixedThreadPool(4);
+		private static Executor cacheExecutor = Executors.newFixedThreadPool(8);
 		private static int cacheTasksCount = 0;
+		private static Set<FileDetails> failedGenerations = new HashSet<>();
 		
 		public String cachedFile;
 		public String originalFile;
 		
-		public Map<String, String> cachedClassFiles;
-		public String cachedClassesSearchFolder;
+		public Map<String, Object> metaData;
 		
-		public String className;
+		//<Cached, Path>
+		private Map<String, String> cachedClassFiles;
+		private String cachedClassesSearchFolder;
+		private boolean cached;
 		
+		public String className;		
 		public boolean isAction;
 		public boolean isAncestor;
 		
@@ -654,16 +761,26 @@ public class FilesCacheHelper {
 			return cacheTasksCount != 0;
 		}
 		
+		public static Set<FileDetails> getFailedGenerations() {
+			return failedGenerations;
+		}
+		
 		private static FileDetails fromFileDetails(FileDetails from) {
 			
 			FileDetails newFileDetails = newFileDetails(from.className);
 			
 			newFileDetails.cachedFile = from.cachedFile;
 			newFileDetails.originalFile = from.originalFile;
-			newFileDetails.isAction = from.isAction;
 			
 			newFileDetails.cachedClassFiles.putAll(from.cachedClassFiles);
 			newFileDetails.cachedClassesSearchFolder = from.cachedClassesSearchFolder;
+			
+			newFileDetails.cached = from.cached;
+
+			newFileDetails.isAction = from.isAction;
+			newFileDetails.isAncestor = from.isAncestor;
+			
+			newFileDetails.metaData.putAll(from.metaData);
 			
 			for (FileDependency dependency : from.dependencies) {
 				newFileDetails.dependencies.add(FileDependency.fromFileDependency(dependency));
@@ -676,11 +793,12 @@ public class FilesCacheHelper {
 			
 			FileDetails details = fileDetailsMap.get(className);
 			if (details == null) {
+				
 				details = new FileDetails();
 				details.dependencies = new HashSet<>();
-				details.className = className;
-				
+				details.className = className;				
 				details.cachedClassFiles = new HashMap<>();
+				details.metaData = new HashMap<>();
 				
 				fileDetailsMap.put(className, details);
 			}			
@@ -689,17 +807,77 @@ public class FilesCacheHelper {
 		}
 		
 		private void removeCache() {
+			try {
+				throw new RuntimeException();
+			} catch (Exception e) {
+				System.out.println("DD: " + className);
+				e.printStackTrace();
+			}
+			
 			if (cachedFile != null && new File(cachedFile).exists()) {
 				try {
 					new File(cachedFile).delete();
 				} catch (Exception e){}
 			}
+			
+			for (String file : cachedClassFiles.keySet()) {
+				if (file != null && new File(file).exists()) {
+					try {
+						new File(file).delete();
+					} catch (Exception e){}
+				}				
+			}
+			
+			cachedClassFiles.clear();
+			
+			cachedClassesSearchFolder = null;
+			
+			cached = false;
 			cachedFile = null;
 		}
 		
 		private void invalidate() {
 			invalid = true;
 			removeCache();
+		}
+		
+		private void validate() {
+			invalid = false;
+			if (isAction) {
+				Actions.getInstance().addActionHolder(className);
+			}
+		}
+		
+		private boolean isCacheValid() {
+						
+			if (!cached) return false;
+			
+			if (cachedFile != null) {
+				File input = new File(cachedFile);
+				if (!input.exists() || !input.canRead() || originalFile==null) {
+					System.out.println("DD: " + className);
+					System.out.println("CC: " + input + " : " + originalFile);
+					cached = false;
+				}
+			}
+			
+			for (Entry<String, String> file : cachedClassFiles.entrySet()) {
+				if (file != null) {
+					File input = new File(file.getKey());
+					if (!input.exists() || !input.canRead() || file.getValue()==null) {
+						System.out.println("DD: " + className);
+						System.out.println("CC: " + input + " : " + file.getValue());
+						cached = false;
+						break;
+					}
+				}
+			}
+			
+			if (!cached) {
+				removeCache();
+			}
+			
+			return cached;
 		}
 		
 		public void generate(ProcessingEnvironment env) throws FileNotFoundException, IOException {
@@ -742,7 +920,8 @@ public class FilesCacheHelper {
 							);
 						}
 						
-					} catch (Exception e) {
+					} catch (Throwable e) {
+						failedGenerations.add(FileDetails.this);
 						printCacheErrorToLogFile(e);
 					} finally {
 						cacheTasksCount--;

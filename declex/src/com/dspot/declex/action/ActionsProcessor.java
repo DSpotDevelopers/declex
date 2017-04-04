@@ -395,7 +395,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		String logLevel = env.getProcessingEnvironment().getOptions().get("logLevel");
 		if (!logLevel.toLowerCase().trim().equals("debug")) return false;
 		
-		return true;
+		return false; //true
 	}
 	
 	private String debugPrefix() {

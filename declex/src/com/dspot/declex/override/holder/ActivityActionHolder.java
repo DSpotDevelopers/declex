@@ -91,7 +91,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		actionInfo.superHolderClass = BaseActivityActionHolder.class.getCanonicalName();
 		
 		//This will avoid generation for parent classes, not used in the project
-		actionInfo.generated = false; 
+		actionInfo.generated = false;
 				
 		actionInfo.setReferences(JavaDocUtils.referenceFromClassName(clsName));
 		Actions.getInstance().addAction(activityName, actionName, actionInfo);

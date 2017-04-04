@@ -21,7 +21,7 @@ public class DeclexCachedSourceOutputStream extends OutputStream {
 	private OutputStream wrappedStream;
 	private String className;
 	
-	private static Executor cacheExecutor = Executors.newFixedThreadPool(4);
+	private static Executor cacheExecutor = Executors.newFixedThreadPool(8);
 
 	public DeclexCachedSourceOutputStream(JavaFileObject sourceFile, String className)
 			throws IOException {
