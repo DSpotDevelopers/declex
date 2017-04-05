@@ -141,7 +141,7 @@ public class FileUtils {
 	}
 
 	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf) throws IOException {
-		copyCompletely(input, output, buf, false);
+		copyCompletely(input, output, buf, true);
 	}
 	
 	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf, boolean closeOutput) throws IOException {

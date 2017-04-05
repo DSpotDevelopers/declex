@@ -16,11 +16,9 @@
 package com.dspot.declex.util;
 
 import java.lang.annotation.Annotation;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,13 +33,12 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
-import org.androidannotations.internal.model.AnnotationElements;
 
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
@@ -148,14 +145,9 @@ public class TypeUtils {
 
 		//This means that an inference over the type is need it
 		if (!toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			toInfereIfNeeded = toInfereIfNeeded.substring(0, toInfereIfNeeded.length()-1);
-			
-			for (String className : getAllToBeGeneratedClassesName(environment)) {
-				if (className.endsWith("." + toInfereIfNeeded)) {
-					return type.replace(
-						toInfereIfNeeded + ModelConstants.generationSuffix(), 
-						TypeUtils.getGeneratedClassName(className, environment)
-					);
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + toInfereIfNeeded)) {
+					return type.replace(toInfereIfNeeded, generatedClass);
 				}
 			}
 
@@ -200,23 +192,6 @@ public class TypeUtils {
 		
 		return clazz;
 	}
-	
-	public static List<String> getAllToBeGeneratedClassesName(AndroidAnnotationsEnvironment environment) {
-		
-		AnnotationElements validatedModel = environment.getValidatedElements();
-		
-		List<String> classesName = new LinkedList<String>();
-		
-		Set<? extends Element> annotatedElements = validatedModel.getRootAnnotatedElements(EBean.class.getCanonicalName());
-		for (Element elem : annotatedElements) {
-			classesName.add(elem.toString());
-		}
-		
-		classesName.addAll(SharedRecords.getEventGeneratedClasses(environment).keySet());
-		classesName.addAll(SharedRecords.getDBModelGeneratedClasses(environment));
-		
-		return classesName;
-	}	
 	
 	public static String getClassFieldValue(Element element, final String annotationName, String methodName, AndroidAnnotationsEnvironment environment) {
 		TargetAnnotationHelper helper = new TargetAnnotationHelper(environment, annotationName);

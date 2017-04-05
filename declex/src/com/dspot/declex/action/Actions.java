@@ -246,7 +246,9 @@ public class Actions {
 				out.close();
 				in.close();
 						
-				copyFileToCache(BUILTIN_DIRECT_PKG + builtin, sourceFile);
+				if (FilesCacheHelper.isCacheFilesEnabled()) {
+					copyFileToCache(BUILTIN_DIRECT_PKG + builtin, sourceFile);
+				}
 				
 			} catch(FileNotFoundException e) {
 			} catch (Throwable e) {
@@ -277,8 +279,7 @@ public class Actions {
 		
 		FilesCacheHelper.getInstance().addGeneratedClass(className, null);
 		FileDetails details = FilesCacheHelper.getInstance().getFileDetails(className);
-		details.cachedFile = externalCachedFile.getAbsolutePath();
-		details.originalFile = Paths.get(fileUri).toString();
+		details.setGeneratedJavaCache(externalCachedFile.getAbsolutePath(), Paths.get(fileUri).toString());
 		details.metaData.put("lastBuiltInLibModified", lastBuiltInLibModified);
 	}
 
@@ -533,11 +534,11 @@ public class Actions {
 				if (!FilesCacheHelper.getInstance().hasCachedFile(BUILTIN_DIRECT_PKG + builtin)) {
 					builtinClassesNotCached.add(builtin);
 				} else {
-					Long cachedLastBuiltinModified = (Long) FilesCacheHelper.getInstance()
-							                                	.getFileDetails(BUILTIN_DIRECT_PKG + builtin)
-							                                    .metaData.get("lastBuiltInLibModified");
+					FileDetails details = FilesCacheHelper.getInstance().getFileDetails(BUILTIN_DIRECT_PKG + builtin);
+					Long cachedLastBuiltinModified = (Long) details.metaData.get("lastBuiltInLibModified");
 					if (!cachedLastBuiltinModified.equals(lastBuiltInLibModified)) {
 						LOGGER.debug("Removing Cached Action: " + builtin);
+						details.invalidate();
 						builtinClassesNotCached.add(builtin);
 					} else {					
 						LOGGER.debug("Cached bultin Action: " + builtin);

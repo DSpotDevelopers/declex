@@ -87,7 +87,6 @@ public class DeclexCachedSourceOutputStream extends OutputStream {
 		FileUtils.copyCompletely(fileUri, externalCachedFile);
 		
 		FileDetails details = cacheHelper.getFileDetails(className);
-		details.cachedFile = externalCachedFile.getAbsolutePath();
-		details.originalFile = Paths.get(fileUri).toString();
+		details.setGeneratedJavaCache(externalCachedFile.getAbsolutePath(), Paths.get(fileUri).toString());
 	}	
 }

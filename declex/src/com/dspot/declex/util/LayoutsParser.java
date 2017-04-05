@@ -35,6 +35,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 public class LayoutsParser {
+	
 	private Logger LOGGER;
 	
 	private Map<String, Map<String, LayoutObject>> layoutMaps = new HashMap<>();

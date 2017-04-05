@@ -29,7 +29,7 @@ import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.GeneratedClassHolder;
 
-import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
@@ -55,16 +55,14 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 	public TypeMirror getActualType(final Element element, DeclaredType enclosingClassType, GeneratedClassHolder holder) {
 		String className = element.asType().toString();
 		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {
-			className = className.substring(0, className.length()-1);
 			
-			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
-				if (name.endsWith("." + className)) {
-					className = TypeUtils.getGeneratedClassName(className, environment);
-					
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + className)) {
 					TypeElement typeElement = holder.getEnvironment().getProcessingEnvironment()
-							                        .getElementUtils().getTypeElement(name);
+							                        .getElementUtils()
+							                        .getTypeElement(generatedClass.substring(0, generatedClass.length()-1));
 					TypeMirror typeMirror = typeElement.asType();
-					mappedNamesForTypeMirrors.put(typeMirror, className);
+					mappedNamesForTypeMirrors.put(typeMirror, generatedClass);
 					return typeMirror;
 				}
 			}
@@ -84,13 +82,10 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 		}
 		
 		String className = type.toString();
-		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {
-			className = className.substring(0, className.length()-1);
-			
-			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
-				if (name.endsWith("." + className)) {
-					className = TypeUtils.getGeneratedClassName(className, environment);
-					return environment.getJClass(className);
+		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {			
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + className)) {
+					return environment.getJClass(generatedClass);
 				}
 			}
 		}
