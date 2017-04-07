@@ -83,6 +83,10 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String actionName = pkg + "." + activityName + "ActionHolder";
 						
 		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(actionName, env, false), 
+				null
+			);
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.processors.add(new ActivityActionProcessor());

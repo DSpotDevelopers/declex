@@ -96,6 +96,10 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 		
 		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(actionName, env, false), 
+				null
+			);
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.isTimeConsuming = false;

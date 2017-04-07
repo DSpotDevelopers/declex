@@ -207,6 +207,10 @@ public class EventUtils {
 		final String eventName = className.substring(index + 1);
 				
 		FilesCacheHelper.getInstance().addGeneratedClass(className, null);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+			TypeUtils.getGeneratedClassName(className, env, false), 
+			null
+		);
 		
 		ActionInfo actionInfo = new ActionInfo(className);
 		Actions.getInstance().addAction(eventName, className, actionInfo);

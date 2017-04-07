@@ -28,10 +28,12 @@ import java.util.Set;
 
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.internal.generation.CodeModelGenerator;
 import org.androidannotations.internal.model.AnnotationElements;
+import org.androidannotations.internal.model.AnnotationElements.AnnotatedAndRootElements;
 import org.androidannotations.internal.model.AnnotationElementsHolder;
 import org.androidannotations.internal.model.ModelExtractor;
 import org.androidannotations.internal.process.ModelProcessor.ProcessResult;
@@ -184,18 +186,41 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 						
 			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();			
 			
-			for (Element element : elements) {
+			annotationElements: for (Element element : elements) {
+					
+				final Element rootElement = TypeUtils.getRootElement(element);	
 				
-				//Get Generated Class Name for the rootElement
-				final Element rootElement = TypeUtils.getRootElement(element);			
-				final String generatedClassName = TypeUtils.getGeneratedClassName(rootElement, androidAnnotationsEnv);
+				if (filesCacheHelper.isAncestor(rootElement.asType().toString())) {
+					
+					System.out.println("Ancestor: " + rootElement);
+					
+					//TODO
+					//Only direct generated classes are checked for cache, but there's others generated classes
+					//which are not checked, for instance the Events and Actions Holders, even if their cache
+					//is invalid this mechanism doesn't guarantee to regenerate them
+					if (confirmedCachedClasses.contains(rootElement.asType().toString())) continue;
+					
+					Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElement.asType().toString());
+					for (String subClass : subClasses) {
+						final String generatedSubClassName = TypeUtils.getGeneratedClassName(subClass, androidAnnotationsEnv, false);
+						System.out.println("Subclass: " + generatedSubClassName);
+						if (!filesCacheHelper.hasCachedFile(generatedSubClassName)) {
+							annotatedElementsWithAnnotation.add(element);
+							continue annotationElements;
+						}
+					}
+					
+					continue;
+				}
 				
+				//Get Generated Class Name for the rootElement				
 				//TODO
 				//Only direct generated classes are checked for cache, but there's others generated classes
 				//which are not checked, for instance the Events and Actions Holders, even if their cache
 				//is invalid this mechanism doesn't guarantee to regenerate them
-				
+				final String generatedClassName = TypeUtils.getGeneratedClassName(rootElement, androidAnnotationsEnv);
 				if (confirmedCachedClasses.contains(generatedClassName)) continue;
+				
 				
 				if (filesCacheHelper.hasCachedFile(generatedClassName)) {
 
@@ -223,6 +248,17 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			getSupportedAnnotationTypes(), 
 			new RoundEnvironmentByCache(roundEnv, annotatedElements)
 		);
+				
+		Set<AnnotatedAndRootElements> ancestorAnnotatedElements = extractedModel.getAllAncestors();
+		for (AnnotatedAndRootElements elements : ancestorAnnotatedElements) {
+			
+			//Add ancestors to File Cache Service
+			Element rootElement = elements.annotatedElement;
+			if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
+				FilesCacheHelper.getInstance()
+				                .addAncestor(rootElement, elements.rootTypeElement);
+			}
+		}
 		
 		timeStats.stop("Extract Annotations");
 				

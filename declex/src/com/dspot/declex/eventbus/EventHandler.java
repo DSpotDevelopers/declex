@@ -203,7 +203,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 		if (EventClass instanceof JDefinedClass) {
 			
 			JMethod initMethod = null;
-			
 			for (Entry<String, String> field : eventFields.entrySet()) {
 				
 				if (initMethod == null) {

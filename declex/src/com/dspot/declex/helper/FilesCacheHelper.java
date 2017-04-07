@@ -58,7 +58,6 @@ public class FilesCacheHelper {
 	
 	//<Generator, FileDetails>
 	private Map<String, Set<FileDetails>> generators;
-	private Set<String> ancestors;
 	
 	//<Class, Dependencies>
 	private Map<String, Set<FileDependency>> generatedClassesDependencies;
@@ -136,10 +135,6 @@ public class FilesCacheHelper {
 		return new File(getExternalCache().getAbsolutePath() + File.separator + "index.dat");
 	}
 	
-	private static File getExternalCacheAncestorsIndex() {
-		return new File(getExternalCache().getAbsolutePath() + File.separator + "ancestors_index.dat");
-	}
-	
 	@SuppressWarnings("unchecked")
 	private static Map<String, Set<FileDetails>> loadGenerators() {
 		ObjectInputStream ois = null;
@@ -164,29 +159,6 @@ public class FilesCacheHelper {
 		return generatorsTemp;
 	}
 	
-	@SuppressWarnings("unchecked")
-	private static Set<String> loadAncestors() {
-		Set<String> ancestorsTemp = null;
-		ObjectInputStream ois = null;
-		try {
-			InputStream fin = new FileInputStream(getExternalCacheAncestorsIndex());
-			InputStream buffer = new BufferedInputStream(fin);
-			ois = new ObjectInputStream(buffer);
-			
-			ancestorsTemp = (Set<String>) ois.readObject();
-			
-		} catch (Throwable e) {
-		} finally {
-			if (ois != null) {
-				try {
-					ois.close();
-				} catch (IOException e) {}
-			}
-		}
-		
-		return ancestorsTemp;
-	}
-	
 	private static void saveGenerators(Map<String, Set<FileDetails>> generators) {
 		ObjectOutputStream oos = null;
 		try {
@@ -205,52 +177,6 @@ public class FilesCacheHelper {
 		}
 	}
 	
-	private static void saveAncestors(Set<String> ancestors) {
-		ObjectOutputStream oos = null;
-		try {
-			OutputStream fout = new FileOutputStream(getExternalCacheAncestorsIndex());
-			OutputStream buffer = new BufferedOutputStream(fout);
-			oos = new ObjectOutputStream(buffer);
-			oos.writeObject(ancestors);
-		} catch (IOException e) {
-			printCacheErrorToLogFile(e);
-		} finally {
-			if (oos != null) {
-				try {
-					oos.close();
-				} catch (IOException e) {}
-			}
-		}
-	}
-	
-	private static void saveGeneratorsAndAncestors(Map<String, Set<FileDetails>> generators, Set<String> ancestors) {
-		
-		saveGenerators(generators);
-		
-		saveAncestors(ancestors);		
-		
-//		if (environment.getProcessingEnvironment().getOptions().containsKey("logLevel")) {
-//			System.out.println("Generators: [");
-//			for (Entry<String, Set<FileDetails>> entry : generators.entrySet()) {
-//				System.out.println("    " + entry.getKey() + ": [");
-//				for (FileDetails details : entry.getValue()) {
-//					System.out.println("        " + details);
-//				}
-//				System.out.println("    ]");
-//			}
-//			System.out.println("]");
-//			
-//			System.out.println("Dependencies: [");
-//			for (Entry<String, Set<FileDependency>> entry : generatedClassesDependencies.entrySet()) {
-//				System.out.println("    " + entry.getKey() + ": [");
-//				for (FileDependency dependency : entry.getValue()) {
-//					System.out.println("        " + dependency);
-//				}
-//				System.out.println("    ]");
-//			}
-//			System.out.println("]");
-	}
-	
 	private static void printCacheErrorToLogFile(Throwable e) {
 		try {
 			File file = new File(getExternalCache().getAbsolutePath() + File.separator + "error.log");
@@ -266,12 +192,6 @@ public class FilesCacheHelper {
 		
 		generatedClassesDependencies = new HashMap<>();
 		generators = new HashMap<>();
-		ancestors = new HashSet<>();
-		
-		Set<String> ancestorsTemp = loadAncestors();
-		if (ancestorsTemp != null) {
-			ancestors.addAll(ancestorsTemp);
-		}
 		
 		Map<String, Set<FileDetails>> generatorsTemp = loadGenerators();		
 		if (generatorsTemp != null) {
@@ -573,7 +493,7 @@ public class FilesCacheHelper {
 
 		}
 		
-		saveGeneratorsAndAncestors(generators, ancestors);
+		saveGenerators(generators);
 				
 		if (cacheClassesRequired) {
 			try {
@@ -616,24 +536,48 @@ public class FilesCacheHelper {
 				e.printStackTrace();
 			}
 		}
+		
+//		if (environment.getProcessingEnvironment().getOptions().containsKey("logLevel")) {
+//		System.out.println("Generators: [");
+//		for (Entry<String, Set<FileDetails>> entry : generators.entrySet()) {
+//			System.out.println("    " + entry.getKey() + ": [");
+//			for (FileDetails details : entry.getValue()) {
+//				System.out.println("        " + details);
+//			}
+//			System.out.println("    ]");
+//		}
+//		System.out.println("]");
+//		
+//		System.out.println("Dependencies: [");
+//		for (Entry<String, Set<FileDependency>> entry : generatedClassesDependencies.entrySet()) {
+//			System.out.println("    " + entry.getKey() + ": [");
+//			for (FileDependency dependency : entry.getValue()) {
+//				System.out.println("        " + dependency);
+//			}
+//			System.out.println("    ]");
+//		}
+//		System.out.println("]");
+//	}
 				
 	}
 	
-	public void addAncestor(String ancestor, Element generator) {
-		if (generator != null && !(generator instanceof TypeElement)) {
-			throw new RuntimeException("Element " + generator + " should be a TypeElement");
-		}
+	public void addAncestor(Element ancestor, Element subClass) {
+		final TreePath treePath = trees.getPath(ancestor);
+		long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();
 		
-		if (generators.containsKey(ancestor) && generators.containsKey(generator.asType().toString())) {
-			
-			for (FileDetails fileDetails : generators.get(ancestor)) {	
-				addGeneratedClass(fileDetails.className, generator);
-			}
-			
-			ancestors.add(ancestor);
-			
-			System.out.println("Adding acestor: " + ancestor + " of " + generator);
-		}
+		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString(), lastModified);
+		ancestorDependency.isAncestor = true;
+
+		ancestorDependency.subClasses.add(subClass.asType().toString());
+	}
+
+	public Set<String> getAncestorSubClasses(String ancestor) {
+		return FileDependency.withGenerator(ancestor).subClasses;
+	}
+	
+	public boolean isAncestor(String possibleAncestor) {
+		FileDependency dependency = FileDependency.withGenerator(possibleAncestor);
+		return dependency != null && dependency.isAncestor && dependency.isValid;
 	}
 	
 	public void addGeneratedClass(String clazz, Element generator) {
@@ -658,6 +602,20 @@ public class FilesCacheHelper {
 				dependencies = generatedClassesDependencies.get(generatorClass);
 				dependenciesDelegated = true;
 			} 
+			
+			//If generator is an ancestor, add the final classes as generators as well
+			FileDependency dependency = FileDependency.withGenerator(generatorClass);
+			if (dependency.isAncestor) {
+				for (String ancestorSubClass : dependency.subClasses) {
+					TypeElement ancestorSubClassElement = environment.getProcessingEnvironment()
+							                                         .getElementUtils()
+							                                         .getTypeElement(ancestorSubClass);
+					if (ancestorSubClassElement != null) {
+						addGeneratedClass(clazz, ancestorSubClassElement);
+					}
+				}
+			}
+			
 		} else {
 			//If a generator was previously assigned, do not assign null generator
 			if (generatedClassesDependencies.containsKey(clazz)) {
@@ -692,6 +650,7 @@ public class FilesCacheHelper {
 				generatedClassesByGenerator = new HashSet<>();
 				generators.put(dependency.generator, generatedClassesByGenerator);
 			}
+			dependency.isValid = true;
 			generatedClassesByGenerator.add(details);
 		}
 		
@@ -716,6 +675,10 @@ public class FilesCacheHelper {
 	
 	public Set<String> getGeneratedClasses() {
 		return Collections.unmodifiableSet(generatedClassesDependencies.keySet());
+	}
+	
+	public Set<FileDetails> getGeneratedClassesByDependency(String dependency) {
+		return generators.get(dependency);
 	}
 	
 	public Set<FileDetails> getFileDetailsList(String clazz) {
@@ -823,7 +786,10 @@ public class FilesCacheHelper {
 									       .getCompilationUnit()
     			    					   .getSourceFile().getLastModified();
 		}
-
+		
+		//TODO if it is valid, check if this fileDependency has ancestors
+		//if so, check that all the ancestors are valid
+		
 		return dependency.isValid;
     }
 
@@ -849,7 +815,6 @@ public class FilesCacheHelper {
 		
 		public String className;		
 		public boolean isAction;
-		public boolean isAncestor;
 		
 		private transient boolean invalid;
 		public transient boolean generated;
@@ -887,7 +852,6 @@ public class FilesCacheHelper {
 			newFileDetails.cached = from.cached;
 
 			newFileDetails.isAction = from.isAction;
-			newFileDetails.isAncestor = from.isAncestor;
 			
 			newFileDetails.metaData.putAll(from.metaData);
 			
@@ -1061,6 +1025,9 @@ public class FilesCacheHelper {
 		public String generator;
 		public long lastModified;
 		
+		public boolean isAncestor;
+		public Set<String> subClasses;
+		
 		public transient Boolean isValid;
 		
 		private static FileDependency withGenerator(String generator) {
@@ -1068,7 +1035,9 @@ public class FilesCacheHelper {
 		}
 		
 		private static FileDependency fromFileDependency(FileDependency from) {
-			return newFileDependency(from.generator, from.lastModified);
+			FileDependency newFileDependency = newFileDependency(from.generator, from.lastModified);
+			newFileDependency.isAncestor = from.isAncestor;
+			return newFileDependency;
 		}
 		
         private static FileDependency newFileDependency(String generator, long lastModified) {
@@ -1076,6 +1045,7 @@ public class FilesCacheHelper {
 			FileDependency dependency = fileDependencyMap.get(generator);
 			if (dependency == null) {
 				dependency = new FileDependency();
+				dependency.subClasses = new HashSet<>();
 				fileDependencyMap.put(generator, dependency);
 			}
 					
