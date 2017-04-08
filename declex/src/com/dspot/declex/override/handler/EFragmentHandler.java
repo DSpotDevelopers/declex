@@ -34,7 +34,9 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
 		
-		FragmentActionHolder.createInformationForActionHolder(element, getEnvironment());
+		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+			FragmentActionHolder.createInformationForActionHolder(element, getEnvironment());
+		}
 	}
 	
 	@Override

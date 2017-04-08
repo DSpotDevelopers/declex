@@ -34,7 +34,9 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
 		
-		ActivityActionHolder.createInformationForActionHolder(element, getEnvironment());
+		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+			ActivityActionHolder.createInformationForActionHolder(element, getEnvironment());
+		}
 	}
 	
 	@Override

@@ -213,6 +213,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 				FragmentAction = getCodeModel()._class(actionName);
 				FragmentAction.annotate(EBean.class);
 				JAnnotationUse actionFor = FragmentAction.annotate(ActionFor.class);
+				actionFor.param("timeConsuming", false);	
 				actionFor.param("value", fragmentName);		
 				
 				ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(FragmentAction.fullName());

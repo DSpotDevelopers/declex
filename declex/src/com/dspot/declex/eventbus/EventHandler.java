@@ -115,9 +115,10 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (parameters.size() != 0) {
 				for (VariableElement param : parameters) {
 					final String paramName = param.getSimpleName().toString();
-					String paramType = param.asType().toString();
+					final String paramType = param.asType().toString();
 					
-					if (paramType.equals(className)) continue;
+					if (paramType.equals(className) 
+						|| paramType.equals(TypeUtils.getGeneratedClassName(className, getEnvironment()))) continue;
 					if (!paramType.contains(".") && className.endsWith("." + paramType)) continue;
 					
 					fields.put(paramName, paramType);

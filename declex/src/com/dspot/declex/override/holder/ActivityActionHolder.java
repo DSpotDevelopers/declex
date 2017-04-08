@@ -171,7 +171,8 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			ActivityAction.annotate(EBean.class);
 			
 			JAnnotationUse actionFor = ActivityAction.annotate(ActionFor.class);
-			actionFor.param("value", activityName);		
+			actionFor.param("value", activityName);
+			actionFor.param("timeConsuming", false);	
 			actionFor.param("processors", ActivityActionProcessor.class);
 			
 			ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(ActivityAction.fullName());

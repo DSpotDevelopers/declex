@@ -154,12 +154,19 @@ public class EventUtils {
 					Map<String, String> eventFields = new TreeMap<String, String>();
 					if (OriginalEventClass != null && OriginalEventClass.toString().contains(".")) {
 						List<? extends Element> els = OriginalEventClass.getEnclosedElements();
-						for (Element el : els)
+						for (Element el : els) {
 							if (el.getKind() == ElementKind.FIELD) {
-								eventFields.put(el.getSimpleName().toString(), el.asType().toString());
+								final String paramName = el.getSimpleName().toString();
+								String paramType = el.asType().toString();
+								
+								if (!paramType.equals(TypeUtils.getGeneratedClassName(originalEventClass, environment)) 
+									&& !paramType.equals(originalEventClass)) {
+									eventFields.put(paramName, paramType);
+								}
 							}
+						}
 					} else {
-						eventFields = eventsFields.get(originalEventClass);
+						eventFields = eventsFields.get(originalEventClass);						
 						if (eventFields == null) {
 							eventFields = new TreeMap<String, String>();
 							System.out.println("NO EVENT FOR " + originalEventClass + " in " + eventsFields);
@@ -175,8 +182,9 @@ public class EventUtils {
 							invocation = invocation.arg(ref("event").invoke(FormatsUtils.fieldToGetter(param.getSimpleName().toString())));
 						} else {
 							paramType = SharedRecords.getEvent(paramType, environment);
-							if (paramType != null && (paramType.equals(originalEventClass+"_") || 
-								paramType.equals(originalEventClass))) {
+							if (paramType != null 
+								&& (paramType.equals(TypeUtils.getGeneratedClassName(originalEventClass, environment))  
+									|| paramType.equals(originalEventClass))) {
 								
 								invocation = invocation.arg(ref("event"));
 							} else {
@@ -206,11 +214,13 @@ public class EventUtils {
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
 				
-		FilesCacheHelper.getInstance().addGeneratedClass(className, null);
-		FilesCacheHelper.getInstance().addGeneratedClass(
-			TypeUtils.getGeneratedClassName(className, env, false), 
-			null
-		);
+		if (!FilesCacheHelper.getInstance().hasCachedFile(className)) {
+			FilesCacheHelper.getInstance().addGeneratedClass(className, null);
+			FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(className, env, false), 
+				null
+			);
+		}
 		
 		ActionInfo actionInfo = new ActionInfo(className);
 		Actions.getInstance().addAction(eventName, className, actionInfo);
@@ -256,6 +266,10 @@ public class EventUtils {
 		
 		JDefinedClass EventClass;
 		try {
+			
+			if (FilesCacheHelper.getInstance().hasCachedFile(className)) {
+				throw new JClassAlreadyExistsException(null);
+			}
 			
 			EventClass = env.getCodeModel()._class(className);
 			

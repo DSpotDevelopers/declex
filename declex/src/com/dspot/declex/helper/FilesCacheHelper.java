@@ -6,7 +6,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,7 +16,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -34,6 +32,7 @@ import java.util.zip.ZipEntry;
 
 import javax.annotation.processing.Filer;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
@@ -46,6 +45,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.util.FileUtils;
+import com.dspot.declex.util.TypeUtils;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
@@ -54,7 +54,10 @@ public class FilesCacheHelper {
 	
 	private static Logger LOGGER = LoggerFactory.getLogger(FilesCacheHelper.class);
 	
+	private static long DELAY_AFTER_COMPILER_WAIT = 2000;//In ms
+	
 	public static final Option OPTION_CACHE_FILES = new Option("cacheFiles", "false");
+	public static final Option OPTION_CACHE_FILES_COMPILER_WAIT = new Option("cacheFilesCompilerWait", "30");
 	
 	//<Generator, FileDetails>
 	private Map<String, Set<FileDetails>> generators;
@@ -127,7 +130,7 @@ public class FilesCacheHelper {
 		}
 	}
 	
-	private static File getExternalCache() {
+	public static File getExternalCache() {
 		return FileUtils.getPersistenceConfigFile("cache");
 	}
 	
@@ -246,40 +249,57 @@ public class FilesCacheHelper {
 	
 	public void validateCurrentCache() {
 		if (isCacheFilesEnabled()) {
-			for (Entry<String, FileDetails> entry : FileDetails.fileDetailsMap.entrySet()) {
-				if (!entry.getValue().invalid) {
-					entry.getValue().validate();
+			for (FileDetails details : FileDetails.fileDetailsMap.values()) {
+				if (!details.invalid) {
+					details.validate();
+				}
+			}
+			for (FileDependency dependency : FileDependency.fileDependencyMap.values()) {
+				if (dependency.isValid) {
+					dependency.validate();
 				}
 			}
 		}
 	}
 	
-	public static void runClassCacheCreation(String generatorToWait) {
+	public static void runClassCacheCreation(int compilerWaitTime) {
 		
 		Set<FileDetails> fileDetails = new HashSet<>();
+		Set<FileDependency> fileDependencies = new HashSet<>();
 		Map<String, Set<FileDetails>> generators = new HashMap<>();
 		
 		System.out.println("Loading Cached File Details");
 		
-		Map<String, Set<FileDetails>> generatorsTemp = loadGenerators();
-		if (generatorsTemp != null) {
-			for (Entry<String, Set<FileDetails>> generatorEntry: generatorsTemp.entrySet()) {
-				
-				Set<FileDetails> fileDetailsList = generators.get(generatorEntry.getKey());
-				if (fileDetailsList == null) {
-					fileDetailsList = new HashSet<>();					
+		try {
+			Map<String, Set<FileDetails>> generatorsTemp = loadGenerators();
+			if (generatorsTemp != null) {
+				for (Entry<String, Set<FileDetails>> generatorEntry: generatorsTemp.entrySet()) {
+					
+					Set<FileDetails> fileDetailsList = generators.get(generatorEntry.getKey());
+					if (fileDetailsList == null) {
+						fileDetailsList = new HashSet<>();					
+					}
+					
+					for (FileDetails details : generatorEntry.getValue()) {
+						FileDetails newDetails = FileDetails.fromFileDetails(details);
+						fileDetailsList.add(newDetails);
+						fileDetails.add(newDetails);
+						
+						//Create file dependencies
+						for (FileDependency dependency : details.dependencies) {
+							fileDependencies.add(FileDependency.fromFileDependency(dependency));			
+						}
+						
+					}
+					
+					generators.put(generatorEntry.getKey(), fileDetailsList);
 				}
-				
-				for (FileDetails details : generatorEntry.getValue()) {
-					FileDetails newDetails = FileDetails.fromFileDetails(details);
-					fileDetailsList.add(newDetails);
-					fileDetails.add(newDetails);
-				}
-				
-				generators.put(generatorEntry.getKey(), fileDetailsList);
+			} else {
+				System.out.println("Cached Files Index doesn't exists or it is corrupted");
+				return;
 			}
-		} else {
-			System.out.println("Cached Files Index doesn't exists or it is corrupted");
+		} catch (Throwable e) {
+			printCacheErrorToLogFile(e);
 			return;
 		}
 
@@ -291,7 +311,6 @@ public class FilesCacheHelper {
 		FileOutputStream jar = null;
 		JarOutputStream jarOut = null;
 
-		long compilerWaitTime = 0;
 		try {
 
 			jar = new FileOutputStream(tempJarFile);
@@ -332,20 +351,20 @@ public class FilesCacheHelper {
 					}
 					
 					//Maximum time waiting for compiler
-					if (compilerWaitTime > 30000) {
+					if (compilerWaitTime <= 0) {
 						details.invalidate();
 						System.out.println("Removing from cache: " + details.className);
 						continue details;
 					}
 					
 					Thread.sleep(100);
-					compilerWaitTime += 100;
+					compilerWaitTime -= 100;
 					wasWaiting = true;
 				};
 				
 				if (wasWaiting) {
 					//Just to be sure all is written by the compiler
-					Thread.sleep(1000);
+					Thread.sleep(DELAY_AFTER_COMPILER_WAIT);
 				}
 				
 				final FileFilter fileFilter = new FileFilter() {								
@@ -402,27 +421,32 @@ public class FilesCacheHelper {
 				if (jarOut != null) jarOut.close();
 				if (jar != null) jar.close();
 				
-				//Wait until the class files be created	
-				boolean wasWaiting = false;
-				while (!new File(generatorToWait).exists()) {
+				//Wait until the dependencies classes files be created
+				for (FileDependency dependency : fileDependencies) {
 					
-					if (!wasWaiting) {
-						System.out.println("Final waiting for: " + generatorToWait);
-					}
+					if (dependency.generatedClassFile == null) continue;
+					
+					boolean wasWaiting = false;
+					while (!new File(dependency.generatedClassFile).exists()) {
+						
+						if (!wasWaiting) {
+							System.out.println("Waiting for Dependency: " + dependency.generator);
+						}
 
-					//Maximum time waiting for compiler
-					if (compilerWaitTime > 30000) {
-						break;
-					}
+						//Maximum time waiting for compiler
+						if (compilerWaitTime <= 0) {
+							break;
+						}
+						
+						Thread.sleep(100);
+						compilerWaitTime -= 100;
+						wasWaiting = true;
+					};
 					
-					Thread.sleep(100);
-					compilerWaitTime += 100;
-					wasWaiting = true;
-				};
-				
-				if (wasWaiting) {
-					//Just to be sure all is written by the compiler
-					Thread.sleep(1000);
+					if (wasWaiting) {
+						//Just to be sure all is written by the compiler
+						Thread.sleep(DELAY_AFTER_COMPILER_WAIT);
+					}	
 				}
 				
 				final File jarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
@@ -459,11 +483,15 @@ public class FilesCacheHelper {
 					
 					//The file was not generated
 					if (details.originalFile == null || details.cachedFile == null) {
-						LOGGER.warn(
-							"Removing Cached Reference because it was not generated: " + details.className
-						);
-						details.invalidate();
-						continue;
+						if (!details.isInner) {
+							LOGGER.warn(
+								"Removing Cached Reference because it was not generated: " + details.className
+							);
+							details.invalidate();
+							continue;
+						} else {
+							details.cached = true;
+						}
 					}
 					
 					if (details.invalid) {
@@ -473,6 +501,7 @@ public class FilesCacheHelper {
 						continue;
 					}
 					if (!generatedClassesDependencies.containsKey(clazz)) continue;
+					if (details.isInner) continue;
 					
 					final String pkg = clazz.substring(0, clazz.lastIndexOf('.'));
 					final String resourceName = clazz.substring(clazz.lastIndexOf('.')+1) + ".class";
@@ -497,30 +526,22 @@ public class FilesCacheHelper {
 				
 		if (cacheClassesRequired) {
 			try {
-				//This class will be used to detect when the compiler finished
-				String generatorClass = null;
 				
-				Set<String> autoGeneratedGenerators = new HashSet<>();
-				if (generators.containsKey(null)) {
-					for (FileDetails details : generators.get(null)) {
-						autoGeneratedGenerators.add(details.className);
+				for (FileDependency dependency : FileDependency.fileDependencyMap.values()) {
+					if (dependency.isValid != null && dependency.isValid) {
+						final String clazz = dependency.generator;
+						final String pkg = clazz.substring(0, clazz.lastIndexOf('.'));
+						final String resourceName = clazz.substring(clazz.lastIndexOf('.')+1) + ".class";						
+						FileObject classFile = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg, resourceName);
+						dependency.generatedClassFile = Paths.get(classFile.toUri()).toFile()
+                                							 .getParentFile().getAbsolutePath();
 					}
 				}
 				
-				for (String generator : generators.keySet()) {
-					if (!autoGeneratedGenerators.contains(generator) && generator != null) {
-						generatorClass = generator;
-						break;
-					}
-				}
-				
-				final String pkg = generatorClass.substring(0, generatorClass.lastIndexOf('.'));
-				final String resourceName = generatorClass.substring(generatorClass.lastIndexOf('.')+1) + ".class";				
-				FileObject classFile = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg, resourceName);
-				String generatorPath = Paths.get(classFile.toUri()).toFile().toString();
+				int compilerWaitTime = Integer.valueOf(environment.getOptionValue(OPTION_CACHE_FILES_COMPILER_WAIT));
 				
 				Path thisJarPath = Paths.get(FilesCacheHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());			
-				Runtime.getRuntime().exec("java -jar " + thisJarPath + " cache-after \"" + generatorPath + "\"");
+				Process p = Runtime.getRuntime().exec("java -jar " + thisJarPath + " cache " + compilerWaitTime);
 				
 //				System.out.println("java -jar " + thisJarPath + " cache-after \"" + generatorClass + "\"");
 //				
@@ -532,7 +553,7 @@ public class FilesCacheHelper {
 //		        }
 //		        in.close();
 				
-			} catch (URISyntaxException | IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
@@ -562,13 +583,21 @@ public class FilesCacheHelper {
 	}
 	
 	public void addAncestor(Element ancestor, Element subClass) {
+		//Do not accept ancestors of generated elements
+		if (generatedClassesDependencies.containsKey(subClass.asType().toString())) {
+			return;
+		} 
+		
+		final String subClassName = subClass.asType().toString();
+						
 		final TreePath treePath = trees.getPath(ancestor);
 		long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();
 		
 		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString(), lastModified);
 		ancestorDependency.isAncestor = true;
-
-		ancestorDependency.subClasses.add(subClass.asType().toString());
+		ancestorDependency.isValid = true;
+		
+		ancestorDependency.subClasses.add(subClassName);
 	}
 
 	public Set<String> getAncestorSubClasses(String ancestor) {
@@ -577,13 +606,19 @@ public class FilesCacheHelper {
 	
 	public boolean isAncestor(String possibleAncestor) {
 		FileDependency dependency = FileDependency.withGenerator(possibleAncestor);
-		return dependency != null && dependency.isAncestor && dependency.isValid;
+		return dependency != null && dependency.isAncestor && dependency.isValid != null && dependency.isValid;
 	}
 	
 	public void addGeneratedClass(String clazz, Element generator) {
 		
 		if (generator != null && !(generator instanceof TypeElement)) {
 			throw new RuntimeException("Element " + generator + " should be a TypeElement");
+		}
+		
+		boolean isInner = generator != null 
+				&& !generator.getEnclosingElement().getKind().equals(ElementKind.PACKAGE);
+		if (isInner) {
+			generator = TypeUtils.getRootElement(generator);
 		}
 		
 		final String generatorClass = generator == null? null : generator.asType().toString();
@@ -625,6 +660,7 @@ public class FilesCacheHelper {
 		
 		//Create FileDetails
 		FileDetails details = FileDetails.newFileDetails(clazz);
+		details.isInner = isInner;
 		details.dependencies.addAll(dependencies);
 		generatedClassesDependencies.put(clazz, details.dependencies);
 		
@@ -709,6 +745,10 @@ public class FilesCacheHelper {
 		return details;
 	}
 	
+	public FileDependency getFileDependency(String clazz) {
+		return FileDependency.withGenerator(clazz);
+	}
+	
 	public FileDetails getFileDetails(String clazz) {
 		
 		if (!generatedClassesDependencies.containsKey(clazz)) {
@@ -787,9 +827,26 @@ public class FilesCacheHelper {
     			    					   .getSourceFile().getLastModified();
 		}
 		
-		//TODO if it is valid, check if this fileDependency has ancestors
-		//if so, check that all the ancestors are valid
-		
+		if (dependency.isValid && dependency.isAncestor) {
+			
+			for (String subClass : dependency.subClasses) {
+				
+				Element subClassElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(subClass);
+				if (subClassElement == null) {
+					dependency.isValid = false;
+					return false;
+				}				
+
+				//Check if "dependency" continue being a super class for this subClass
+				if (!TypeUtils.isSubtype(subClassElement, dependency.generator, environment.getProcessingEnvironment())) {
+					dependency.isValid = false;
+					return false;
+				}
+								
+			}
+			
+		}
+				
 		return dependency.isValid;
     }
 
@@ -815,9 +872,11 @@ public class FilesCacheHelper {
 		
 		public String className;		
 		public boolean isAction;
+		public boolean isInner;
 		
 		private transient boolean invalid;
 		public transient boolean generated;
+		private transient boolean preGenerated;
 		
 		public Set<FileDependency> dependencies;
 		
@@ -852,6 +911,7 @@ public class FilesCacheHelper {
 			newFileDetails.cached = from.cached;
 
 			newFileDetails.isAction = from.isAction;
+			newFileDetails.isInner = from.isInner;
 			
 			newFileDetails.metaData.putAll(from.metaData);
 			
@@ -872,7 +932,7 @@ public class FilesCacheHelper {
 				details.className = className;				
 				details.cachedClassFiles = new HashMap<>();
 				details.metaData = new HashMap<>();
-				
+								
 				fileDetailsMap.put(className, details);
 			}			
 			
@@ -959,9 +1019,10 @@ public class FilesCacheHelper {
 			}
 		}
 		
-		public void generate() throws FileNotFoundException, IOException {
+		public void preGenerate() {
 			
-			if (generated) return;
+			if (preGenerated) return;
+			preGenerated = true;
 			
 			cacheTasksCount.incrementAndGet();
 			cacheExecutor.execute(new Runnable() {
@@ -1000,9 +1061,14 @@ public class FilesCacheHelper {
 					}
 				}
 			});
+		}
+		
+		public void generate() {
 			
+			if (generated) return;
 			generated = true;
 			
+			preGenerate();
 		}
 				
 		@Override
@@ -1024,9 +1090,12 @@ public class FilesCacheHelper {
 		
 		public String generator;
 		public long lastModified;
+		public String generatedClassFile;
 		
 		public boolean isAncestor;
 		public Set<String> subClasses;
+		
+		public boolean isAction;
 		
 		public transient Boolean isValid;
 		
@@ -1036,7 +1105,14 @@ public class FilesCacheHelper {
 		
 		private static FileDependency fromFileDependency(FileDependency from) {
 			FileDependency newFileDependency = newFileDependency(from.generator, from.lastModified);
+			
 			newFileDependency.isAncestor = from.isAncestor;
+			newFileDependency.subClasses.addAll(from.subClasses);
+			
+			newFileDependency.generatedClassFile = from.generatedClassFile;
+			
+			newFileDependency.isAction = from.isAction;
+			
 			return newFileDependency;
 		}
 		
@@ -1046,6 +1122,7 @@ public class FilesCacheHelper {
 			if (dependency == null) {
 				dependency = new FileDependency();
 				dependency.subClasses = new HashSet<>();
+								
 				fileDependencyMap.put(generator, dependency);
 			}
 					
@@ -1053,6 +1130,12 @@ public class FilesCacheHelper {
 			dependency.lastModified = lastModified;
 			
 			return dependency;
+		}
+        
+        private void validate() {
+			if (isAction) {
+				Actions.getInstance().addActionHolder(generator);
+			}
 		}
         
         @Override

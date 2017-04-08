@@ -71,7 +71,10 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 			return;
 		}
 		
-		classField = DeclexConstant.EVENT_PATH + classField;
+		if (!classField.contains(".")) {
+			classField = DeclexConstant.EVENT_PATH + classField;
+		}
+		
 		inlineEvents.put(element, classField);
 		EventUtils.registerEvent(classField, getEnvironment());
 	}
