@@ -83,7 +83,9 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
-		classField = DeclexConstant.EVENT_PATH + classField;
+		if (!classField.contains(".")) {
+			classField = DeclexConstant.EVENT_PATH + classField;
+		}
 		EventUtils.createNewEvent(classField, element, getEnvironment());
 	}
 	

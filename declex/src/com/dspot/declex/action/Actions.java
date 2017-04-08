@@ -16,7 +16,6 @@
 package com.dspot.declex.action;
 
 import static com.helger.jcodemodel.JExpr._new;
-import static com.helger.jcodemodel.JExpr._this;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -39,15 +38,11 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.processing.Filer;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -85,14 +80,10 @@ import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.FileUtils;
-import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
-import com.helger.jcodemodel.JExpr;
-import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
-import com.helger.jcodemodel.JVar;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 
@@ -108,7 +99,7 @@ public class Actions {
 	private static Actions instance;
 	
 	private final Set<String> ACTION_HOLDERS = new HashSet<>(); 
-	private final Set<Class<? extends Annotation>> ACTION_ANNOTATION = new HashSet<>();
+	final static Set<Class<? extends Annotation>> ACTION_ANNOTATION = new HashSet<>();
 	
 	private final Map<String, String> ACTION_NAMES = new HashMap<>();
 	private final Map<String, ActionInfo> ACTION_INFOS = new HashMap<>();
@@ -589,54 +580,21 @@ public class Actions {
 				for (String name : ACTION_NAMES.keySet()) {
 					
 					final String action = ACTION_NAMES.get(name);
-					final ActionInfo actionInfo = ACTION_INFOS.get(action);
+					final ActionInfo actionInfo = ACTION_INFOS.get(action);					
 					
 					//This will avoid generation for parent classes, not used in the project
 					if (!actionInfo.generated) continue;
 					
 					List<ActionMethod> builds = actionInfo.methods.get("build");
 					if (builds != null && builds.size() > 0) {
-						ActionMethod build = builds.get(0);
 						
-						JDefinedClass ActionGate = Action._class(JMod.PUBLIC | JMod.STATIC, name);
-						ActionGate._extends(env.getJClass(actionInfo.holderClass));
+						final String pkg = actionInfo.holderClass.substring(0, actionInfo.holderClass.lastIndexOf('.'));
+						JDefinedClass ActionGate = Action._class(JMod.PUBLIC | JMod.STATIC, name);	
+						ActionGate._extends(env.getJClass(pkg + "." + name.substring(1) + "Gate"));
 						
 						if (actionInfo.references != null) {
 							ActionGate.javadoc().add(actionInfo.references);
 						}
-						
-						//Create all the events for the action
-						for (ActionMethodParam param : build.params) {
-							JFieldVar field = ActionGate.field(
-									JMod.PUBLIC | JMod.STATIC, 
-									env.getCodeModel().BOOLEAN, 
-									param.name,
-									JExpr.TRUE
-								);
-							
-							JFieldVar refField = ActionGate.field(
-									JMod.PROTECTED | JMod.STATIC, 
-									param.clazz, 
-									"$" + param.name
-								);
-							
-							JMethod method = ActionGate.method(
-									JMod.PUBLIC | JMod.STATIC, 
-									param.clazz, param.name
-								);
-							method.body()._return(refField);
-							
-							if (build.javaDoc != null) {
-								Matcher matcher = 
-										Pattern.compile(
-												"\\s+@param\\s+" + param.name + "\\s+((?:[^@]|(?<=\\{)@[^}]+\\})+)"
-										).matcher(build.javaDoc);
-								
-								if (matcher.find()) {
-									field.javadoc().add("<br><hr><br>\n" + matcher.group(1).trim());
-								}
-							}
-						}	
 						
 						//Create the init methods for the action
 						List<ActionMethod> inits = actionInfo.methods.get("init");
@@ -661,58 +619,7 @@ public class Actions {
 								method.body()._return(_new(ActionGate));
 							
 							}
-						}
-						
-						//All the methods of the Action Holder that returns the Holder itself,  
-						//are inserted in order to use this ActionGate from the fields
-						for (Entry<String, List<ActionMethod>> entry : actionInfo.methods.entrySet()) {
-							for (ActionMethod actionMethod : entry.getValue()) {
-								
-								List<String> specials = Arrays.asList("init", "build", "execute");
-								
-								String holderClass = actionInfo.holderClass;
-								String resultClass = actionMethod.resultClass;
-								
-								if (holderClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-									holderClass = holderClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-								}
-								if (resultClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-									resultClass = resultClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-								}
-								
-								if (TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment()) 
-									|| (actionMethod.resultClass.equals("void") && !specials.contains(actionMethod.name))) {
-																		
-									JMethod method;
-									if (actionMethod.resultClass.equals("void")) {										
-										method = ActionGate.method(JMod.PUBLIC, env.getCodeModel().VOID, actionMethod.name);
-									} else {
-										method = ActionGate.method(JMod.PUBLIC, ActionGate, actionMethod.name);
-										method.body()._return(_this());
-									}
-									method.annotate(Override.class);
-									
-									for (ActionMethodParam param : actionMethod.params) {
-										JVar paramVar = method.param(param.clazz, param.name);	
-										
-										if (param.internal instanceof VariableElement) {
-											VariableElement element = (VariableElement) param.internal;
-											
-											for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
-												TypeUtils.annotateVar(paramVar, annotationMirror, env);
-											} 
-										}
-									}
-									
-									if (actionMethod.javaDoc != null) {
-										method.javadoc().add("<br><hr><br>\n" + actionMethod.javaDoc.trim());
-									}
-									
-								}
-							}
-						}
-						
-						ActionGate.method(JMod.PUBLIC, env.getCodeModel().VOID, "fire");
+						}						
 					}
 					
 				}

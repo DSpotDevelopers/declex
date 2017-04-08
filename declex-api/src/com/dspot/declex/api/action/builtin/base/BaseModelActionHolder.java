@@ -26,11 +26,11 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 	
 	/**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated
+     * {@link com.dspot.declex.api.model.Model @Model} annotated
      * field is loaded
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated field fails loading.
+     * {@link com.dspot.declex.api.model.Model @Model} annotated field fails loading.
      */
 	@Override
     protected void build(Runnable Done, OnFailedRunnable Failed) {

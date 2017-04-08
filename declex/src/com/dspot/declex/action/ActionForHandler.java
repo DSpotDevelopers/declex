@@ -15,13 +15,18 @@
  */
 package com.dspot.declex.action;
 
+import static com.helger.jcodemodel.JExpr._this;
+
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -37,9 +42,17 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.override.util.OverrideAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
+import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JDefinedClass;
+import com.helger.jcodemodel.JExpr;
+import com.helger.jcodemodel.JFieldVar;
+import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JVar;
 
 public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
 	
@@ -62,10 +75,18 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		//Actions depends on Action Holders
 		filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element);
 		
+		//Mark the Cache of this file as Action, to add action objects after generation
 		try {
-			//Mark the Cache of this file as action, to add action objects after generation
+			//If it is a generated ActionHolder
 			filesCacheHelper.getFileDetails(element.asType().toString()).isAction = true;
-		} catch (Throwable e){}
+		} catch (Throwable e){
+			//For normal not generated ActionHolders
+			FileDependency actionHolderDependency = filesCacheHelper.getFileDependency(element.asType().toString());
+			if (actionHolderDependency != null) {
+				actionHolderDependency.isAction = true;
+			}
+		}
+		
 		
 		boolean initFound = false;
 		boolean buildFound = false;
@@ -202,8 +223,157 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
 		
+		final ActionFor actionFor = element.getAnnotation(ActionFor.class);
+		final String clsName = element.asType().toString();		
+		final String pkg = clsName.substring(0, clsName.lastIndexOf('.'));
+		
+		//Create Action Gates objects
+		List<JDefinedClass> actionGates = new LinkedList<>();			
+		for (String actionName : actionFor.value()) {
+							
+			final String actionGateClassName = pkg + "." + actionName + "Gate"; 
+			final String javaDoc = getProcessingEnvironment().getElementUtils().getDocComment(element);
+			
+			try {
+				JDefinedClass ActionGate = getCodeModel()._class(JMod.PUBLIC, actionGateClassName);
+				ActionGate._extends(getJClass(element.asType().toString()));
+				filesCacheHelper.addGeneratedClass(actionGateClassName, element);
+				
+				if (javaDoc != null) {
+					ActionGate.javadoc().add(javaDoc);
+				}
+				
+				actionGates.add(ActionGate);
+			} catch (Exception e) {}
+		}	
+		
+		createActionGateMethods(element, actionGates, null);
+		
+		//Add fire method to be used by Actions as Fields
+		for (JDefinedClass ActionGate : actionGates) {
+			ActionGate.method(JMod.PUBLIC, getCodeModel().VOID, "fire");
+		}
+		
 	}
 
+	public void createActionGateMethods(Element typeElement, List<JDefinedClass> actionGates, 
+			 List<String> methodsHandled) {
+
+		if (methodsHandled == null) {
+			methodsHandled = new LinkedList<>();
+		}
+		
+		for (Element elem : typeElement.getEnclosedElements()) {
+			
+			if (elem.getKind() == ElementKind.METHOD) {
+				
+				final ExecutableElement element = (ExecutableElement) elem;
+				final String elementName = element.getSimpleName().toString();
+				
+				if (methodsHandled.contains(elem.toString())) continue;
+				methodsHandled.add(element.toString());
+				
+				final List<String> specials = Arrays.asList("init", "build", "execute");
+				final String holderClass = typeElement.asType().toString();
+				final String resultClass = element.getReturnType().toString();
+				final String javaDoc = getProcessingEnvironment().getElementUtils().getDocComment(element);	
+				
+				if (elementName.equals("build") && !methodsHandled.contains("build")) {
+					methodsHandled.add("build");
+					
+					for (JDefinedClass ActionGate : actionGates) {
+						//Create all the events for the action
+						for (VariableElement param : element.getParameters()) {
+							final String paramName = param.getSimpleName().toString();
+							final AbstractJClass paramClass = codeModelHelper.typeMirrorToJClass(param.asType());
+							
+							JFieldVar field = ActionGate.field(
+									JMod.PUBLIC | JMod.STATIC, 
+									getCodeModel().BOOLEAN, 
+									paramName,
+									JExpr.TRUE
+								);
+							
+							JFieldVar refField = ActionGate.field(
+									JMod.PROTECTED | JMod.STATIC, 
+									paramClass, 
+									"$" + paramName
+								);
+							
+							JMethod method = ActionGate.method(
+									JMod.PUBLIC | JMod.STATIC, 
+									paramClass, 
+									paramName
+								);
+							method.body()._return(refField);
+							
+							if (javaDoc != null) {
+								Matcher matcher = 
+										Pattern.compile(
+												"\\s+@param\\s+" + paramName + "\\s+((?:[^@]|(?<=\\{)@[^}]+\\})+)"
+										).matcher(javaDoc);
+								
+								if (matcher.find()) {
+									field.javadoc().add("<br><hr><br>\n" + matcher.group(1).trim());
+								}
+							}
+						}							
+					}
+				}
+				
+				if (TypeUtils.isSubtype(holderClass, resultClass, getProcessingEnvironment()) 
+						|| (resultClass.equals("void") && !specials.contains(elementName))) {
+											
+					for (JDefinedClass ActionGate : actionGates) {
+						JMethod method;
+						if (resultClass.equals("void")) {										
+							method = ActionGate.method(JMod.PUBLIC, getCodeModel().VOID, elementName);
+						} else {
+							method = ActionGate.method(JMod.PUBLIC, ActionGate, elementName);
+							method.body()._return(_this());
+						}
+						method.annotate(Override.class);
+						
+						for (VariableElement param : element.getParameters()) {
+							
+							List<Annotation> annotations = new LinkedList<>();
+							for (Class<? extends Annotation> annotation : Actions.ACTION_ANNOTATION) {
+								Annotation containedAnnotation = param.getAnnotation(annotation);
+								if (containedAnnotation != null) {
+									annotations.add(containedAnnotation);
+								}
+							}
+							
+							JVar paramVar = method.param(
+								codeModelHelper.typeMirrorToJClass(param.asType()), 
+								param.getSimpleName().toString()
+							);	
+							
+							for (AnnotationMirror annotationMirror : param.getAnnotationMirrors()) {
+								TypeUtils.annotateVar(paramVar, annotationMirror, getEnvironment());
+							} 
+						}
+											
+						if (javaDoc != null) {
+							method.javadoc().add("<br><hr><br>\n" + javaDoc.trim());
+						}	
+					}
+										
+				}
+			}
+		}
+		
+		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(typeElement.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
+			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
+			createActionGateMethods(superElement, actionGates, methodsHandled);
+		}
+		
+	}
+	
 	private void overrideMethods(Element element, EComponentWithViewSupportHolder holder, 
 								 List<String> overrideMethods) {
 		
