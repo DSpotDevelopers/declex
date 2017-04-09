@@ -5,10 +5,10 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -23,9 +23,11 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 
 import javax.annotation.processing.Filer;
@@ -66,6 +68,7 @@ public class FilesCacheHelper {
 	
 	public static final Option OPTION_CACHE_FILES = new Option("cacheFiles", "false");
 	public static final Option OPTION_CACHE_FILES_COMPILER_WAIT = new Option("cacheFilesCompilerWaitTimeout", "30");
+	public static final Option OPTION_DEBUG_CACHE = new Option("debugCache", "false");
 	
 	//<Generator, FileDetails>
 	private Map<String, Set<FileDetails>> generators;
@@ -169,38 +172,50 @@ public class FilesCacheHelper {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static Map<String, Set<FileDetails>> loadGenerators() {
+	private static Map<String, Set<FileDetails>> loadGenerators() throws Exception {
+		
 		Map<String, Set<FileDetails>> generatorsTemp = null;
+
+		File externalCache = getExternalCacheIndex();
+		if (!externalCache.exists()) return null;
+		
+		Kryo kryo = getKryo();
+		Input input = new Input(new FileInputStream(getExternalCacheIndex()));
 		
 		try {
+			String version = input.readString();
+			if (version == null || !version.equals(FileDetails.VERSION)) {
+				throw new RuntimeException("Index File Version mismatch");
+			}
 			
-			File externalCache = getExternalCacheIndex();
-			if (!externalCache.exists()) return null;
-			
-			Kryo kryo = getKryo();
-			Input kryoInput = new Input(new FileInputStream(getExternalCacheIndex()));
-			generatorsTemp = kryo.readObject(kryoInput, HashMap.class, getGeneratorsSerializer());
-			kryoInput.close();
-			
-		} catch (IOException e) {
-			printCacheErrorToLogFile(e);
-		} 		
-		
+			generatorsTemp = kryo.readObject(input, HashMap.class, getGeneratorsSerializer());
+		} finally {
+			input.close();
+		}
+				
 		return generatorsTemp;
 	}
 	
 	private static void saveGenerators(Map<String, Set<FileDetails>> generators) {
+		
+		Output output = null;
 		try {
 			
 			Kryo kryo = getKryo();
-			Output kryoOutput = new Output(new FileOutputStream(getExternalCacheIndex()));
-			kryo.writeObject(kryoOutput, generators, getGeneratorsSerializer());
+			output = new Output(new FileOutputStream(getExternalCacheIndex()));
 			
-			kryoOutput.close();
+			output.writeString(FileDetails.VERSION);
+			kryo.writeObject(output, generators, getGeneratorsSerializer());
 			
-		} catch (IOException e) {
+			output.close();
+			
+		} catch (Exception e) {
 			printCacheErrorToLogFile(e);
-		} 
+		} finally {
+			if (output != null) {
+				output.close();
+			}
+		}
 	}
 	
 	private static void clearCacheErrorLogFile() {
@@ -225,9 +240,14 @@ public class FilesCacheHelper {
 				
 		generatedClassesDependencies = new HashMap<>();
 		generators = new HashMap<>();
+				
+		Map<String, Set<FileDetails>> generatorsTemp = null;		
+		try {
+			generatorsTemp = loadGenerators();
+		} catch (Exception e) {
+			LOGGER.debug("Error loading cache index file: {}", e.getMessage());
+		}		
 		
-		
-		Map<String, Set<FileDetails>> generatorsTemp = loadGenerators();		
 		if (generatorsTemp != null) {
 		
 			FileDetails.initialize();
@@ -256,7 +276,7 @@ public class FilesCacheHelper {
 						if (isCacheFilesEnabled()) {
 							if (!details.isCacheValid()) {
 								LOGGER.debug("Removing Cached file because its cache is invalid: " + details.className 
-										     + ". This will invalidate all the dependencies");
+										     + ". This will invalidate all its dependencies");
 								details.invalidate();
 								
 								//Invalidate all the dependencies so that the class be generated again
@@ -273,13 +293,39 @@ public class FilesCacheHelper {
 						
 						//If the generator was modified, remove this FileDetails
 						for (FileDependency dependency : details.dependencies) {
-							if (!isFileDependencyValid(dependency, environment, trees)) {
+							try {
+								if (!isFileDependencyValid(dependency, environment, trees)) {
+									LOGGER.debug(
+										"Removing Cached file because its dependency changed: " + details.className 
+										+ ", dependency : " + dependency 
+										+ (dependency.isAncestor? ". This is an ancestor dependency, all current cached file dependencies will be invalidated." : "")
+									);							
+									details.invalidate();
+									
+									//If the dependency is an ancestor all the dependencies should be invalidated
+									if (dependency.isAncestor) {
+										//Invalidate all the dependencies so that the class be generated again
+										for (FileDependency dependency2 : details.dependencies) {
+											dependency2.isValid = false;
+										}
+										
+										generatorsScanRequired = true;
+										continue scanGenerators;
+									}
+									
+								}														
+							} catch (CacheDependencyRemovedException e) {
 								LOGGER.debug(
-									"Removing Cached file because its dependency changed: " + details.className 
-									+ ", dependency : " + dependency
+									"Removing Cached file because its dependency was removed: " + details.className 
+									+ ", dependency : " + dependency 
+									+ ". All current cached file dependencies will be invalidated."
 								);							
 								details.invalidate();
-							}						
+																
+								details.dependencies.remove(dependency);
+								generatorsScanRequired = true;
+								continue scanGenerators;
+							}
 						}
 						
 						if (!details.invalid) {
@@ -296,27 +342,27 @@ public class FilesCacheHelper {
 			}
 		}
 		
-//		{
-//			System.out.println("Generators: [");
-//			for (Entry<String, Set<FileDetails>> entry : generators.entrySet()) {
-//				System.out.println("    " + entry.getKey() + ": [");
-//				for (FileDetails details : entry.getValue()) {
-//					System.out.println("        " + details);
-//				}
-//				System.out.println("    ]");
-//			}
-//			System.out.println("]");
-//			
-//			System.out.println("Dependencies: [");
-//			for (Entry<String, Set<FileDependency>> entry : generatedClassesDependencies.entrySet()) {
-//				System.out.println("    " + entry.getKey() + ": [");
-//				for (FileDependency dependency : entry.getValue()) {
-//					System.out.println("        " + dependency);
-//				}
-//				System.out.println("    ]");
-//			}
-//			System.out.println("]");
-//		}
+		if (environment.getOptionBooleanValue(OPTION_DEBUG_CACHE)) {
+			System.out.println("Generators: [");
+			for (Entry<String, Set<FileDetails>> entry : generators.entrySet()) {
+				System.out.println("    " + entry.getKey() + ": [");
+				for (FileDetails details : entry.getValue()) {
+					System.out.println("        " + details);
+				}
+				System.out.println("    ]");
+			}
+			System.out.println("]");
+			
+			System.out.println("Dependencies: [");
+			for (Entry<String, Set<FileDependency>> entry : generatedClassesDependencies.entrySet()) {
+				System.out.println("    " + entry.getKey() + ": [");
+				for (FileDependency dependency : entry.getValue()) {
+					System.out.println("        " + dependency);
+				}
+				System.out.println("    ]");
+			}
+			System.out.println("]");
+		}
 		
 	}
 	
@@ -324,12 +370,12 @@ public class FilesCacheHelper {
 		if (isCacheFilesEnabled()) {
 			for (FileDetails details : FileDetails.fileDetailsMap.values()) {
 				if (!details.invalid) {
-					details.validate();
+					details.validate(environment);
 				}
 			}
 			for (FileDependency dependency : FileDependency.fileDependencyMap.values()) {
-				if (dependency.isValid) {
-					dependency.validate();
+				if (dependency.isValid != null && dependency.isValid) {
+					dependency.validate(environment);
 				}
 			}
 		}
@@ -387,9 +433,15 @@ public class FilesCacheHelper {
 
 		try {
 
+			Manifest manifest = new Manifest();
+			Attributes global = manifest.getMainAttributes();
+			global.put(Attributes.Name.MANIFEST_VERSION, "1.0");
+			global.put(new Attributes.Name("Cache-Version"), FileDetails.VERSION);
+			global.put(new Attributes.Name("Created-By"), "DecleX, DSpot Sp. z o.o");
+
 			jar = new FileOutputStream(tempJarFile);
-			jarOut = new JarOutputStream(jar);
-			
+			jarOut = new JarOutputStream(jar, manifest);
+
 			detailsLoop: for (FileDetails details : fileDetails) {
 				
 				try {
@@ -570,7 +622,7 @@ public class FilesCacheHelper {
 						}
 					}
 					
-					if (details.invalid) {
+					if (details.invalid && !details.isInner) {
 						LOGGER.warn(
 								"Cached Reference was invalidated but was not regenerated: " + details.className
 							);
@@ -656,6 +708,7 @@ public class FilesCacheHelper {
 		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString(), lastModified);
 		ancestorDependency.isAncestor = true;
 		ancestorDependency.isValid = true;
+		ancestorDependency.adi = environment.getADIOnElement(ancestor);
 		
 		ancestorDependency.subClasses.add(subClassName);
 	}
@@ -670,6 +723,10 @@ public class FilesCacheHelper {
 	}
 	
 	public void addGeneratedClass(String clazz, Element generator) {
+		this.addGeneratedClass(clazz, generator, false);
+	}
+	
+	public void addGeneratedClass(String clazz, Element generator, boolean canBeUpdated) {
 		
 		if (generator != null && !(generator instanceof TypeElement)) {
 			throw new RuntimeException("Element " + generator + " should be a TypeElement");
@@ -686,8 +743,11 @@ public class FilesCacheHelper {
 		Set<FileDependency> dependencies = new HashSet<>();
 		if (generator != null) {
 			final TreePath treePath = trees.getPath(generator);
-			long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();			
-			dependencies.add(FileDependency.newFileDependency(generatorClass, lastModified)); 
+			long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();
+			
+			FileDependency dependency = FileDependency.newFileDependency(generatorClass, lastModified); 
+			dependency.adi = environment.getADIForClass(generatorClass);
+			dependencies.add(dependency); 
 		}
 
 		boolean dependenciesDelegated = false;
@@ -721,8 +781,15 @@ public class FilesCacheHelper {
 		//Create FileDetails
 		FileDetails details = FileDetails.newFileDetails(clazz);
 		details.isInner = isInner;
+		details.canBeUpdated = canBeUpdated;
 		details.dependencies.addAll(dependencies);
+		details.adi = environment.getADIForClass(clazz);
 		generatedClassesDependencies.put(clazz, details.dependencies);
+		
+		//If canBeUpdated and a class is added, then invalidate it
+		if (canBeUpdated) {
+			details.invalidate();			
+		}
 		
 		if (dependencies.isEmpty()) {
 			//Add reference in Null generator
@@ -874,13 +941,13 @@ public class FilesCacheHelper {
 		return variableClass;
 	}
 	
-	private boolean isFileDependencyValid(FileDependency dependency, AndroidAnnotationsEnvironment environment, Trees trees) {
+	private boolean isFileDependencyValid(FileDependency dependency, AndroidAnnotationsEnvironment environment, Trees trees) throws CacheDependencyRemovedException {
     	if (dependency.isValid != null) return dependency.isValid;
     	TypeElement generatorElement = environment.getProcessingEnvironment().getElementUtils()
 						  					      .getTypeElement(dependency.generator);
 
 		if (generatorElement == null) {
-			dependency.isValid = false;
+			throw new CacheDependencyRemovedException();
 		} else {
 			dependency.isValid = dependency.lastModified == trees.getPath(generatorElement)
 									       .getCompilationUnit()
@@ -921,6 +988,8 @@ public class FilesCacheHelper {
 		private static Set<FileDetails> failedGenerations = new HashSet<>();
 		
 		private static boolean initializing;
+		
+		private static final String VERSION = "1.0.0";
 		private static Set<String> classFilesInJar;
 
 		public String className;		
@@ -938,6 +1007,9 @@ public class FilesCacheHelper {
 		
 		public boolean isAction;
 		public boolean isInner;
+		public boolean canBeUpdated; //Used to indicate that these details can be updated during processing
+		
+		private Set<Class<? extends Annotation>> adi; //Used for Annotations Dependency Injection
 		
 		public Set<FileDependency> dependencies;
 		
@@ -963,6 +1035,14 @@ public class FilesCacheHelper {
 						InputStream jar = new FileInputStream(jarFile);
 						JarInputStream jarIn = new JarInputStream(jar);
 						
+						Manifest manifest = jarIn.getManifest();
+						String jarVersion = manifest.getMainAttributes().getValue(new Attributes.Name("Cache-Version"));
+						if (jarVersion == null || !jarVersion.equals(VERSION)) {
+							LOGGER.warn("Cache Jar File Error: Different Version");
+							classFilesInJar = null;
+							return;
+						}
+						
 						classFilesInJar = new HashSet<>();
 						
 						JarEntry entry;
@@ -971,8 +1051,8 @@ public class FilesCacheHelper {
 						}
 						jarIn.close();
 						
-					} catch (Exception e) {
-						LOGGER.debug("Cache Jar File Error: {}", e.getMessage());
+					} catch (Throwable e) {
+						LOGGER.warn("Cache Jar File Error: {}", e.getMessage());
 						classFilesInJar = null;
 					} finally {
 						initializing = false;
@@ -995,6 +1075,9 @@ public class FilesCacheHelper {
 			
 			output.writeBoolean(isAction);
 			output.writeBoolean(isInner);
+			output.writeBoolean(canBeUpdated);
+			
+			kryo.writeObjectOrNull(output, adi, new CollectionSerializer());
 			
 			kryo.writeObject(
 				output, 
@@ -1018,6 +1101,9 @@ public class FilesCacheHelper {
 			
 			isAction = input.readBoolean();
 			isInner = input.readBoolean();
+			canBeUpdated = input.readBoolean();
+			
+			adi = kryo.readObjectOrNull(input, HashSet.class, new CollectionSerializer());
 			
 			dependencies = kryo.readObject(
 				input, 
@@ -1104,10 +1190,17 @@ public class FilesCacheHelper {
 			removeCache();
 		}
 		
-		private void validate() {
+		private void validate(AndroidAnnotationsEnvironment environment) {
 			invalid = false;
+			
 			if (isAction) {
 				Actions.getInstance().addActionHolder(className);
+			}
+			
+			if (adi != null && !adi.isEmpty()) {
+				for (Class<? extends Annotation> dependency : adi) {
+					environment.addAnnotationToADI(className, dependency);
+				}
 			}
 		}
 		
@@ -1236,7 +1329,8 @@ public class FilesCacheHelper {
 			return this.className 
 					+ (dependencies.isEmpty()? "" : " \n            Dependencies: " + dependencies)
 					+ (cachedClassFiles.isEmpty()? "" : " \n            Cache Classes: " + cachedClassFiles)
-					+ (metaData.isEmpty()? "" : " \n            MetaData: " + metaData);
+					+ (metaData.isEmpty()? "" : " \n            MetaData: " + metaData)
+					+ (adi==null || adi.isEmpty()? "" : " \n            ADI: " + adi);
 		}
 	}
 	
@@ -1254,6 +1348,8 @@ public class FilesCacheHelper {
 		
 		public boolean isAction;
 		
+		private Set<Class<? extends Annotation>> adi; //Used for Annotations Dependency Injection
+		
 		private transient Boolean isValid;
 		
 		private FileDependency(String generator) {
@@ -1266,9 +1362,11 @@ public class FilesCacheHelper {
 			output.writeString(generatedClassFile);
 			
 			output.writeBoolean(isAncestor);
-			kryo.writeObject(output, subClasses);
+			kryo.writeObject(output, subClasses, new CollectionSerializer());
 			
 			output.writeBoolean(isAction);
+			
+			kryo.writeObjectOrNull(output, adi, new CollectionSerializer());
 		}
 
 		@Override
@@ -1277,9 +1375,11 @@ public class FilesCacheHelper {
 			generatedClassFile = input.readString();
 			
 			isAncestor = input.readBoolean();
-			subClasses = kryo.readObject(input, HashSet.class);
+			subClasses = kryo.readObject(input, HashSet.class, new CollectionSerializer());
 			
-			isAction = input.readBoolean();			
+			isAction = input.readBoolean();		
+			
+			adi = kryo.readObjectOrNull(input, HashSet.class, new CollectionSerializer());
 		}
 		
 		private static Serializer<?> getSerializer() {
@@ -1323,9 +1423,15 @@ public class FilesCacheHelper {
 			return dependency;
 		}
         
-        private void validate() {
+        private void validate(AndroidAnnotationsEnvironment environment) {
 			if (isAction) {
 				Actions.getInstance().addActionHolder(generator);
+			}
+			
+			if (adi != null && !adi.isEmpty()) {
+				for (Class<? extends Annotation> dependency : adi) {
+					environment.addAnnotationToADI(generator, dependency);
+				}
 			}
 		}
         
@@ -1337,8 +1443,13 @@ public class FilesCacheHelper {
         
         @Override
         public String toString() {
-        	return this.generator + (subClasses.isEmpty()? "" : ", SubClasses" + subClasses);
+        	return this.generator + (subClasses.isEmpty()? "" : ", SubClasses" + subClasses)
+        			+ (adi==null || adi.isEmpty()? "" : ", ADI: " + adi);
         }
         		
+	}
+	
+	private class CacheDependencyRemovedException extends Exception {
+		
 	}
 }

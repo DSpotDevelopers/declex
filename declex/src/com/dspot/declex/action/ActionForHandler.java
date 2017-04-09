@@ -73,7 +73,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	protected void validate(Element element, ElementValidation valid) {
 		
 		//Actions depends on Action Holders
-		filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element);
+		filesCacheHelper.addGeneratedClass(DeclexConstant.ACTION, element, true);
 		
 		//Mark the Cache of this file as Action, to add action objects after generation
 		try {

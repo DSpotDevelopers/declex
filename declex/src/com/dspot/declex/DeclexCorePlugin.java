@@ -99,6 +99,7 @@ import org.androidannotations.internal.core.model.AndroidRes;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.ActionForHandler;
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.eventbus.EventHandler;
 import com.dspot.declex.eventbus.UseEventBusHandler;
 import com.dspot.declex.eventbus.UseEventsHandler;
@@ -159,10 +160,15 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 	@Override
 	public List<Option> getSupportedOptions() {
 		return Arrays.asList(
+				
 			TraceHandler.OPTION_TRACE, 
 			SupposeThreadHandler.OPTION_THREAD_CONTROL,
+			
 			FilesCacheHelper.OPTION_CACHE_FILES,
-			FilesCacheHelper.OPTION_CACHE_FILES_COMPILER_WAIT
+			FilesCacheHelper.OPTION_CACHE_FILES_COMPILER_WAIT,
+			FilesCacheHelper.OPTION_DEBUG_CACHE,
+			
+			Actions.OPTION_DEBUG_ACTIONS
 		);
 	}
 	

@@ -58,6 +58,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import org.androidannotations.Option;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
@@ -89,6 +90,8 @@ import com.sun.source.util.Trees;
 
 public class Actions {
 
+	public static final Option OPTION_DEBUG_ACTIONS = new Option("debugActions", "false");
+	
 	protected static final Logger LOGGER = LoggerFactory.getLogger(Actions.class);
 	
 	public static final String BUILTIN_DIRECT_PKG = "com.dspot.declex.action.builtin.";
@@ -106,7 +109,7 @@ public class Actions {
 	
 	private InternalAndroidAnnotationsEnvironment env;
 	
-	private boolean generateInRound = false; 	//Never generate Actions in first round
+	public boolean generateInRound = false; 	//Never generate Actions in first round
 	
 	final IdAnnotationHelper annotationHelper;
 	final APTCodeModelHelper codeModelHelper;

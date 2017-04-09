@@ -99,7 +99,9 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				
 				if (PRE_GENERATION_ENABLED) {
 					for (FileDetails details : cachedFiles) {
-						details.preGenerate();
+						if (!details.canBeUpdated) {
+							details.preGenerate();
+						}
 					}
 				}
 				
@@ -253,7 +255,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 					for (FileDetails details : detailsList) {						
 						cachedFiles.add(details);
 						
-						if (PRE_GENERATION_ENABLED) {
+						if (PRE_GENERATION_ENABLED && !details.canBeUpdated) {
 							details.preGenerate();
 						}
 					}
@@ -287,6 +289,17 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				FilesCacheHelper.getInstance()
 				                .addAncestor(rootElement, elements.rootTypeElement);
 			}
+		}
+		
+		//Mark for generation the Action object is it is in cached,
+		//this will ensure that if the object is invalidated, it can be generated again
+		try {
+			FileDetails actionDetails = filesCacheHelper.getFileDetails(DeclexConstant.ACTION);
+			if (cachedFiles.contains(actionDetails)) {
+				Actions.getInstance().generateInRound = true;
+			}
+		} catch (Exception e) {
+			//Action object hasn't be registered yet
 		}
 		
 		timeStats.stop("Extract Annotations");
@@ -341,6 +354,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		//Generate Actions
 		if (!filesCacheHelper.hasCachedFile(DeclexConstant.ACTION) 
 			|| !cachedFiles.contains(filesCacheHelper.getFileDetails(DeclexConstant.ACTION))) {
+			LOGGER.debug("Generating Action Object");
 			if (actions.buildActionsObject()) numberOfFiles++;			
 		}
 		
