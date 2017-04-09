@@ -214,7 +214,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	            		public Boolean visitIdentifier(IdentifierTree id,
 	            				Trees trees) {
 	            			
-	            			String name = id.getName().toString();	            			
+	            			String name = id.getName().toString();
+	            			
 	            			if (Actions.getInstance().hasActionNamed(name)) {
 	            				//Identifier detected
 	            				throw new ActionDetectedException();
@@ -395,7 +396,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		String logLevel = env.getProcessingEnvironment().getOptions().get("logLevel");
 		if (!logLevel.toLowerCase().trim().equals("debug")) return false;
 		
-		return false; //true
+		return true; //true
 	}
 	
 	private String debugPrefix() {

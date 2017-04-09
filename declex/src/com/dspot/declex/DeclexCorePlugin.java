@@ -161,7 +161,8 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		return Arrays.asList(
 			TraceHandler.OPTION_TRACE, 
 			SupposeThreadHandler.OPTION_THREAD_CONTROL,
-			FilesCacheHelper.OPTION_CACHE_FILES
+			FilesCacheHelper.OPTION_CACHE_FILES,
+			FilesCacheHelper.OPTION_CACHE_FILES_COMPILER_WAIT
 		);
 	}
 	
