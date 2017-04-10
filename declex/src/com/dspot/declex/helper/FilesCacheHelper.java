@@ -71,12 +71,9 @@ public class FilesCacheHelper {
 	
 	private static Logger LOGGER = LoggerFactory.getLogger(FilesCacheHelper.class);
 	
-	private static long DELAY_AFTER_COMPILER_WAIT = 2000;//In ms
-	
 	public static final Option OPTION_CACHE_FILES = new Option("cacheFiles", "false");
-	public static final Option OPTION_CACHE_FILES_COMPILER_WAIT = new Option("cacheFilesCompilerWaitTimeout", "30");
 	public static final Option OPTION_DEBUG_CACHE = new Option("debugCache", "false");
-	public static final Option OPTION_CACHE_FILES_IN_PROCESS = new Option("cacheFilesInProcess", "false");
+	public static final Option OPTION_CACHE_FILES_IN_PROCESS = new Option("cacheFilesInProcess", "true");
 
 	private static Executor cacheExecutor = Executors.newSingleThreadExecutor();
 	
@@ -168,6 +165,10 @@ public class FilesCacheHelper {
 
 	private static File getExternalCachePreGenerateLock() {
 		return new File(getExternalCache().getAbsolutePath() + File.separator + "pre-generate.lock");
+	}
+	
+	private static File getExternalCacheCompilerDone() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "compiler.done");
 	}
 	
 	private static Kryo getKryo() {
@@ -412,8 +413,8 @@ public class FilesCacheHelper {
 		}
 	}
 	
-	public static void runClassCacheCreation(int compilerWaitTime) {
-		
+	public static void runClassCacheCreation() {
+				
 		clearCacheErrorLogFile();
 		
 		Set<FileDetails> fileDetails = new HashSet<>();
@@ -453,6 +454,26 @@ public class FilesCacheHelper {
 			printCacheErrorToLogFile(e, "-cache");
 			return;
 		}
+		
+		//Wait till compiler finish, a gradle task is needed for this
+		int compilerTimeout = 5 * 60000; //5 minutes timeout
+		while (!getExternalCacheCompilerDone().exists() && compilerTimeout > 0) {
+			try {
+				Thread.sleep(10);
+				compilerTimeout -= 10;
+			} catch (InterruptedException e) {}			
+		}
+		while (getExternalCacheCompilerDone().exists() && compilerTimeout > 0) {
+			getExternalCacheCompilerDone().delete();
+			try {
+				Thread.sleep(10);
+				compilerTimeout -= 10;
+			} catch (InterruptedException e) {}	
+		}
+		if (compilerTimeout < 0) {
+			System.out.println("Compiler Timed Out");
+			return;
+		}
 
 		System.out.println("Creating DecleX Cache Jar");
 		
@@ -473,7 +494,7 @@ public class FilesCacheHelper {
 			jar = new FileOutputStream(tempJarFile);
 			jarOut = new JarOutputStream(jar, manifest);
 
-			detailsLoop: for (FileDetails details : fileDetails) {
+			for (FileDetails details : fileDetails) {
 				
 				try {
 					
@@ -501,31 +522,6 @@ public class FilesCacheHelper {
 						continue;
 					}
 					
-					//Wait until the .class files be created	
-					boolean wasWaiting = false;
-					while (!new File(details.cachedClassesSearchFolder + File.separator + className + ".class").exists()) {
-						
-						if (!wasWaiting) {
-							System.out.println("Waiting for: " + details.cachedClassesSearchFolder + File.separator + className + ".class");
-						}
-						
-						//Maximum time waiting for compiler
-						if (compilerWaitTime <= 0) {
-							details.invalidate();
-							System.out.println("Removing from cache: " + details.className);
-							continue detailsLoop;
-						}
-						
-						Thread.sleep(100);
-						compilerWaitTime -= 100;
-						wasWaiting = true;
-					};
-					
-					if (wasWaiting) {
-						//Just to be sure all is written by the compiler
-						Thread.sleep(DELAY_AFTER_COMPILER_WAIT);
-					}
-					
 					final FileFilter fileFilter = new FileFilter() {								
 						@Override
 						public boolean accept(File pathname) {
@@ -533,8 +529,13 @@ public class FilesCacheHelper {
 						}
 					};					
 				
-					//Cache all the generated .class files
-					File[] classes = new File(details.cachedClassesSearchFolder).listFiles(fileFilter);
+					File[] classes = new File(details.cachedClassesSearchFolder).listFiles(fileFilter);	
+					if (classes.length == 0) {
+						System.out.println("Removing cached file because it was not created by the compiler: " + details.className);
+						details.invalidate();
+						continue;
+					}
+					
 					for (File file : classes) {		
 						//Add file to Jar
 						jarOut.putNextEntry(new ZipEntry(pkg.replace('.', '/') + "/" + file.getName()));												
@@ -552,17 +553,18 @@ public class FilesCacheHelper {
 								+ file.getName());
 						
 						FileUtils.copyCompletely(
-								new FileInputStream(file), 
-								new FileOutputStream(externalCachedFile),
-								null
-							);
+							new FileInputStream(file), 
+							new FileOutputStream(externalCachedFile),
+							null
+						);
 						
 						details.cachedClassFiles.put(
-								externalCachedFile.getAbsolutePath(),
-								file.getAbsolutePath()
-							);
-						details.cached = true;
-					}
+							externalCachedFile.getAbsolutePath(),
+							file.getAbsolutePath()
+						);						
+					}	
+					
+					details.cached = true;
 				
 				} catch (Throwable e) {
 					details.invalidate();
@@ -578,35 +580,7 @@ public class FilesCacheHelper {
 			try {												
 				
 				if (jarOut != null) jarOut.close();
-				if (jar != null) jar.close();
-				
-				//Wait until the dependencies .class files be created
-				for (FileDependency dependency : fileDependencies) {
-
-					if (dependency.generatedClassFile == null) continue;
-
-					boolean wasWaiting = false;
-					while (!new File(dependency.generatedClassFile).exists()) {
-						
-						if (!wasWaiting) {
-							System.out.println("Waiting for Dependency: " + dependency.generator);
-						}
-
-						//Maximum time waiting for compiler
-						if (compilerWaitTime <= 0) {
-							break;
-						}
-						
-						Thread.sleep(100);
-						compilerWaitTime -= 100;
-						wasWaiting = true;
-					};
-					
-					if (wasWaiting) {
-						//Just to be sure all is written by the compiler
-						Thread.sleep(DELAY_AFTER_COMPILER_WAIT);
-					}	
-				}
+				if (jar != null) jar.close();				
 				
 				final File jarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
 				
@@ -675,16 +649,6 @@ public class FilesCacheHelper {
 					cacheClassesRequired = true;
 				}
 				
-				for (FileDependency dependency : FileDependency.fileDependencyMap.values()) {
-					if (dependency.isValid != null && dependency.isValid) {
-						final String clazz = dependency.generator;
-						final String pkg = clazz.substring(0, clazz.lastIndexOf('.'));
-						final String resourceName = clazz.substring(clazz.lastIndexOf('.')+1) + ".class";						
-						FileObject classFile = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg, resourceName);
-						dependency.generatedClassFile = Paths.get(classFile.toUri()).toFile().getAbsolutePath();
-					}
-				}
-				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}				
@@ -694,8 +658,7 @@ public class FilesCacheHelper {
 		saveGenerators(generators);
 				
 		if (cacheClassesRequired) {
-			String compilerWaitTime = environment.getOptionValue(OPTION_CACHE_FILES_COMPILER_WAIT);
-			startDeclexServiceWith("cache", compilerWaitTime);
+			startDeclexServiceWith("cache");
 		}
 						
 	}
@@ -1017,11 +980,12 @@ public class FilesCacheHelper {
 		}
 		
 		//Create FileDetails
-		FileDetails details = FileDetails.newFileDetails(clazz);
+		final FileDetails details = FileDetails.newFileDetails(clazz);
 		details.isInner = isInner;
 		details.canBeUpdated = canBeUpdated;
 		details.dependencies.addAll(dependencies);
 		details.adi = environment.getADIForClass(clazz);
+		
 		generatedClassesDependencies.put(clazz, details.dependencies);
 		
 		//If canBeUpdated and a class is added, then invalidate it
@@ -1594,8 +1558,6 @@ public class FilesCacheHelper {
 		private String generator;
 		private long lastModified;
 		
-		private String generatedClassFile;
-		
 		private boolean isAncestor;
 		private Set<String> subClasses;
 		
@@ -1612,8 +1574,6 @@ public class FilesCacheHelper {
 		
 		@Override
 		public void write(Kryo kryo, Output output) {
-			output.writeString(generatedClassFile);
-			
 			output.writeBoolean(isAncestor);
 			kryo.writeObject(output, subClasses, new CollectionSerializer());
 			
@@ -1625,8 +1585,6 @@ public class FilesCacheHelper {
 		@Override
 		@SuppressWarnings("unchecked")
 		public void read(Kryo kryo, Input input) {
-			generatedClassFile = input.readString();
-			
 			isAncestor = input.readBoolean();
 			subClasses = kryo.readObject(input, HashSet.class, new CollectionSerializer());
 			

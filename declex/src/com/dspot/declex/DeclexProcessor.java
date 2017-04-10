@@ -407,7 +407,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			case "pre-generate":
 				try {
 					final String action = args[i+1];
-					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "pre-generate-" + action + ".log"));
+					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "pre-generate(" + action + ").log"));
 					
 					System.out.println("Running PreGenerate Cache Service");
 					FilesCacheHelper.runPreGenerateSources(action, 5);
@@ -426,8 +426,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "cache.log"));
 				
 					System.out.println("Running Cache Service");
-					FilesCacheHelper.runClassCacheCreation(Integer.parseInt(args[i+1])*1000);
-					i++;
+					FilesCacheHelper.runClassCacheCreation();
 				} catch (Throwable e) {
 					e.printStackTrace();
 					System.exit(1);

@@ -21,6 +21,7 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -47,7 +48,6 @@ import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
-import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
@@ -109,7 +109,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (!valid.isValid()) return;
 			
 			className = DeclexConstant.EVENT_PATH + className;			
-			final Map<String, String> fields = new HashMap<>();
+			final Map<String, String> fields = new LinkedHashMap<>();
 			
 			List<? extends VariableElement> parameters = executableElement.getParameters();				
 			if (parameters.size() != 0) {
