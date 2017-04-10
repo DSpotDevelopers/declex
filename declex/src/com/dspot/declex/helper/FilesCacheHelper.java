@@ -8,13 +8,20 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.RandomAccessFile;
 import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -69,6 +76,9 @@ public class FilesCacheHelper {
 	public static final Option OPTION_CACHE_FILES = new Option("cacheFiles", "false");
 	public static final Option OPTION_CACHE_FILES_COMPILER_WAIT = new Option("cacheFilesCompilerWaitTimeout", "30");
 	public static final Option OPTION_DEBUG_CACHE = new Option("debugCache", "false");
+	public static final Option OPTION_CACHE_FILES_IN_PROCESS = new Option("cacheFilesInProcess", "false");
+
+	private static Executor cacheExecutor = Executors.newSingleThreadExecutor();
 	
 	//<Generator, FileDetails>
 	private Map<String, Set<FileDetails>> generators;
@@ -151,6 +161,14 @@ public class FilesCacheHelper {
 	private static File getExternalCacheIndex() {
 		return new File(getExternalCache().getAbsolutePath() + File.separator + "index.dat");
 	}
+
+	private static File getExternalCachePreGenerate() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "pre-generate.dat");
+	}
+
+	private static File getExternalCachePreGenerateLock() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "pre-generate.lock");
+	}
 	
 	private static Kryo getKryo() {
 		Kryo kryo = new Kryo();
@@ -180,7 +198,7 @@ public class FilesCacheHelper {
 		if (!externalCache.exists()) return null;
 		
 		Kryo kryo = getKryo();
-		Input input = new Input(new FileInputStream(getExternalCacheIndex()));
+		Input input = new Input(new FileInputStream(getExternalCacheIndex()), 65536);
 		
 		try {
 			String version = input.readString();
@@ -202,15 +220,13 @@ public class FilesCacheHelper {
 		try {
 			
 			Kryo kryo = getKryo();
-			output = new Output(new FileOutputStream(getExternalCacheIndex()));
+			output = new Output(new FileOutputStream(getExternalCacheIndex()), 65536);
 			
 			output.writeString(FileDetails.VERSION);
 			kryo.writeObject(output, generators, getGeneratorsSerializer());
 			
-			output.close();
-			
 		} catch (Exception e) {
-			printCacheErrorToLogFile(e);
+			printCacheErrorToLogFile(e, "-cache");
 		} finally {
 			if (output != null) {
 				output.close();
@@ -225,9 +241,9 @@ public class FilesCacheHelper {
 		} catch (Exception e1){}		
 	}
 	
-	private static void printCacheErrorToLogFile(Throwable e) {
+	private static void printCacheErrorToLogFile(Throwable e, String id) {
 		try {
-			File file = new File(getExternalCache().getAbsolutePath() + File.separator + "error.log");
+			File file = new File(getExternalCache().getAbsolutePath() + File.separator + "error" + id + ".log");
 			PrintStream ps = new PrintStream(file);
 			e.printStackTrace(ps);
 			ps.close();
@@ -315,14 +331,29 @@ public class FilesCacheHelper {
 									
 								}														
 							} catch (CacheDependencyRemovedException e) {
-								LOGGER.debug(
-									"Removing Cached file because its dependency was removed: " + details.className 
-									+ ", dependency : " + dependency 
-									+ ". All current cached file dependencies will be invalidated."
-								);							
-								details.invalidate();
-																
-								details.dependencies.remove(dependency);
+								
+								Set<FileDetails> detailsToInvalidate = new HashSet<>();
+								detailsToInvalidate.add(details);
+								
+								if (generatorsTemp.containsKey(dependency.generator)) {
+									detailsToInvalidate.addAll(generatorsTemp.get(dependency.generator));
+									generatorsTemp.remove(dependency.generator);
+								}
+								
+								for (FileDetails details2 : detailsToInvalidate) {
+									LOGGER.debug(
+										"Removing Cached file because its dependency was removed: " + details2.className 
+										+ ", dependency : " + dependency 
+										+ ". All current cached file dependencies will be invalidated."
+									);							
+									details2.invalidate();
+									details2.dependencies.remove(dependency);		
+									
+									for (FileDependency dependency2 : details2.dependencies) {
+										dependency2.isValid = false;
+									}
+								}
+								
 								generatorsScanRequired = true;
 								continue scanGenerators;
 							}
@@ -419,7 +450,7 @@ public class FilesCacheHelper {
 				return;
 			}
 		} catch (Throwable e) {
-			printCacheErrorToLogFile(e);
+			printCacheErrorToLogFile(e, "-cache");
 			return;
 		}
 
@@ -536,13 +567,13 @@ public class FilesCacheHelper {
 				} catch (Throwable e) {
 					details.invalidate();
 					System.out.println("Removing from cache: " + details.className + " because of an error. Check \"error.log\" for more info.");
-					printCacheErrorToLogFile(e);					
+					printCacheErrorToLogFile(e, "-cache");					
 				}
 
 			}
 			
 		} catch (Exception e) {
-			printCacheErrorToLogFile(e);
+			printCacheErrorToLogFile(e, "-cache");
 		} finally {
 			try {												
 				
@@ -589,7 +620,7 @@ public class FilesCacheHelper {
 				tempJarFile.delete();
 				
 			} catch (Throwable e) {
-				printCacheErrorToLogFile(e);
+				printCacheErrorToLogFile(e, "-cache");
 			} 
 		}
 		
@@ -663,36 +694,243 @@ public class FilesCacheHelper {
 		saveGenerators(generators);
 				
 		if (cacheClassesRequired) {
-			try {
-				
-				final String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-				
-				URL[] urls = ((URLClassLoader) environment.getClass().getClassLoader()).getURLs();
-				String[] classPathArray = new String[urls.length+1];
-				for (int i = 0; i < urls.length; i++) {
-					classPathArray[i+1] = Paths.get(urls[i].toURI()).toFile().getAbsolutePath();
-				}
-				classPathArray[0] = Paths.get(FilesCacheHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString(); 
-				
-				final String classpath = StringUtils.join(classPathArray, File.pathSeparator);				
-				String compilerWaitTime = environment.getOptionValue(OPTION_CACHE_FILES_COMPILER_WAIT);				
-				
-				Process process = new ProcessBuilder(
-		                java,
-		                "-classpath", classpath,
-		                DeclexProcessor.class.getCanonicalName(),
-		                "cache",
-		                compilerWaitTime
-					).start();
-				
-				//System.out.println("Cache Service Code: " + process.waitFor());
-				
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			String compilerWaitTime = environment.getOptionValue(OPTION_CACHE_FILES_COMPILER_WAIT);
+			startDeclexServiceWith("cache", compilerWaitTime);
 		}
 						
 	}
+	
+	public void ensureSources() {
+		preGenerateSources("last");
+	}
+	
+	public void generateSources() {
+		preGenerateSources("sources");
+	}
+	
+	public void preGenerateSources() {
+		preGenerateSources("pre-generate");
+	}
+	
+	private void preGenerateSources(String action) {
+		
+		if (!environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) return;
+		
+		if (!FileDetails.preGenerateSources.isEmpty()) {
+			
+			//Wait for any previous instruction to write sources
+			int preGenerateWaitTimeout = 60000;
+			while (getExternalCachePreGenerate().exists() && preGenerateWaitTimeout > 0) {
+				try {
+					Thread.sleep(100);
+					preGenerateWaitTimeout -= 100;
+				} catch (InterruptedException e) {}
+			}
+			
+			if (preGenerateWaitTimeout <= 0) {
+				LOGGER.error("An error ocurred while caching in different process. "
+						+ "\"" + getExternalCachePreGenerate().getAbsolutePath() + "\" file was not removed.");
+				getExternalCachePreGenerate().delete();
+				return;
+			}
+			
+			//Write the preGenerate file with the sources to write
+			Output output = null;
+			try {
+				
+				Kryo kryo = getKryo();
+				output = new Output(new FileOutputStream(getExternalCachePreGenerate()), 8192);
+				kryo.writeObject(output, FileDetails.preGenerateSources, new MapSerializer());
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				if (output != null) {
+					output.close();
+				}
+			}
+			
+			startDeclexServiceWith("pre-generate", action);
+			
+			FileDetails.preGenerateSources.clear();
+		} else {
+			if ("last".equals(action)) {
+				startDeclexServiceWith("pre-generate", action);
+			}
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static void runPreGenerateSources(String action, int retries) {		
+		
+		retries--;
+		
+		Map<String, String> preGenerateSources = null;
+		
+		if (!"last".equals(action)) {
+			//Read the preGenerate file with the sources to write
+			Input input = null;
+			try {
+				
+				Kryo kryo = getKryo();
+				input = new Input(new FileInputStream(getExternalCachePreGenerate()), 8192);
+				preGenerateSources = kryo.readObject(input, HashMap.class, new MapSerializer());
+								
+			} catch (Exception e) {
+				printCacheErrorToLogFile(e, "-" + action);
+			} finally {
+				if (input != null) {
+					input.close();
+					
+					if (preGenerateSources != null) {
+						getExternalCachePreGenerate().delete();
+					}
+				}
+			}
+		} else {
+			preGenerateSources = Collections.EMPTY_MAP;
+		}
+
+		if (preGenerateSources != null) {
+			
+			SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+			System.out.println("Map to Write Received for action: " + action + " at " + sdf.format(new Date()));
+			final boolean removeExternalLockWhenFinished = "last".equals(action);
+
+			try {
+				System.out.println("Waiting To Lock File");
+				final RandomAccessFile count = new RandomAccessFile(getExternalCachePreGenerateLock(), "rw");
+				
+				//Wait till lock the file
+				FileLock lock = null;
+				while (lock == null) {
+					try {
+						lock = count.getChannel().lock();
+					} catch (OverlappingFileLockException e) {
+						try {
+							Thread.sleep(100);
+						} catch (InterruptedException e1) {}
+					}							
+				};
+				
+				System.out.println("Initializing Copy of " + preGenerateSources.size() + " files");
+				final AtomicInteger cachesInCopy = new AtomicInteger(0);
+				
+				for (final Entry<String, String> cache : preGenerateSources.entrySet()) {
+					
+					cachesInCopy.incrementAndGet();
+					cacheExecutor.execute(new Runnable() {
+						
+						@Override
+						public void run() {
+																					
+							try {
+								File input = new File(cache.getKey());
+								File output = new File(cache.getValue());
+								
+								if (!output.exists()) {
+									System.out.println("From: " + input);
+									System.out.println("     ->" + output);
+									output.getParentFile().mkdirs();
+													
+									//Copy the cached file
+									FileUtils.copyCompletely(
+										new FileInputStream(input),
+										new FileOutputStream(output),
+										null
+									);
+								}
+							} catch (Exception e) {
+								System.out.println("Error written " + cache + ", " + e.getMessage());
+							} finally {
+								cachesInCopy.decrementAndGet();
+							}								
+						}
+					});
+				}
+				
+				while (cachesInCopy.get() > 0) {
+					Thread.sleep(100);
+				}
+				
+				lock.release();
+				count.close();
+				
+				System.out.println("Finalizing Copy");
+				
+				if (removeExternalLockWhenFinished) {
+					while (getExternalCachePreGenerateLock().exists()) {
+						Files.delete(getExternalCachePreGenerateLock().toPath());
+					}
+					
+					System.out.println("Removing Lock");
+				}
+				
+			} catch (Throwable e) {
+				e.printStackTrace();
+				printCacheErrorToLogFile(e, "-" + action);
+				
+				//Retry
+				if (retries > 0) {
+					runPreGenerateSources(action, retries);
+				}
+			}
+
+		}
+	}
+	
+	private void startDeclexServiceWith(String ... params) {
+		try {
+			
+			final String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+			
+			int declexCacheIndex = 0;
+			URL[] urls = ((URLClassLoader) environment.getClass().getClassLoader()).getURLs();
+			String[] classPathArray = new String[urls.length+1];
+			for (int i = 0; i < urls.length; i++) {
+				final String urlPath = Paths.get(urls[i].toURI()).toFile().getAbsolutePath();
+				classPathArray[i+1] = urlPath;
+				
+				if (urlPath.equals(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar")) {
+					declexCacheIndex = i+1;
+				}
+			}
+						
+			classPathArray[0] = Paths.get(FilesCacheHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+			
+			//Remove declex_cache.jar from classpath 
+			if (declexCacheIndex != 0) {
+				classPathArray[declexCacheIndex] = classPathArray[classPathArray.length-1];
+				classPathArray = Arrays.copyOf(classPathArray, classPathArray.length-1);
+			}
+			
+			final String classpath = StringUtils.join(classPathArray, File.pathSeparator);				
+				
+			String[] cmd = combineString(new String[]
+				{
+					java,
+	                "-classpath", classpath,
+	                DeclexProcessor.class.getCanonicalName()
+				}, 
+				params
+			);
+			
+			Process process = new ProcessBuilder(cmd).start();
+			
+			//System.out.println("Cache Service Code: " + process.waitFor());
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private static String[] combineString(String[] first, String[] second){
+        int length = first.length + second.length;
+        String[] result = new String[length];
+        System.arraycopy(first, 0, result, 0, first.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
+    }
 	
 	public void addAncestor(Element ancestor, Element subClass) {
 		//Do not accept ancestors of generated elements
@@ -983,15 +1221,16 @@ public class FilesCacheHelper {
 		
 		private static Map<String, FileDetails> fileDetailsMap = new HashMap<>();
 		
-		private static Executor cacheExecutor = Executors.newFixedThreadPool(8);
 		private static AtomicInteger cacheTasksCount = new AtomicInteger(0);
 		private static Set<FileDetails> failedGenerations = new HashSet<>();
 		
 		private static boolean initializing;
 		
+		private static Map<String, String> preGenerateSources = new HashMap<>();
+		
 		private static final String VERSION = "1.0.0";
 		private static Set<String> classFilesInJar;
-
+		
 		public String className;		
 
 		private String cachedFile;
@@ -1219,6 +1458,10 @@ public class FilesCacheHelper {
 				if (!input.exists() || !input.canRead() || originalFile==null) {
 					cached = false;
 				}
+			} else {
+				if (!isInner) {
+					cached = false;
+				}
 			}
 			
 			if (cached) {
@@ -1262,60 +1505,70 @@ public class FilesCacheHelper {
 					);
 				}
 			} catch (Exception e) {
-				printCacheErrorToLogFile(e);
+				printCacheErrorToLogFile(e, "-cache");
 			}
 		}
 		
-		public void preGenerate() {
+		public void preGenerate(AndroidAnnotationsEnvironment environment) {
 			
 			if (preGenerated) return;
 			preGenerated = true;
 			
-			cacheTasksCount.incrementAndGet();
-			cacheExecutor.execute(new Runnable() {
+			if (environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) {
+				preGenerateSources.put(cachedFile, originalFile);
+				preGenerateSources.putAll(cachedClassFiles);
 				
-				@Override
-				public void run() {
-										
-					try {						
-						
-						for (Entry<String, String> cache : cachedClassFiles.entrySet()) {
-							
-							File input = new File(cache.getKey());
-							File output = new File(cache.getValue());
-							
-							output.getParentFile().mkdirs();
+				//If this FileDetails was checked as invalid before, 
+				//generating it means that it is valid once again
+				invalid = false; 
+			} else {
+				cacheTasksCount.incrementAndGet();
+				cacheExecutor.execute(new Runnable() {
+					
+					@Override
+					public void run() {
 											
-							//Copy the cached file
-							FileUtils.copyCompletely(
-								new FileInputStream(input),
-								new FileOutputStream(output),
-								null
-							);
+						try {						
+							
+							for (Entry<String, String> cache : cachedClassFiles.entrySet()) {
+								
+								File input = new File(cache.getKey());
+								File output = new File(cache.getValue());
+								
+								output.getParentFile().mkdirs();
+												
+								//Copy the cached file
+								FileUtils.copyCompletely(
+									new FileInputStream(input),
+									new FileOutputStream(output),
+									null
+								);
+							}
+							
+							//If this FileDetails was checked as invalid before, 
+							//generating it means that it is valid once again
+							invalid = false; 
+							
+							doGenerateJavaCached = true;
+							
+						} catch (Throwable e) {
+							failedGenerations.add(FileDetails.this);
+							printCacheErrorToLogFile(e, "-cache");
+						} finally {
+							cacheTasksCount.decrementAndGet();
 						}
-						
-						//If this FileDetails was checked as invalid before, 
-						//generating it means that it is valid once again
-						invalid = false; 
-						
-						doGenerateJavaCached = true;
-						
-					} catch (Throwable e) {
-						failedGenerations.add(FileDetails.this);
-						printCacheErrorToLogFile(e);
-					} finally {
-						cacheTasksCount.decrementAndGet();
 					}
-				}
-			});
+				});				
+			}
+			
 		}
 		
-		public void generate() {
+		public void generate(AndroidAnnotationsEnvironment environment) {
 			
 			if (generated) return;
 			generated = true;
 			
-			preGenerate();
+			preGenerate(environment);
 		}
 				
 		@Override
@@ -1450,6 +1703,8 @@ public class FilesCacheHelper {
 	}
 	
 	private class CacheDependencyRemovedException extends Exception {
+
+		private static final long serialVersionUID = 1L;
 		
 	}
 }

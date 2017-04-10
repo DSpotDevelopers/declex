@@ -129,6 +129,8 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 	public void process(Element element, EComponentHolder holder) {
 		
 		JBlock block;
+		boolean checkNull = false;
+		
 		final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));	
 		final UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
 		
@@ -212,8 +214,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				
 				getter.body()._return(field);
 			} else {
-				JFieldRef field = ref(element.getSimpleName().toString());
-				block = block._if(field.eq(_null()))._then();
+				checkNull = true;
 			}
 		}
 		
@@ -221,16 +222,16 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		if (element.getModifiers().contains(Modifier.STATIC)) {
 			if (!element.getAnnotation(Model.class).lazy()) {
 				block = useModelHolder.getGetModelInitBlock();
-				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);
+				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);
 				
 				block = useModelHolder.getGetModelListInitBlock();
-				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);				
+				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);				
 			} else {
-				generateGetModelCallInBlock(block, element, modelHolder, useModelHolder, true);	
+				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);	
 			}
 			
 		} else {
-			 generateGetModelCallInBlock(block, element, modelHolder);
+			 generateGetModelCallInBlock(block, checkNull, element, modelHolder);
 		}
 		
 		PutOnEvent putOnEvent = element.getAnnotation(PutOnEvent.class);
@@ -288,15 +289,15 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			JMethod eventOnUpdateMethod = EventUtils.getEventMethod(eventClass, element.getEnclosingElement(), viewsHolder, getEnvironment());
 			block = eventOnUpdateMethod.body();
 			
-			generateGetModelCallInBlock(block, element, modelHolder);				
+			generateGetModelCallInBlock(block, false, element, modelHolder);				
 		}
 	}
 	
-	private void generateGetModelCallInBlock(JBlock block, Element element, ModelHolder holder) {
-		this.generateGetModelCallInBlock(block, element, holder, null, false);
+	private void generateGetModelCallInBlock(JBlock block, boolean checkNull, Element element, ModelHolder holder) {
+		this.generateGetModelCallInBlock(block, checkNull, element, holder, null, false);
 	}
 	
-	private void generateGetModelCallInBlock(final JBlock block, final Element element, 
+	private void generateGetModelCallInBlock(final JBlock block, final boolean checkNull, final Element element, 
 			final ModelHolder holder, final UseModelHolder useModelHolder, final boolean isStatic) {
 		
 		//This ensures the priority of the @Model
@@ -339,7 +340,16 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
     						                                       .arg(fieldsExpr)
     						                                       .arg(_null())
     															   .arg(onFailed);
-    				SharedRecords.priorityAdd(block, invocation, position);
+    				
+    				if (checkNull) {
+    					JFieldRef field = ref(element.getSimpleName().toString());
+    					JBlock maskBlock = new JBlock();
+    					maskBlock._if(field.eq(_null()))._then()
+    							 .add(invocation);
+    					SharedRecords.priorityAdd(block, maskBlock, position);
+    				} else {
+    					SharedRecords.priorityAdd(block, invocation, position);
+    				}
     			}
     			
     			return super.visitAnnotation(annotationTree, trees);

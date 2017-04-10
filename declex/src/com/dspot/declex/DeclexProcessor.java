@@ -100,9 +100,11 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				if (PRE_GENERATION_ENABLED) {
 					for (FileDetails details : cachedFiles) {
 						if (!details.canBeUpdated) {
-							details.preGenerate();
+							details.preGenerate(androidAnnotationsEnv);
 						}
 					}
+					
+					filesCacheHelper.preGenerateSources();
 				}
 				
 			}
@@ -168,6 +170,10 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				}
 				
 				filesCacheHelper.saveGeneratedClasses();
+				
+				if (PRE_GENERATION_ENABLED) {
+					filesCacheHelper.ensureSources();
+				}
 				
 				timeStats.stop("Writing Cache");
 			}
@@ -256,7 +262,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 						cachedFiles.add(details);
 						
 						if (PRE_GENERATION_ENABLED && !details.canBeUpdated) {
-							details.preGenerate();
+							details.preGenerate(androidAnnotationsEnv);
 						}
 					}
 					
@@ -300,6 +306,10 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			}
 		} catch (Exception e) {
 			//Action object hasn't be registered yet
+		}
+		
+		if (PRE_GENERATION_ENABLED) {
+			filesCacheHelper.preGenerateSources();
 		}
 		
 		timeStats.stop("Extract Annotations");
@@ -370,10 +380,12 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		for (FileDetails details : cachedFiles) {	
 			if (!details.generated) {
 				LOGGER.debug("Generating class from cache: {}", details.className);
-				details.generate();
+				details.generate(androidAnnotationsEnv);
 				cachedFilesGenerated++;
 			}
 		}
+		
+		filesCacheHelper.generateSources();
 				
 		timeStats.stop("Generate Sources");
 		
@@ -391,6 +403,24 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		while (i < args.length) {
 			
 			switch (args[i]) {
+			
+			case "pre-generate":
+				try {
+					final String action = args[i+1];
+					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "pre-generate-" + action + ".log"));
+					
+					System.out.println("Running PreGenerate Cache Service");
+					FilesCacheHelper.runPreGenerateSources(action, 5);
+					i++;
+				} catch (Throwable e) {
+					e.printStackTrace();
+					System.exit(1);
+				} finally {
+					System.out.close();
+					System.exit(0);
+				}
+				break;
+			
 			case "cache":
 				try {
 					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "cache.log"));
@@ -400,8 +430,10 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 					i++;
 				} catch (Throwable e) {
 					e.printStackTrace();
+					System.exit(1);
 				} finally {
 					System.out.close();
+					System.exit(0);
 				}
 				break;
 

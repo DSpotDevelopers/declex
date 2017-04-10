@@ -167,6 +167,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 			FilesCacheHelper.OPTION_CACHE_FILES,
 			FilesCacheHelper.OPTION_CACHE_FILES_COMPILER_WAIT,
 			FilesCacheHelper.OPTION_DEBUG_CACHE,
+			FilesCacheHelper.OPTION_CACHE_FILES_IN_PROCESS,
 			
 			Actions.OPTION_DEBUG_ACTIONS
 		);

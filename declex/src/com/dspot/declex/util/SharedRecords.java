@@ -46,13 +46,11 @@ public class SharedRecords {
 	
 	private static Map<String, String> events;
 	private static Collection<String> db_models;
-	private static Collection<String> actions;
 	
 	public static void reset() {
 		priorityMethods = new HashMap<>();
 		events = null;
 		db_models = null;
-		actions = null;
 	}
 	
 	public static void priorityAdd(JBlock method, IJStatement code, int priority) {
