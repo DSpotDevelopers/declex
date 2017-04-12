@@ -254,14 +254,11 @@ public class Actions {
 		// Cache the closed file
 		URI fileUri = sourceFile.toUri();
 		
-		//Get unique name for cached file
-		File externalCacheFolder = FileUtils.getPersistenceConfigFile("cache");
-		
 		final String pkg = className.substring(0, className.lastIndexOf('.'));
 		final String java = className.substring(className.lastIndexOf('.') + 1) + ".java";
 		File cachedFolder = new File(
-				externalCacheFolder.getAbsolutePath() + File.separator
-				+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
+				FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator
+				+ "java" + File.separator + pkg.replace('.', File.separatorChar)
 			);
 		cachedFolder.mkdirs();
 			

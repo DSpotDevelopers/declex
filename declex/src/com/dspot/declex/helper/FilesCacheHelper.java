@@ -1,12 +1,16 @@
 package com.dspot.declex.helper;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.lang.annotation.Annotation;
@@ -32,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -142,12 +147,18 @@ public class FilesCacheHelper {
 		if (!isCacheFilesEnabled()) {
 			try {
 				//Remove cached files
-				File file = new File (getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
-				if (file.exists()) file.delete();
+				if (getExternalCacheJar().exists()) getExternalCacheJar().delete();
 				
-				File cachedClassesFolder = new File(getExternalCache().getAbsolutePath() + File.separator + "classes");
+				File cachedClassesFolder = new File(getExternalCache().getAbsolutePath() + File.separator + "java");
 				org.apache.commons.io.FileUtils.deleteDirectory(cachedClassesFolder);				
 			} catch (Exception e) {}
+		}
+		
+		//Remove all the files related to the cache service
+		if (environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) {
+			getExternalCacheCompilerDone().delete();
+			getExternalCacheGenerate().delete();
+			getExternalCacheGenerateLock().delete();
 		}
 	}
 	
@@ -155,16 +166,20 @@ public class FilesCacheHelper {
 		return FileUtils.getPersistenceConfigFile("cache");
 	}
 	
+	private static File getExternalCacheJar() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
+	}
+	
 	private static File getExternalCacheIndex() {
 		return new File(getExternalCache().getAbsolutePath() + File.separator + "index.dat");
 	}
 
-	private static File getExternalCachePreGenerate() {
-		return new File(getExternalCache().getAbsolutePath() + File.separator + "pre-generate.dat");
+	private static File getExternalCacheGenerate() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "generate.dat");
 	}
-
-	private static File getExternalCachePreGenerateLock() {
-		return new File(getExternalCache().getAbsolutePath() + File.separator + "pre-generate.lock");
+	
+	private static File getExternalCacheGenerateLock() {
+		return new File(getExternalCache().getAbsolutePath() + File.separator + "generate.lock");
 	}
 	
 	private static File getExternalCacheCompilerDone() {
@@ -267,7 +282,7 @@ public class FilesCacheHelper {
 		
 		if (generatorsTemp != null) {
 		
-			FileDetails.initialize();
+			FileDetails.initialization();
 			
 			boolean generatorsScanRequired = true;
 			scanGenerators: while (generatorsScanRequired) {
@@ -455,7 +470,7 @@ public class FilesCacheHelper {
 			return;
 		}
 		
-		//Wait till compiler finish, a gradle task is needed for this
+		//Wait till compiler finishes, a gradle task is needed to create the compiler.done file
 		int compilerTimeout = 5 * 60000; //5 minutes timeout
 		while (!getExternalCacheCompilerDone().exists() && compilerTimeout > 0) {
 			try {
@@ -476,12 +491,15 @@ public class FilesCacheHelper {
 		}
 
 		System.out.println("Creating DecleX Cache Jar");
+		long timeStart = System.currentTimeMillis();
 		
 		final File tempJarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache_temp.jar");
 		if (tempJarFile.exists()) tempJarFile.delete();		
 		
-		FileOutputStream jar = null;
-		JarOutputStream jarOut = null;
+		JarFile jarFileInput = null;
+		
+		OutputStream tempJar = null;
+		JarOutputStream tempJarOut = null;
 
 		try {
 
@@ -491,14 +509,15 @@ public class FilesCacheHelper {
 			global.put(new Attributes.Name("Cache-Version"), FileDetails.VERSION);
 			global.put(new Attributes.Name("Created-By"), "DecleX, DSpot Sp. z o.o");
 
-			jar = new FileOutputStream(tempJarFile);
-			jarOut = new JarOutputStream(jar, manifest);
+			tempJar = new FileOutputStream(tempJarFile);
+			tempJarOut = new JarOutputStream(new BufferedOutputStream(tempJar), manifest);
+			final byte[] buf = new byte[64536];
 
 			for (FileDetails details : fileDetails) {
 				
 				try {
 					
-					if (details.cachedClassesSearchFolder == null) continue;
+					if (details.searchFolderToCache == null) continue;
 					
 					final String pkg = details.className.substring(0, details.className.lastIndexOf('.'));
 					final String className = details.className.substring(details.className.lastIndexOf('.')+1);
@@ -509,14 +528,30 @@ public class FilesCacheHelper {
 					}
 					
 					if (details.cached) {
-						for (String cachedFile : details.cachedClassFiles.keySet()) {
+						
+						if (jarFileInput == null) {
+							jarFileInput = new JarFile(getExternalCacheJar(), false);
+						}
+						
+						for (String cachedFile : details.cachedClasses.keySet()) {
 							
-							File file = new File(cachedFile);
+							if (details.canBeUpdated) {
+								String path = details.className.substring(0, details.className.lastIndexOf('.')+1);
+								path = path.replace('.', '/');
+								cachedFile = path + cachedFile.substring(cachedFile.lastIndexOf(File.separator) + 1);								
+							}
 							
-							//Add file to Jar
-							jarOut.putNextEntry(new ZipEntry(pkg.replace('.', '/') + "/" + file.getName()));												
-							FileUtils.copyCompletely(new FileInputStream(file), jarOut, null, false);
-							jarOut.closeEntry();
+							JarEntry entry = jarFileInput.getJarEntry(cachedFile);
+							if (entry == null) {
+								details.invalidate();
+								System.out.println("Removing cached file because it was not found in the cached Jar: " + details.className);
+								break;
+							}
+							
+							//Add file to Jar 
+							tempJarOut.putNextEntry(new ZipEntry(cachedFile));												
+							FileUtils.copyCompletely(jarFileInput.getInputStream(entry), tempJarOut, buf, false);
+							tempJarOut.closeEntry();
 						}
 						
 						continue;
@@ -529,39 +564,33 @@ public class FilesCacheHelper {
 						}
 					};					
 				
-					File[] classes = new File(details.cachedClassesSearchFolder).listFiles(fileFilter);	
+					File[] classes = new File(details.searchFolderToCache).listFiles(fileFilter);	
 					if (classes.length == 0) {
 						System.out.println("Removing cached file because it was not created by the compiler: " + details.className);
 						details.invalidate();
 						continue;
 					}
 					
-					for (File file : classes) {		
+					for (File file : classes) {	
+						final String cachedClass = pkg.replace('.', '/') + "/" + file.getName();						
+						final String cachedAsFile = getExternalCache().getAbsolutePath() + File.separator
+								+ "java" + File.separator + cachedClass.replace("/", File.separator);
+						
+						OutputStream extraOutput = null;
+						if (details.canBeUpdated) {							
+							extraOutput = new FileOutputStream(cachedAsFile);
+						}
+						
 						//Add file to Jar
-						jarOut.putNextEntry(new ZipEntry(pkg.replace('.', '/') + "/" + file.getName()));												
-						FileUtils.copyCompletely(new FileInputStream(file), jarOut, null, false);
-						jarOut.closeEntry();
-
-						File cachedFolder = new File(
-								getExternalCache().getAbsolutePath() + File.separator
-								+ "classes" + File.separator + pkg.replace('.', File.separatorChar)
-							);
-							cachedFolder.mkdirs();
-							
-						File externalCachedFile = new File(cachedFolder.getAbsolutePath() 
-								+ File.separator 
-								+ file.getName());
+						tempJarOut.putNextEntry(new ZipEntry(cachedClass));												
+						FileUtils.copyCompletely(new FileInputStream(file), tempJarOut, extraOutput, buf, false, true);
+						tempJarOut.closeEntry();
 						
-						FileUtils.copyCompletely(
-							new FileInputStream(file), 
-							new FileOutputStream(externalCachedFile),
-							null
-						);
-						
-						details.cachedClassFiles.put(
-							externalCachedFile.getAbsolutePath(),
-							file.getAbsolutePath()
-						);						
+						if (details.canBeUpdated) {
+							details.cachedClasses.put(cachedAsFile, file.getAbsolutePath());
+						} else {
+							details.cachedClasses.put(cachedClass, file.getAbsolutePath());
+						}
 					}	
 					
 					details.cached = true;
@@ -579,19 +608,20 @@ public class FilesCacheHelper {
 		} finally {
 			try {												
 				
-				if (jarOut != null) jarOut.close();
-				if (jar != null) jar.close();				
-				
-				final File jarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
-				
+				if (tempJarOut != null) tempJarOut.close();
+				if (tempJar != null) tempJar.close();	
+				if (jarFileInput != null) jarFileInput.close();
+								
 				//Copy the cached file
 				FileUtils.copyCompletely(
 					new FileInputStream(tempJarFile),
-					new FileOutputStream(jarFile),
+					new FileOutputStream(getExternalCacheJar()),
 					null
 				);
 				
 				tempJarFile.delete();
+				
+				System.out.println("Writing cache in: " + (System.currentTimeMillis() - timeStart) + "ms");
 				
 			} catch (Throwable e) {
 				printCacheErrorToLogFile(e, "-cache");
@@ -643,7 +673,7 @@ public class FilesCacheHelper {
 					
 					// Cache the .class file
 					final URI fileUri = classFile.toUri();					
-					details.cachedClassesSearchFolder = Paths.get(fileUri).toFile()
+					details.searchFolderToCache = Paths.get(fileUri).toFile()
 							                                 .getParentFile().getAbsolutePath();
 					
 					cacheClassesRequired = true;
@@ -664,105 +694,110 @@ public class FilesCacheHelper {
 	}
 	
 	public void ensureSources() {
-		preGenerateSources("last");
-	}
-	
-	public void generateSources() {
-		preGenerateSources("sources");
+		FileDetails.finalization();
 	}
 	
 	public void preGenerateSources() {
-		preGenerateSources("pre-generate");
+		generateSources();
 	}
 	
-	private void preGenerateSources(String action) {
+	private void generateSources() {
 		
 		if (!environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) return;
 		
 		if (!FileDetails.preGenerateSources.isEmpty()) {
-			
+						
 			//Wait for any previous instruction to write sources
 			int preGenerateWaitTimeout = 60000;
-			while (getExternalCachePreGenerate().exists() && preGenerateWaitTimeout > 0) {
+			while (getExternalCacheGenerate().exists() && preGenerateWaitTimeout > 0) {
 				try {
-					Thread.sleep(100);
-					preGenerateWaitTimeout -= 100;
+					Thread.sleep(10);
+					preGenerateWaitTimeout -= 10;
 				} catch (InterruptedException e) {}
 			}
 			
 			if (preGenerateWaitTimeout <= 0) {
 				LOGGER.error("An error ocurred while caching in different process. "
-						+ "\"" + getExternalCachePreGenerate().getAbsolutePath() + "\" file was not removed.");
-				getExternalCachePreGenerate().delete();
+						+ "\"" + getExternalCacheGenerate().getAbsolutePath() + "\" file was not removed.");
+				getExternalCacheGenerate().delete();
 				return;
 			}
 			
-			//Write the preGenerate file with the sources to write
-			Output output = null;
-			try {
+			//Run the written in background
+			cacheExecutor.execute(new Runnable() {
 				
-				Kryo kryo = getKryo();
-				output = new Output(new FileOutputStream(getExternalCachePreGenerate()), 8192);
-				kryo.writeObject(output, FileDetails.preGenerateSources, new MapSerializer());
+				@Override
+				public void run() {
+					//Write the preGenerate file with the sources to write
+					Output output = null;
+					try {
+						
+						Kryo kryo = getKryo();
+						output = new Output(new FileOutputStream(getExternalCacheGenerate()), 8192);
+						kryo.writeObject(output, FileDetails.preGenerateSources, new MapSerializer());
+						
+						startDeclexServiceWith("generate");
+
+						FileDetails.preGenerateSources.clear();
+
+					} catch (Exception e) {
+						LOGGER.error("An error ocurred while caching in different process: " + e.getMessage());
+					} finally {
+						if (output != null) {
+							output.close();
+						}
+					}
 				
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				if (output != null) {
-					output.close();
 				}
-			}
-			
-			startDeclexServiceWith("pre-generate", action);
-			
-			FileDetails.preGenerateSources.clear();
-		} else {
-			if ("last".equals(action)) {
-				startDeclexServiceWith("pre-generate", action);
-			}
+			});			
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	public static void runPreGenerateSources(String action, int retries) {		
+	public static void runGenerateSources(int retries) {		
 		
 		retries--;
 		
-		Map<String, String> preGenerateSources = null;
-		
-		if (!"last".equals(action)) {
-			//Read the preGenerate file with the sources to write
-			Input input = null;
-			try {
+		Map<String, String> generateSources = null;
+		//Read the generate file with the sources to write
+		Input input = null;
+		try {
+			
+			Kryo kryo = getKryo();
+			input = new Input(new FileInputStream(getExternalCacheGenerate()), 8192);
+			generateSources = kryo.readObject(input, HashMap.class, new MapSerializer());
+							
+		} catch (Exception e) {
+			printCacheErrorToLogFile(e, "-generate");
+			
+			//Retry
+			if (retries > 0) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e1) {}
+				runGenerateSources(retries);
+				return;
+			}
+			
+		} finally {
+			if (input != null) {
+				input.close();
 				
-				Kryo kryo = getKryo();
-				input = new Input(new FileInputStream(getExternalCachePreGenerate()), 8192);
-				preGenerateSources = kryo.readObject(input, HashMap.class, new MapSerializer());
-								
-			} catch (Exception e) {
-				printCacheErrorToLogFile(e, "-" + action);
-			} finally {
-				if (input != null) {
-					input.close();
-					
-					if (preGenerateSources != null) {
-						getExternalCachePreGenerate().delete();
-					}
+				if (generateSources != null) {
+					getExternalCacheGenerate().delete();
 				}
 			}
-		} else {
-			preGenerateSources = Collections.EMPTY_MAP;
 		}
 
-		if (preGenerateSources != null) {
+		if (generateSources != null) {
 			
 			SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
-			System.out.println("Map to Write Received for action: " + action + " at " + sdf.format(new Date()));
-			final boolean removeExternalLockWhenFinished = "last".equals(action);
-
+			System.out.println("Starting caching process at " + sdf.format(new Date()));
+			
 			try {
+				
 				System.out.println("Waiting To Lock File");
-				final RandomAccessFile count = new RandomAccessFile(getExternalCachePreGenerateLock(), "rw");
+				final RandomAccessFile count = new RandomAccessFile(getExternalCacheGenerateLock(), "rw");
 				
 				//Wait till lock the file
 				FileLock lock = null;
@@ -776,70 +811,70 @@ public class FilesCacheHelper {
 					}							
 				};
 				
-				System.out.println("Initializing Copy of " + preGenerateSources.size() + " files");
-				final AtomicInteger cachesInCopy = new AtomicInteger(0);
+				System.out.println("Initializing Copy of " + generateSources.size() + " files");
 				
-				for (final Entry<String, String> cache : preGenerateSources.entrySet()) {
-					
-					cachesInCopy.incrementAndGet();
-					cacheExecutor.execute(new Runnable() {
+				final long timeStart = System.currentTimeMillis();
+				
+				byte[] copyBuf = new byte[65536];
+				JarInputStream cachedJarFileInput = new JarInputStream(
+						new BufferedInputStream(new FileInputStream(getExternalCacheJar())), 
+						false
+					);
+				
+				JarEntry entry;
+				while ((entry = cachedJarFileInput.getNextJarEntry()) != null) {
+					if (generateSources.containsKey(entry.getName())) {
 						
-						@Override
-						public void run() {
-																					
-							try {
-								File input = new File(cache.getKey());
-								File output = new File(cache.getValue());
+						try {			
+							File output = new File(generateSources.get(entry.getName()));
+							
+							if (!output.exists()) {
+								output.getParentFile().mkdirs();
 								
-								if (!output.exists()) {
-									System.out.println("From: " + input);
-									System.out.println("     ->" + output);
-									output.getParentFile().mkdirs();
-													
-									//Copy the cached file
-									FileUtils.copyCompletely(
-										new FileInputStream(input),
-										new FileOutputStream(output),
-										null
-									);
-								}
-							} catch (Exception e) {
-								System.out.println("Error written " + cache + ", " + e.getMessage());
-							} finally {
-								cachesInCopy.decrementAndGet();
-							}								
-						}
-					});
+								OutputStream outStream = new FileOutputStream(output);
+								
+								//Copy the cached file
+								FileUtils.copyCompletely(
+										cachedJarFileInput, 
+										outStream, 
+										copyBuf, true, false);										
+							}
+						} catch (Exception e) {
+							printCacheErrorToLogFile(e, "-generate");
+							System.out.println("Error writing " + entry.getName() + ", " + e.getMessage());
+						} 
+					}
 				}
 				
-				while (cachesInCopy.get() > 0) {
-					Thread.sleep(100);
-				}
+				System.out.println("Writing cache in: " + (System.currentTimeMillis() - timeStart) + "ms");
+				
+				if (cachedJarFileInput != null) {
+					cachedJarFileInput.close();
+					cachedJarFileInput = null;
+				}						
 				
 				lock.release();
 				count.close();
+				Files.delete(getExternalCacheGenerateLock().toPath());
 				
-				System.out.println("Finalizing Copy");
-				
-				if (removeExternalLockWhenFinished) {
-					while (getExternalCachePreGenerateLock().exists()) {
-						Files.delete(getExternalCachePreGenerateLock().toPath());
-					}
-					
-					System.out.println("Removing Lock");
-				}
-				
+				System.out.println("Finalized Copy");
+								
 			} catch (Throwable e) {
 				e.printStackTrace();
-				printCacheErrorToLogFile(e, "-" + action);
+				printCacheErrorToLogFile(e, "-generate");
 				
 				//Retry
 				if (retries > 0) {
-					runPreGenerateSources(action, retries);
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException e1) {}
+					runGenerateSources(retries);
+					return;
 				}
 			}
 
 		}
+				
 	}
 	
 	private void startDeclexServiceWith(String ... params) {
@@ -854,7 +889,7 @@ public class FilesCacheHelper {
 				final String urlPath = Paths.get(urls[i].toURI()).toFile().getAbsolutePath();
 				classPathArray[i+1] = urlPath;
 				
-				if (urlPath.equals(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar")) {
+				if (urlPath.equals(getExternalCacheJar().getAbsolutePath())) {
 					declexCacheIndex = i+1;
 				}
 			}
@@ -904,9 +939,9 @@ public class FilesCacheHelper {
 		final String subClassName = subClass.asType().toString();
 						
 		final TreePath treePath = trees.getPath(ancestor);
-		long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();
-		
-		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString(), lastModified);
+		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString());
+		ancestorDependency.sourceFile = Paths.get(treePath.getCompilationUnit().getSourceFile().toUri()).toFile().getAbsolutePath();
+		ancestorDependency.sourceFileLastModified = new File(ancestorDependency.sourceFile).lastModified();
 		ancestorDependency.isAncestor = true;
 		ancestorDependency.isValid = true;
 		ancestorDependency.adi = environment.getADIOnElement(ancestor);
@@ -944,9 +979,9 @@ public class FilesCacheHelper {
 		Set<FileDependency> dependencies = new HashSet<>();
 		if (generator != null) {
 			final TreePath treePath = trees.getPath(generator);
-			long lastModified = treePath==null? 0 : treePath.getCompilationUnit().getSourceFile().getLastModified();
-			
-			FileDependency dependency = FileDependency.newFileDependency(generatorClass, lastModified); 
+			FileDependency dependency = FileDependency.newFileDependency(generatorClass);
+			dependency.sourceFile = Paths.get(treePath.getCompilationUnit().getSourceFile().toUri()).toFile().getAbsolutePath();
+			dependency.sourceFileLastModified = new File(dependency.sourceFile).lastModified();
 			dependency.adi = environment.getADIForClass(generatorClass);
 			dependencies.add(dependency); 
 		}
@@ -1145,16 +1180,13 @@ public class FilesCacheHelper {
 	
 	private boolean isFileDependencyValid(FileDependency dependency, AndroidAnnotationsEnvironment environment, Trees trees) throws CacheDependencyRemovedException {
     	if (dependency.isValid != null) return dependency.isValid;
-    	TypeElement generatorElement = environment.getProcessingEnvironment().getElementUtils()
-						  					      .getTypeElement(dependency.generator);
+    	
+    	File sourceFile = new File(dependency.sourceFile);
+    	if (!sourceFile.exists()) {
+    		throw new CacheDependencyRemovedException();
+    	}
 
-		if (generatorElement == null) {
-			throw new CacheDependencyRemovedException();
-		} else {
-			dependency.isValid = dependency.lastModified == trees.getPath(generatorElement)
-									       .getCompilationUnit()
-    			    					   .getSourceFile().getLastModified();
-		}
+    	dependency.isValid = sourceFile.lastModified() == dependency.sourceFileLastModified;
 		
 		if (dependency.isValid && dependency.isAncestor) {
 			
@@ -1192,8 +1224,9 @@ public class FilesCacheHelper {
 		
 		private static Map<String, String> preGenerateSources = new HashMap<>();
 		
-		private static final String VERSION = "1.0.0";
+		private static final String VERSION = "1.2.1.14";
 		private static Set<String> classFilesInJar;
+		private static JarFile cachedFilesJar;
 		
 		public String className;		
 
@@ -1204,8 +1237,8 @@ public class FilesCacheHelper {
 		public Map<String, Object> metaData;
 		
 		//<Cached, Path>
-		private Map<String, String> cachedClassFiles;
-		private String cachedClassesSearchFolder;
+		private Map<String, String> cachedClasses;
+		private String searchFolderToCache;
 		private boolean cached;
 		
 		public boolean isAction;
@@ -1223,19 +1256,19 @@ public class FilesCacheHelper {
 		private FileDetails(String className) {
 			this.dependencies = new HashSet<>();
 			this.className = className;				
-			this.cachedClassFiles = new HashMap<>();
+			this.cachedClasses = new HashMap<>();
 			this.metaData = new HashMap<>();
 		}
 		
-		private static void initialize() {
+		private static void initialization() {
 			initializing = true;
 			cacheExecutor.execute(new Runnable() {
 				
 				@Override
 				public void run() {
+					InputStream jar = null;
 					try {					
-						final File jarFile = new File(getExternalCache().getAbsolutePath() + File.separator + "declex_cache.jar");
-						InputStream jar = new FileInputStream(jarFile);
+						jar = new FileInputStream(getExternalCacheJar());
 						JarInputStream jarIn = new JarInputStream(jar);
 						
 						Manifest manifest = jarIn.getManifest();
@@ -1253,15 +1286,27 @@ public class FilesCacheHelper {
 							classFilesInJar.add(entry.getName());
 						}
 						jarIn.close();
-						
 					} catch (Throwable e) {
 						LOGGER.warn("Cache Jar File Error: {}", e.getMessage());
 						classFilesInJar = null;
 					} finally {
+						if (jar != null) {
+							try {
+								jar.close();
+							} catch (IOException e) {}
+						}
 						initializing = false;
 					}
 				}
 			});
+		}
+		
+		private static void finalization() {
+			if (cachedFilesJar != null) {
+				try {
+					cachedFilesJar.close();
+				} catch (IOException e) {}
+			}
 		}
 		
 		@Override
@@ -1272,8 +1317,8 @@ public class FilesCacheHelper {
 			
 			kryo.writeObject(output, metaData, new MapSerializer());
 			
-			kryo.writeObject(output, cachedClassFiles, new MapSerializer());
-			output.writeString(cachedClassesSearchFolder);
+			kryo.writeObject(output, cachedClasses, new MapSerializer());
+			output.writeString(searchFolderToCache);
 			output.writeBoolean(cached);
 			
 			output.writeBoolean(isAction);
@@ -1298,8 +1343,8 @@ public class FilesCacheHelper {
 			
 			metaData = kryo.readObject(input, HashMap.class, new MapSerializer());
 			
-			cachedClassFiles = kryo.readObject(input, HashMap.class, new MapSerializer());
-			cachedClassesSearchFolder = input.readString();			
+			cachedClasses = kryo.readObject(input, HashMap.class, new MapSerializer());
+			searchFolderToCache = input.readString();			
 			cached = input.readBoolean();
 			
 			isAction = input.readBoolean();
@@ -1372,17 +1417,9 @@ public class FilesCacheHelper {
 				} catch (Exception e){}
 			}
 			
-			for (String file : cachedClassFiles.keySet()) {
-				if (file != null && new File(file).exists()) {
-					try {
-						new File(file).delete();
-					} catch (Exception e){}
-				}				
-			}
+			cachedClasses.clear();
 			
-			cachedClassFiles.clear();
-			
-			cachedClassesSearchFolder = null;
+			searchFolderToCache = null;
 			
 			cached = false;
 			cachedFile = null;
@@ -1432,20 +1469,27 @@ public class FilesCacheHelper {
 				String path = className.substring(0, className.lastIndexOf('.')+1);
 				path = path.replace('.', '/');
 								
-				for (Entry<String, String> file : cachedClassFiles.entrySet()) {
-					if (file != null) {
+				for (Entry<String, String> file : cachedClasses.entrySet()) {
+					
+					if (file.getValue()==null) {
+						cached = false;
+						break;
+					}
+					
+					String classFileName = file.getKey();
+					if (canBeUpdated) {
 						File input = new File(file.getKey());
-						if (!input.exists() || !input.canRead() || file.getValue()==null) {
+						if (!input.exists() || !input.canRead()) {
 							cached = false;
 							break;
 						}
 						
-						String classFileName = file.getValue().substring(file.getValue().lastIndexOf(File.separator) + 1);
-						if (!classFilesInJar.contains(path + classFileName)) {
-							cached = false;
-							break;
-						}
-						
+						classFileName = path + file.getValue().substring(file.getValue().lastIndexOf(File.separator) + 1);
+					}
+					
+					if (!classFilesInJar.contains(classFileName)) {
+						cached = false;
+						break;
 					}
 				}				
 			}
@@ -1477,14 +1521,22 @@ public class FilesCacheHelper {
 			
 			if (preGenerated) return;
 			preGenerated = true;
-			
-			if (environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) {
-				preGenerateSources.put(cachedFile, originalFile);
-				preGenerateSources.putAll(cachedClassFiles);
+						
+			if (environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS) && !canBeUpdated) {
+				for (Entry<String, String> cachedClass : cachedClasses.entrySet()) {
+					
+					preGenerateSources.put(
+						cachedClass.getKey(), 
+						canBeUpdated? "canBeUpdated:" + cachedClass.getValue() : cachedClass.getValue() 
+					);
+				}
 				
 				//If this FileDetails was checked as invalid before, 
 				//generating it means that it is valid once again
 				invalid = false; 
+				
+				doGenerateJavaCached = true;
+
 			} else {
 				cacheTasksCount.incrementAndGet();
 				cacheExecutor.execute(new Runnable() {
@@ -1492,21 +1544,39 @@ public class FilesCacheHelper {
 					@Override
 					public void run() {
 											
-						try {						
+						try {		
 							
-							for (Entry<String, String> cache : cachedClassFiles.entrySet()) {
+							for (Entry<String, String> cache : cachedClasses.entrySet()) {
 								
-								File input = new File(cache.getKey());
 								File output = new File(cache.getValue());
-								
-								output.getParentFile().mkdirs();
-												
-								//Copy the cached file
-								FileUtils.copyCompletely(
-									new FileInputStream(input),
-									new FileOutputStream(output),
-									null
-								);
+								if (!output.exists()) {
+									
+									output.getParentFile().mkdirs();
+									
+									if (!canBeUpdated) {
+										if (cachedFilesJar == null) {
+											cachedFilesJar = new JarFile(getExternalCacheJar());
+										}
+										JarEntry entry = cachedFilesJar.getJarEntry(cache.getKey());
+														
+										//Copy the cached file
+										FileUtils.copyCompletely(
+											cachedFilesJar.getInputStream(entry),
+											new FileOutputStream(output),
+											null
+										);
+									} else {
+										
+										File input = new File(cache.getKey());
+										
+										//Copy the cached file
+										FileUtils.copyCompletely(
+											new FileInputStream(input),
+											new FileOutputStream(output),
+											null
+										);
+									}
+								}
 							}
 							
 							//If this FileDetails was checked as invalid before, 
@@ -1545,7 +1615,7 @@ public class FilesCacheHelper {
 		public String toString() {
 			return this.className 
 					+ (dependencies.isEmpty()? "" : " \n            Dependencies: " + dependencies)
-					+ (cachedClassFiles.isEmpty()? "" : " \n            Cache Classes: " + cachedClassFiles)
+					+ (cachedClasses.isEmpty()? "" : " \n            Cache Classes: " + cachedClasses)
 					+ (metaData.isEmpty()? "" : " \n            MetaData: " + metaData)
 					+ (adi==null || adi.isEmpty()? "" : " \n            ADI: " + adi);
 		}
@@ -1556,7 +1626,9 @@ public class FilesCacheHelper {
 		private static Map<String, FileDependency> fileDependencyMap = new HashMap<>();
 		
 		private String generator;
-		private long lastModified;
+		
+		private String sourceFile;
+		private long sourceFileLastModified;
 		
 		private boolean isAncestor;
 		private Set<String> subClasses;
@@ -1574,6 +1646,10 @@ public class FilesCacheHelper {
 		
 		@Override
 		public void write(Kryo kryo, Output output) {
+			
+			output.writeString(sourceFile);
+			output.writeLong(sourceFileLastModified);
+			
 			output.writeBoolean(isAncestor);
 			kryo.writeObject(output, subClasses, new CollectionSerializer());
 			
@@ -1585,6 +1661,10 @@ public class FilesCacheHelper {
 		@Override
 		@SuppressWarnings("unchecked")
 		public void read(Kryo kryo, Input input) {
+			
+			sourceFile = input.readString();
+			sourceFileLastModified = input.readLong();
+			
 			isAncestor = input.readBoolean();
 			subClasses = kryo.readObject(input, HashSet.class, new CollectionSerializer());
 			
@@ -1598,7 +1678,6 @@ public class FilesCacheHelper {
 				@Override
 				public void write(Kryo kryo, Output output, KryoSerializable object) {
 					output.writeString(((FileDependency)object).generator);
-					output.writeLong(((FileDependency)object).lastModified);
 					super.write(kryo, output, object);
 				}
 				
@@ -1606,8 +1685,7 @@ public class FilesCacheHelper {
 				public KryoSerializable read(Kryo kryo, Input input,Class<KryoSerializable> type) {
 					
 					String generator = input.readString();
-					long lastModified = input.readLong();
-					KryoSerializable object = newFileDependency(generator, lastModified);
+					KryoSerializable object = newFileDependency(generator);
 					
 					kryo.reference(object);
 					object.read(kryo, input);
@@ -1621,15 +1699,13 @@ public class FilesCacheHelper {
 			return fileDependencyMap.get(generator);
 		}
 		
-        private static FileDependency newFileDependency(String generator, long lastModified) {
+        private static FileDependency newFileDependency(String generator) {
 			
 			FileDependency dependency = fileDependencyMap.get(generator);
 			if (dependency == null) {
 				dependency = new FileDependency(generator);
 				fileDependencyMap.put(generator, dependency);
 			}
-			
-			dependency.lastModified = lastModified;
 			
 			return dependency;
 		}

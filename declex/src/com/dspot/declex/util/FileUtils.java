@@ -145,6 +145,14 @@ public class FileUtils {
 	}
 	
 	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf, boolean closeOutput) throws IOException {
+		copyCompletely(input, output, buf, closeOutput, true);
+	}
+
+	public static void copyCompletely(InputStream input, OutputStream output, byte[] buf, boolean closeOutput, boolean closeInput) throws IOException {
+		copyCompletely(input, output, null, buf, closeOutput, closeInput);
+	}
+	
+	public static void copyCompletely(InputStream input, OutputStream output, OutputStream extraOutput, byte[] buf, boolean closeOutput, boolean closeInput) throws IOException {
 		// if both are file streams, use channel IO
 		if ((output instanceof FileOutputStream)
 				&& (input instanceof FileInputStream)) {
@@ -169,15 +177,27 @@ public class FileUtils {
 			if (length < 0)
 				break;
 			output.write(buf, 0, length);
+			
+			if (extraOutput != null) {
+				extraOutput.write(buf, 0, length);
+			}			
 		}
 
-		try {
-			input.close();
-		} catch (IOException ignore) {}
+		if (closeInput) {
+			try {
+				input.close();
+			} catch (IOException ignore) {}
+		}
 		
 		if (closeOutput) {
 			try {
 				output.close();
+			} catch (IOException ignore) {}
+		}
+		
+		if (extraOutput != null) {
+			try {
+				extraOutput.close();
 			} catch (IOException ignore) {}
 		}
 	}

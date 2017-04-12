@@ -5,7 +5,7 @@
 	
 	<groupId>com.dspot</groupId>
 	<artifactId>declex-api</artifactId>
-	<version>1.2.1.13</version>
+	<version>1.2.1.14</version>
 	<name>DecleX API</name>
 	<description>DecleX Framework API</description>
 
@@ -44,13 +44,7 @@
 	                        <goal>exec</goal>
 	                    </goals>
 	                    <configuration>
-	                        <executable>taskkill</executable>
-	                        <arguments>
-	                            <argument>/im</argument>
-	                            <argument>java.exe</argument>
-	                            <argument>/f</argument>
-	                            <argument>/t</argument>
-	                        </arguments>
+	                        <executable>run.bat</executable>
 	                    </configuration>
 	                </execution>
 	            </executions>
