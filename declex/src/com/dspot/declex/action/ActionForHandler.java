@@ -42,6 +42,7 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.override.util.OverrideAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
@@ -221,7 +222,10 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		overrideMethods(element, holder, null);
 		
-		Actions.getInstance().getActionInfos().get(element.asType().toString()).actionForHolder = holder;
+		ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(element.asType().toString());
+		if (holder.hasOnViewChanged()) {
+			actionInfo.handleViewChanges = true;
+		}
 		
 		final ActionFor actionFor = element.getAnnotation(ActionFor.class);
 		final String clsName = element.asType().toString();		

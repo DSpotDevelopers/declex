@@ -23,8 +23,8 @@ import java.util.Map;
 import com.helger.jcodemodel.AbstractJType;
 
 public class ActionMethodParam {
-	public Map<String, Object> metaData;
-	public Object internal;
+	
+	public transient Map<String, Object> metaData;
 	
 	public String name;
 	public AbstractJType clazz;

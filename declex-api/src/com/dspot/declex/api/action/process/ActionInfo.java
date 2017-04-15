@@ -24,7 +24,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 public class ActionInfo {
-	public Map<String, Object> metaData;
+	
+	public transient Map<String, Object> metaData;
 	
 	public List<ActionProcessor> processors = new LinkedList<>();
 	public Map<String, List<ActionMethod>> methods = new HashMap<>();
@@ -36,7 +37,7 @@ public class ActionInfo {
 	public boolean isGlobal;
 	public boolean isTimeConsuming;
 	
-	public Object actionForHolder;
+	public boolean handleViewChanges;
 	
 	public boolean generated;
 	

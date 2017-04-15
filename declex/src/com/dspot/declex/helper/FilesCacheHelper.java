@@ -821,6 +821,8 @@ public class FilesCacheHelper {
 						false
 					);
 				
+				System.out.println("Reading Jar In: " + (System.currentTimeMillis() - timeStart) + "ms");
+				
 				JarEntry entry;
 				while ((entry = cachedJarFileInput.getNextJarEntry()) != null) {
 					if (generateSources.containsKey(entry.getName())) {
@@ -837,7 +839,7 @@ public class FilesCacheHelper {
 								FileUtils.copyCompletely(
 										cachedJarFileInput, 
 										outStream, 
-										copyBuf, true, false);										
+										copyBuf, true, false);
 							}
 						} catch (Exception e) {
 							printCacheErrorToLogFile(e, "-generate");

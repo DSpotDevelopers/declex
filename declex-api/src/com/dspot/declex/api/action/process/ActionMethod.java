@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ActionMethod {
-	public Map<String, Object> metaData;
+	public transient Map<String, Object> metaData;
 	
 	public String name;
 	public List<ActionMethodParam> params;

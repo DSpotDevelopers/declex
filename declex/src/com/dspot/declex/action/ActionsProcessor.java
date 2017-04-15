@@ -1093,10 +1093,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				}
 				
 
-				if (holder instanceof EComponentWithViewSupportHolder
-					&& actionInfo.actionForHolder instanceof EComponentWithViewSupportHolder) {
+				if (holder instanceof EComponentWithViewSupportHolder) {
 					
-					if (((EComponentWithViewSupportHolder) actionInfo.actionForHolder).hasOnViewChanged()) {
+					if (actionInfo.handleViewChanges) {
 						ViewNotifierHelper viewNotifierHelper = ((EComponentWithViewSupportHolder) holder).getViewNotifierHelper();
 						
 						JVar previousNotifier = viewNotifierHelper.replacePreviousNotifier(preInstantiate);

@@ -209,13 +209,13 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 				} else if (fieldClass.equals("double")) {
 					writeObjectMethod.body().invoke(oos, "writeDouble").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readDouble"));
-				} else if (fieldClass.equals("short")) {
+				} else if (fieldClass.equals("float")) {
 					writeObjectMethod.body().invoke(oos, "writeFloat").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readFloat"));
 				} else if (fieldClass.equals("byte")) {
 					writeObjectMethod.body().invoke(oos, "writeByte").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readByte"));
-				} else if (fieldClass.equals("short")) {
+				} else if (fieldClass.equals("long")) {
 					writeObjectMethod.body().invoke(oos, "writeLong").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readLong"));
 				} 

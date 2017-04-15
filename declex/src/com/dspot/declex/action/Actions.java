@@ -19,18 +19,13 @@ import static com.helger.jcodemodel.JExpr._new;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLDecoder;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -50,15 +45,11 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
-import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.ToolProvider;
 
 import org.androidannotations.Option;
+import org.androidannotations.api.view.HasViews;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
@@ -81,12 +72,11 @@ import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.FileUtils;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.Trees;
 
 public class Actions {
 
@@ -312,6 +302,13 @@ public class Actions {
 	private void createInformationForAction(String action) {
 		
 		TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(action);
+		TypeElement generatedHolder = null;
+		if (typeElement != null) {
+			generatedHolder = env.getProcessingEnvironment().getElementUtils().getTypeElement(
+				TypeUtils.getGeneratedClassName(typeElement, env)
+			);
+		}
+		
 		if (typeElement == null && action.startsWith(BUILTIN_DIRECT_PKG)) {
 			typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(
 					action.replace(BUILTIN_DIRECT_PKG, BUILTIN_PKG)
@@ -326,6 +323,23 @@ public class Actions {
 			final ActionInfo actionInfo = new ActionInfo(action);
 			actionInfo.isGlobal = actionForAnnotation.global();
 			actionInfo.isTimeConsuming = actionForAnnotation.timeConsuming();
+			
+			//This will work only for cached classes
+			if (generatedHolder != null) {
+				for (Element elem : generatedHolder.getEnclosedElements()) {
+					if (elem instanceof ExecutableElement) {
+						final String elemName = elem.getSimpleName().toString();
+						final List<? extends VariableElement> params = ((ExecutableElement)elem).getParameters();
+						
+						if (elemName.equals("onViewChanged") && params.size() == 1
+							&& params.get(0).asType().toString().equals(HasViews.class.getCanonicalName())) {
+							actionInfo.handleViewChanges = true;
+							break;
+						}
+					}
+				}
+			}
+			
 			addAction(name, action, actionInfo, false);
 			
 			String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(typeElement);
@@ -347,17 +361,7 @@ public class Actions {
 						if (element == null) {
 							LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded, it is not in the building path", typeElement);							
 						} else {
-							try {
-								ActionProcessor processorInstance = (ActionProcessor) compileAndLoadClass(element);
-								if (processorInstance == null) {
-									LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded", typeElement);
-								}
-							} catch (ClassNotFoundException | MalformedURLException | InstantiationException | IllegalAccessException e1) {
-								LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded by the ClassLoader", typeElement);							
-							} catch (IOException e1) {
-								LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded, IOException", typeElement);
-							}
-							
+							LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded", typeElement);
 						}
 						
 					}
@@ -411,7 +415,6 @@ public class Actions {
 									paramType,
 									annotations
 								);
-					actionMethodParam.internal = param;
 					params.add(actionMethodParam);
 				}
 				
@@ -454,58 +457,6 @@ public class Actions {
 		
 	}
 	
-	private Object compileAndLoadClass(TypeElement element) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
-		final Trees trees = Trees.instance(env.getProcessingEnvironment());
-    	final TreePath treePath = trees.getPath(element);    	
-		
-		DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-        
-        //TODO this doesn't work, the classpath return is the one of gradle, and not 
-        //the one used for DecleX annotation processor
-        List<String> optionList = new ArrayList<String>();
-        optionList.add("-classpath");
-        optionList.add(System.getProperty("java.class.path"));
-        
-        JavaCompiler.CompilationTask task = compiler.getTask(
-            null, 
-            fileManager, 
-            diagnostics, 
-            optionList, 
-            null, 
-            Arrays.asList(treePath.getCompilationUnit().getSourceFile()));
-
-        if (task.call()) {
-            /** Load *************************************************************************************************/
-            System.out.println("Yipe");
-            // Create a new custom class loader, pointing to the directory that contains the compiled
-            // classes, this should point to the top of the package structure!
-            URLClassLoader classLoader = new URLClassLoader(new URL[]{new File("./").toURI().toURL()});
-            // Load the class from the classloader by name....
-            Class<?> loadedClass = classLoader.loadClass(element.asType().toString());
-            // Create a new instance...
-            return loadedClass.newInstance();
-            /************************************************************************************************* Load and execute **/
-        } else {
-            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
-            	LOGGER.info("Error compiling processor file {}\n{} ", element, 
-		        			String.format("Error on line %d in %s%n",
-		                    diagnostic.getLineNumber(),
-		                    diagnostic.getSource().toUri())
-                        );
-            	
-            	System.out.format("Error on line %d in %s%n",
-                        diagnostic.getLineNumber(),
-                        diagnostic.getSource().toUri());
-            }
-        }
-        
-        fileManager.close();
-
-        return null;
-	}
-
 	public void getActionsInformation() {
 		
 		if (!builtin_copied) {
