@@ -1,5 +1,6 @@
 # DecleX
 
+[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-DecleX-brightgreen.svg?style=flat)](https://android-arsenal.com/details/1/5504)
 [![Join the chat at https://gitter.im/declex/Lobby](https://badges.gitter.im/declex/Lobby.svg)](https://gitter.im/declex/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 DecleX is a framework that aims to get closer to the idea of a fully Declarative Language for Android Development. 
