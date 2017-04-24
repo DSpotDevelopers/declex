@@ -3,6 +3,8 @@
 [![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-DecleX-brightgreen.svg?style=flat)](https://android-arsenal.com/details/1/5504)
 [![Join the chat at https://gitter.im/declex/Lobby](https://badges.gitter.im/declex/Lobby.svg)](https://gitter.im/declex/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+[![DecleX](https://raw.githubusercontent.com/wiki/smaugho/declex/img/Declex144.png)](https://github.com/smaugho/declex/wiki) 
+
 DecleX is a framework that aims to get closer to the idea of a fully Declarative Language for Android Development. 
 It is totally based on <a href="https://github.com/excilys/androidannotations/wiki" target="_blank">AndroidAnnotations</a>; in a similar fashion, we want to facilitate the writing and the maintenance of 
 Android applications to the highest level which has not been achieved up to now.
