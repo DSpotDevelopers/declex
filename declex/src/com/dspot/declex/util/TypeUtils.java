@@ -153,6 +153,20 @@ public class TypeUtils {
 
 		}
 		
+		//Check the inference over the type for inner classes
+		if (toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
+			String prevClass = toInfereIfNeeded.substring(0, toInfereIfNeeded.lastIndexOf("."));
+			if (!prevClass.contains(".") && prevClass.endsWith(ModelConstants.generationSuffix())) {
+				for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+					if (generatedClass.endsWith("." + prevClass)) {
+						return type.replace(
+							toInfereIfNeeded, 
+							generatedClass + "." + toInfereIfNeeded.substring(toInfereIfNeeded.lastIndexOf(".") + 1));
+					}
+				}
+			}
+		}
+		
 		return type;
 	}
 	
@@ -365,11 +379,22 @@ public class TypeUtils {
 			className = TypeUtils.typeFromTypeString(className, environment);
 			originalClassName = className;
 			className = className.substring(0, className.length()-1);
+			
 		}
 		
 		TypeElement typeElement = null;
 		if (getElement) {
 			typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);
+			
+			if (typeElement == null && className.contains(".")) {
+				//Check if it is an inner class
+				String prevClass = className.substring(0, className.lastIndexOf("."));
+				if (prevClass.endsWith(ModelConstants.generationSuffix())) {
+					className = prevClass.substring(0, prevClass.length()-1) + "." + className.substring(className.lastIndexOf(".") + 1);
+					typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);
+				}
+			}
+
 		}
 		
 		return new ClassInformation(isList, className, originalClassName, typeElement);

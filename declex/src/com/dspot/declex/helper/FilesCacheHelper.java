@@ -705,7 +705,7 @@ public class FilesCacheHelper {
 		
 		if (!environment.getOptionBooleanValue(OPTION_CACHE_FILES_IN_PROCESS)) return;
 		
-		if (!FileDetails.preGenerateSources.isEmpty()) {
+		if (isCacheFilesEnabled() && !FileDetails.preGenerateSources.isEmpty()) {
 						
 			//Wait for any previous instruction to write sources
 			int preGenerateWaitTimeout = 60000;
