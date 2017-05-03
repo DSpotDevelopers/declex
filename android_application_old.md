@@ -27,8 +27,8 @@ apt {
 }
 
 dependencies {
-    compile 'com.dspot:declex-api:1.2.1'
-    apt 'com.dspot:declex:1.2.1'
+    compile 'com.dspot:declex-api:1.3'
+    apt 'com.dspot:declex:1.3'
 }
 
 ```
