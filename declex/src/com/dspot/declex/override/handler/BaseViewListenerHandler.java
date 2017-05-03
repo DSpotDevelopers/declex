@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.override.handler;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
@@ -21,17 +36,19 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.IdValidatorHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.action.ActionHandler;
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Populate;
+import com.dspot.declex.runwith.RunWithHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
-import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -41,10 +58,26 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFormatter;
 import com.helger.jcodemodel.JInvocation;
 
-public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSupportHolder> {
+public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSupportHolder> {
 
 	public BaseViewListenerHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
+	}
+	
+	@Override
+	public void validate(Element element, ElementValidation valid) {
+		super.validate(element, valid);
+		
+		validatorHelper.enclosingElementHasEnhancedViewSupportAnnotation(element, valid);
+
+		validatorHelper.resIdsExist(element, Res.ID, IdValidatorHelper.FallbackStrategy.USE_ELEMENT_NAME, valid);
+
+		validatorHelper.isNotPrivate(element, valid);
+
+		if (element instanceof ExecutableElement) {
+			validatorHelper.doesntThrowException(element, valid);
+		}
+		
 	}
 	
 	protected void createDeclarationForLists(String referecedId, Map<AbstractJClass, IJExpression> declForListener, 
@@ -69,8 +102,8 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 						
 						boolean castNeeded = false;
 						if (!className.endsWith(ModelConstants.generationSuffix())) {
-							if (SharedRecords.getModel(className, getEnvironment()) != null) {
-								className = className + ModelConstants.generationSuffix();
+							if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
+								className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 								castNeeded = true;
 							}
 						}
@@ -105,7 +138,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 					
 					if (isPrimitive || isList) continue;
 					
-					if (className.endsWith("_")) {
+					if (className.endsWith(ModelConstants.generationSuffix())) {
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						className = className.substring(0, className.length()-1);
 					}
@@ -146,7 +179,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
 							className = matcher.group(1);
-							if (className.endsWith("_")) {
+							if (className.endsWith(ModelConstants.generationSuffix())) {
 								className = TypeUtils.typeFromTypeString(className, getEnvironment());
 							}
 						}
@@ -256,7 +289,7 @@ public class BaseViewListenerHandler extends ActionHandler<EComponentWithViewSup
 				}			
 			}
 			
-			ParamUtils.injectParam(paramName, invoke, viewsHolder);
+			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 		}
 		
 		return invoke;

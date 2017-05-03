@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.util.ParamUtils;
 import com.helger.jcodemodel.JInvocation;
 
@@ -46,14 +45,10 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 		validatorHelper.isNotPrivate(element, valid);
 
 		validatorHelper.doesntThrowException(executableElement, valid);
-		
-		ActionsProcessor.validateActions(element, valid, getEnvironment());
 	}
 
 	@Override
 	public void process(Element element, EComponentHolder holder) {
-		
-		ActionsProcessor.processActions(element, holder);
 		
 		final String methodName = element.getSimpleName().toString();		
 		JInvocation invoke = invoke(methodName);
@@ -61,7 +56,8 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 		ExecutableElement exeElem = (ExecutableElement) element;
 		for (VariableElement param : exeElem.getParameters()) {
 			final String paramName = param.getSimpleName().toString();
-			ParamUtils.injectParam(paramName, invoke);
+			final String paramType = param.asType().toString();
+			ParamUtils.injectParam(paramName, paramType, invoke);
 		}
 		
 		holder.getInitBodyAfterInjectionBlock().add(invoke);

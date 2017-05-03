@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dspot.declex.api.action.builtin;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.api.action.builtin.base.BaseFieldActionHolder;
 import com.dspot.declex.api.action.processor.PopulateActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
@@ -39,16 +40,14 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  * @see com.dspot.declex.Action.$PutModel $PutModel
  */
 
-@ActionFor(value="Populate", processors=PopulateActionProcessor.class)
-public class PopulateActionHolder {
-
-	private Runnable Done;
-	private OnFailedRunnable Failed;
-	
+@ActionFor(value="Populate", processors=PopulateActionProcessor.class, timeConsuming = false)
+public class PopulateActionHolder extends BaseFieldActionHolder {
 	/**
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
 	 */
-    void init(@Field Object field) {
+	@Override
+    protected void init(@Field Object field) {
+    	super.init(field);
     }
 
     /**
@@ -60,19 +59,8 @@ public class PopulateActionHolder {
      * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  
      * annotated field fails populating.
      */
-    void build(Runnable Done, OnFailedRunnable Failed) {
-    	this.Done = Done;
-    	this.Failed = Failed;
-    }
-
-    void execute() {
-    }
-    
-    Runnable getDone() {
-    	return this.Done;
-    }
-    
-    OnFailedRunnable getFailed() {
-    	return this.Failed;
+	@Override
+    protected void build(Runnable Done, OnFailedRunnable Failed) {
+    	super.build(Done, Failed);
     }
 }

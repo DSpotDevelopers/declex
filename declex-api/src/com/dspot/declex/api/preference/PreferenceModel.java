@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.action.sequence;
+package com.dspot.declex.api.preference;
 
-public class S2<A, B> extends S1<A> {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.FIELD})
+public @interface PreferenceModel {
+	
+	/**
+	 * When "query" is not specified
+	 */
+	String defaultQuery() default "";
+	
+	boolean custom() default false;
+	boolean debug() default false;
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
-import org.androidannotations.rclass.IRClass;
 import org.androidannotations.rclass.IRClass.Res;
 
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.plugin.BaseClassPlugin;
 import com.dspot.declex.share.holder.ViewsHolder;
@@ -45,7 +45,7 @@ import com.dspot.declex.share.holder.ViewsHolder.ICreateViewListener;
 import com.dspot.declex.share.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.SharedRecords;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
@@ -116,26 +116,13 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			
 			viewsHolder.addLayout(listItemId);
 			viewsHolder.setDefLayoutId(listItemId);
-		} else {
-			//If the layout is not found, read it from the param value of the annotation
-			List<JFieldRef> fieldRefs = annotationHelper.extractAnnotationFieldRefs(element, handler.getTarget(), environment.getRClass().get(IRClass.Res.LAYOUT), false);			
-			if (fieldRefs.size() == 1) {
-				contentViewId = fieldRefs.get(0);
-			}
-			if (contentViewId == null) return;
-			
-			//TODO not sure of behavior
-		}
-
-//		if (element.getAnnotation(Populator.class).debug())
-//			LOGGER.warn("\nPopulator layouts: " + layoutObjects, element, element.getAnnotation(Populator.class));
- 
+		} 
 		
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 		if (!modelClassName.equals(String.class.getCanonicalName())) {
 			String className = modelClassName;
-			if (className.endsWith("_")) {
+			if (className.endsWith(ModelConstants.generationSuffix())) {
 				className = className.substring(0, className.length()-1);
 			}
 			viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, true, true, listItemId);
@@ -226,8 +213,8 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 		
 		boolean castNeeded = false;
 		if (!modelClassName.endsWith(ModelConstants.generationSuffix())) {
-			if (SharedRecords.getModel(modelClassName, environment) != null) {
-				modelClassName = modelClassName + ModelConstants.generationSuffix();
+			if (TypeUtils.isClassAnnotatedWith(modelClassName, UseModel.class, environment)) {
+				modelClassName = TypeUtils.getGeneratedClassName(modelClassName, environment);
 				castNeeded = true;
 				Model = getJClass(modelClassName);
 			}

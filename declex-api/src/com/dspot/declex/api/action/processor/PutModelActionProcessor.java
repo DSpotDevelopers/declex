@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,8 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.asyncPut();
+				
 				ActionMethod noRecollecte = getActionMethod("noRecollect");
 				if (noRecollecte.metaData != null) {
 					Recollect recollectorAnnotation = field.getAnnotation(Recollect.class);
@@ -90,6 +92,8 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 					}
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				JMethod putModelMethod = getMethodInHolder(
 						"getPutModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);
@@ -117,7 +121,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				
 				JInvocation invoke = invoke(putModelMethod)
 										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
-						                .arg(getAction().invoke("getAfterPut"))
+						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
 				
 				ActionMethod noPopulate = getActionMethod("noRecollect");

@@ -5,7 +5,7 @@
 	
 	<groupId>com.dspot</groupId>
 	<artifactId>declex-api</artifactId>
-	<version>1.2.1</version>
+	<version>1.3</version>
 	<name>DecleX API</name>
 	<description>DecleX Framework API</description>
 
@@ -30,6 +30,26 @@
 		</resources>
 
 		<plugins>
+		
+			<!-- This is only to develop faster with Android Studio-->	
+			<plugin>
+	            <artifactId>exec-maven-plugin</artifactId>
+	            <groupId>org.codehaus.mojo</groupId>
+	            <version>1.2.1</version>
+	            <executions>
+	                <execution>
+	                    <id>Remove java.exe</id>
+	                    <phase>install</phase>
+	                    <goals>
+	                        <goal>exec</goal>
+	                    </goals>
+	                    <configuration>
+	                        <executable>run.bat</executable>
+	                    </configuration>
+	                </execution>
+	            </executions>
+	        </plugin>
+	        
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>

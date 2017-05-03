@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.share.holder;
 
 import static com.helger.jcodemodel.JExpr._null;
@@ -20,19 +35,18 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
-import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.EFragment;
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.IdAnnotationHelper;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.FoundViewHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.extension.Extension;
+import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.LayoutsParser;
 import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.ParamUtils;
@@ -48,77 +62,37 @@ import com.helger.jcodemodel.JVar;
 public class ViewsHolder extends
 		PluginClassHolder<EComponentWithViewSupportHolder> {
 
-	// <Layout Id, <Id, Class>>
+	// <Layout Id, <View Id, View Information>>
 	private Map<String, Map<String, LayoutObject>> layoutObjects = new HashMap<>();
 	private Map<String, JVar> onViewChangedHasViewsParamValues = new HashMap<>();
 	private List<String> menuObjects;
 	
 	private String defLayoutId = null;
-
-	private LayoutsParser layoutParser;
+	
 	private MenuParser menuParser;
-
 	private IdAnnotationHelper annotationHelper;
 
 	private Map<String, ViewInfo> views = new HashMap<>();
 	
 	private ICreateViewListener createViewListener;
+	
+	private ViewsHelper viewsHelper;
 
 	public ViewsHolder(EComponentWithViewSupportHolder holder,
 			IdAnnotationHelper annotationHelper) {
 		super(holder);
 
 		this.annotationHelper = annotationHelper;
-
-		this.layoutParser = LayoutsParser.getInstance();
-		this.menuParser = MenuParser.getInstance();
-		getDefaultLayout();
-	}
-
-	private void getDefaultLayout() {
-		Map<String, LayoutObject> defLayoutObjects = null;
-
-		EActivity activity = holder().getAnnotatedElement().getAnnotation(
-				EActivity.class);
-
-		if (activity != null) {
-			int layout = activity.value();
-			if (layout != -1) {
-				String idQualifiedName = environment().getRClass()
-						.get(Res.LAYOUT).getIdQualifiedName(layout);
-				Matcher matcher = Pattern.compile("\\.(\\w+)$").matcher(
-						idQualifiedName);
-
-				if (matcher.find()) {
-					defLayoutId = matcher.group(1);
-					defLayoutObjects = layoutParser.getLayoutObjects(
-							defLayoutId, annotationHelper);
-				}
-			}
-		}
 		
-		EFragment fragment = holder().getAnnotatedElement().getAnnotation(
-				EFragment.class);
-		if (fragment != null) {
-			int layout = fragment.value();
-			if (layout != -1) {
-				String idQualifiedName = environment().getRClass()
-						.get(Res.LAYOUT).getIdQualifiedName(layout);
-				Matcher matcher = Pattern.compile("\\.(\\w+)$").matcher(
-						idQualifiedName);
-
-				if (matcher.find()) {
-					defLayoutId = matcher.group(1);
-					defLayoutObjects = layoutParser.getLayoutObjects(
-							defLayoutId, annotationHelper);
-				}
-			}
-		}
-
+		this.menuParser = MenuParser.getInstance();
+		
+		viewsHelper = new ViewsHelper(holder.getAnnotatedElement(), annotationHelper, environment());
+		defLayoutId = viewsHelper.getLayoutId();
 		if (defLayoutId != null) {
-			layoutObjects.put(defLayoutId, defLayoutObjects);
+			layoutObjects.put(defLayoutId, viewsHelper.getLayoutObjects());
 		}
 	}
+
 
 	public String getDefLayoutId() {
 		return defLayoutId;
@@ -202,8 +176,7 @@ public class ViewsHolder extends
 	public void addLayout(String layoutId) {
 
 		if (!layoutObjects.containsKey(layoutId)) {
-			Map<String, LayoutObject> elementLayoutObjects = layoutParser
-					.getLayoutObjects(layoutId, annotationHelper);
+			Map<String, LayoutObject> elementLayoutObjects = viewsHelper.getLayoutObjects(layoutId);
 			layoutObjects.put(layoutId, elementLayoutObjects);
 			
 			onViewChangedHasViewsParamValues.put(layoutId, holder().getOnViewChangedHasViewsParam());
@@ -211,7 +184,7 @@ public class ViewsHolder extends
 
 	}
 
-	public JInvocation checkFieldNameInInvocation(String fieldName, JInvocation invocation) {
+	public JInvocation checkFieldNameInInvocation(String fieldName, String fieldType, JInvocation invocation) {
 		for (String layoutId : layoutObjects.keySet()) {
 			if (this.layoutContainsId(fieldName, layoutId)) {
 				
@@ -226,7 +199,7 @@ public class ViewsHolder extends
 			}	
 		}
 		
-		return ParamUtils.injectParam(fieldName, invocation);	
+		return ParamUtils.injectParam(fieldName, fieldType, invocation);	
 	}
 	
 	public boolean viewsDeclared(String id) {
@@ -386,18 +359,19 @@ public class ViewsHolder extends
 		
 		return view;
 	}
-
+	
 	public void findFieldsAndMethods(String className, String fieldName,
 			Element element, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, boolean getter) {
-		findFieldsAndMethods(className, fieldName, element, fields, methods,
-				getter, false, null);
+		
+		findFieldsAndMethods(className, fieldName, element, fields, methods,getter, false, null);
 	}
 
 	public void findFieldsAndMethods(String className, String fieldName,
 			Element element, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, boolean getter, boolean isList,
 			String layoutId) {
+		
 		TypeElement typeElement = environment().getProcessingEnvironment()
 				.getElementUtils().getTypeElement(className);
 		findFieldsAndMethods(fieldName, typeElement, fields, methods,
@@ -424,6 +398,7 @@ public class ViewsHolder extends
 			TypeElement typeElement, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, String className,
 			Map<String, LayoutObject> layoutObjects, boolean getter, boolean isList) {
+		
 		String classSimpleName = getJClass(className).name();
 		for (String id : layoutObjects.keySet()) {
 			String startsWith = null;
@@ -461,26 +436,24 @@ public class ViewsHolder extends
 			TypeElement testElement, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, String originalId,
 			String idClass, boolean getter) {
+		
 		if (id == null || id.isEmpty())
 			return;
 
-		final String normalizedId = id.substring(0, 1).toLowerCase()
-				+ id.substring(1);
+		final String normalizedId = id.substring(0, 1).toLowerCase() + id.substring(1);
 
 		List<? extends Element> elems = testElement.getEnclosedElements();
 		for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
-			final String completeElemName = prevField == null ? elemName
-					: prevField + "." + elemName;
+			final String completeElemName = prevField == null ? elemName : prevField + "." + elemName;
 
 			if (elem.getKind() == ElementKind.FIELD) {
 
 				// If the class element is not a primitive, then call the method
 				// in that element combinations (recursive DFS)
 				if (!elem.asType().getKind().isPrimitive()) {
-					String elemType = TypeUtils.typeFromTypeString(elem
-							.asType().toString(), environment());
-					if (elemType.endsWith("_"))
+					String elemType = TypeUtils.typeFromTypeString(elem.asType().toString(), environment());
+					if (elemType.endsWith(ModelConstants.generationSuffix()))
 						elemType = elemType.substring(0, elemType.length() - 1);
 
 					TypeElement fieldTypeElement = environment()
@@ -488,13 +461,11 @@ public class ViewsHolder extends
 							.getTypeElement(elemType);
 
 					if (fieldTypeElement != null
-							&& !fieldTypeElement.toString().equals(
-									String.class.getCanonicalName())) {
+						&& !fieldTypeElement.toString().equals(String.class.getCanonicalName())) {
 
-						if (id.startsWith(elemName)
-								|| normalizedId.startsWith(elemName)) {
-							int extraToRemove = id.startsWith(elemName + "_") ? 1
-									: 0;
+						if (id.startsWith(elemName) || normalizedId.startsWith(elemName)) {
+							int extraToRemove = id.startsWith(elemName + "_") ? 1 : 0;
+							
 							deepFieldsAndMethodsSearch(
 									id.substring(elemName.length()
 											+ extraToRemove), completeElemName,

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 public class ActionInfo {
-	public Map<String, Object> metaData;
+	
+	public transient Map<String, Object> metaData;
 	
 	public List<ActionProcessor> processors = new LinkedList<>();
 	public Map<String, List<ActionMethod>> methods = new HashMap<>();
 	
 	public String holderClass;
+	public String superHolderClass; 
+	
 	public String references;
 	public boolean isGlobal;
+	public boolean isTimeConsuming;
+	
+	public boolean handleViewChanges;
 	
 	public boolean generated;
 	

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,12 +43,13 @@ import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.api.action.Action;
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
+import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.api.server.ServerModel;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
@@ -105,7 +106,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 
 			//Omit specials and private fields
-			if (elem.getAnnotation(Action.class) != null) continue;
+			if (elem.getAnnotation(RunWith.class) != null) continue;
 			if (elem.getAnnotation(ServerModel.class) != null) continue;
 			if (elem.getAnnotation(LocalDBModel.class) != null) continue;
 			if (elem.getAnnotation(UseModel.class) != null) continue;
@@ -153,6 +154,13 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		
 		useModelHolder.getWriteObjectMethod();
 		useModelHolder.getReadObjectMethod();
+		
+		//This avoids cross references if Cache Files is enabled
+		if (FilesCacheHelper.isCacheFilesEnabled()) {
+			useModelHolder.getGetModelListMethod();
+			useModelHolder.getLoadModelMethod();
+			useModelHolder.getModelInitMethod();
+		}
 	}
 	
 	private void generateGetterAndSetters(BaseGeneratedClassHolder holder, Map<String, String> fields, Map<String, String> methods) {

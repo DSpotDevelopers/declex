@@ -1,8 +1,24 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.model;
 
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.cond;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -23,6 +39,7 @@ import javax.lang.model.element.Modifier;
 
 import org.androidannotations.api.BackgroundExecutor;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.process.ProcessHolder;
@@ -30,6 +47,7 @@ import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
@@ -66,7 +84,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	final AbstractJClass THROWABLE;
 	final AbstractJClass THREAD;
 	final JPrimitiveType VOID;
-	
+		
 	public ModelHolder(EComponentHolder holder) {
 		super(holder);
 		
@@ -80,12 +98,36 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	}
 	
 	private UseModelHolder useModelHolderForElement(Element element) {
+		
+		//If CacheFiles is enabled, crossed references couldn't be handled
+		if (FilesCacheHelper.isCacheFilesEnabled()) return null;
+		
 		ClassInformation classInformation = TypeUtils.getClassInformation(element, environment(), true);
 		ProcessHolder processHolder = environment().getProcessHolder();
 		BaseGeneratedClassHolder useModelComponentHolder = 
 				(BaseGeneratedClassHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
 		
 		return useModelComponentHolder.getPluginHolder(new UseModelHolder(useModelComponentHolder));
+	}
+	
+	private String useModelGetModelListMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.getModelListName();
+		return useModelHolder.getGetModelListMethod().name();
+	}
+	
+	private String useModelLoadModelMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.getModelName();
+		return useModelHolder.getLoadModelMethod().name();
+	}
+	
+	private String useModelModelInitMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.modelInitName();
+		return useModelHolder.getModelInitMethod().name();
+	}
+	
+	private String useModelPutModelMethod(UseModelHolder useModelHolder) {
+		if (useModelHolder == null) return UseModelHolder.putModelName();
+		return useModelHolder.getPutModelMethod().name();
 	}
 	
 	public JMethod getLoadModelMethod(Element element) {
@@ -111,7 +153,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
 		final String fieldName = element.getSimpleName().toString();
-		final Model annotation = element.getAnnotation(Model.class);
+		final Model modelAnnotation = element.getAnnotation(Model.class);
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
 		
 		IJAssignmentTarget beanField = ref(fieldName);
@@ -122,12 +164,26 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JVar query = loadModelMethod.param(JMod.FINAL, STRING, "query");
 		JVar orderBy = loadModelMethod.param(JMod.FINAL, STRING, "orderBy");
 		JVar fields = loadModelMethod.param(JMod.FINAL, STRING, "fields");
-		JVar onFinished = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
-		JVar onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		JVar onDone = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
 		JBlock block = loadModelMethod.body();
-		
-		
+
+		JVar onFailed;
+		if (modelAnnotation.handleExceptions()) {
+			
+			JAnonymousClass anonymousFailed = getCodeModel().anonymousClass(getJClass(OnFailedRunnable.class));
+			JMethod handleExceptionMethod = anonymousFailed.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+			handleExceptionMethod.annotate(Override.class);
+			
+			JVar _onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "_onFailed");
+			onFailed = block.decl(
+				JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed",
+				cond(_onFailed.neNull(), _onFailed, _new(anonymousFailed))
+			);
+		} else {
+			onFailed = loadModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		} 
+				
 		//Check if this is a list @Model
 		boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment().getProcessingEnvironment());		
 		if (isList) {
@@ -142,9 +198,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		} 
 			
 		String converted = null;
-		if (!className.endsWith("_")) {
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			converted = className;
-			className = className + "_";
+			className = TypeUtils.getGeneratedClassName(className, environment());
 		}
 		
 		AbstractJClass ModelClass = getJClass(className);
@@ -191,8 +247,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			annotations_invocation.arg(dotclass(annotationEntry.getValue())); 
 		}
 		
-		JMethod getModelInjectionMethod = isList ? useModelHolder.getGetModelListMethod() 
-				                                 : useModelHolder.getLoadModelMethod();
+		String getModelInjectionMethod = isList ? useModelGetModelListMethod(useModelHolder)
+				                                 : useModelLoadModelMethod(useModelHolder);
 		JInvocation getModel = ModelClass.staticInvoke(getModelInjectionMethod)
 				  .arg(context)
 				  .arg(query)
@@ -203,7 +259,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JBlock assign;
 		
 		JTryBlock tryBlock;
-		if (annotation.async()) {
+		if (modelAnnotation.async()) {
 			//Use the BackgroundExecutor for asynchronous calls
 			JDefinedClass anonymousTaskClass = getCodeModel().anonymousClass(BackgroundExecutor.Task.class);
 
@@ -238,7 +294,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		if (isList) {
 			
 			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", beanField).body();
-			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelHolder.getModelInitMethod())
+			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)	
 			  .arg(fields);
@@ -258,7 +314,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			syncBlock.body().invoke(view, "addAll").arg(assignField);
 						
 		} else {
-			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelHolder.getModelInitMethod())
+			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)
 			  .arg(fields);
@@ -266,8 +322,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		JBlock afterGetModelBlock = assign.block();
 		
-		assign._if(onFinished.ne(_null()))._then()
-			  .invoke(onFinished, "run");
+		assign._if(onDone.ne(_null()))._then()
+			  .invoke(onDone, "run");
 
 		LoadModelRecord getModelRecord = new LoadModelRecord(loadModelMethod, afterGetModelBlock);
 		loadModelMethods.put(element, getModelRecord);
@@ -296,6 +352,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
+		final Model modelAnnotation = element.getAnnotation(Model.class);		
 		final String fieldName = element.getSimpleName().toString();
 
 		JFieldRef beanField = ref(fieldName);
@@ -305,16 +362,31 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JVar query = putModelMethod.param(JMod.FINAL, STRING, "query");
 		JVar orderBy = putModelMethod.param(JMod.FINAL, STRING, "orderBy");
 		JVar fields = putModelMethod.param(JMod.FINAL, STRING, "fields");
-		JVar onFinished = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onFinished");
-		JVar onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		JVar onDone = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
+		JBlock block = putModelMethod.body();
+
+		JVar onFailed;
+		if (modelAnnotation.handleExceptions()) {
+			
+			JAnonymousClass anonymousFailed = getCodeModel().anonymousClass(getJClass(OnFailedRunnable.class));
+			JMethod handleExceptionMethod = anonymousFailed.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+			handleExceptionMethod.annotate(Override.class);
+			
+			JVar _onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "_onFailed");
+			onFailed = block.decl(
+				JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed",
+				cond(_onFailed.neNull(), _onFailed, _new(anonymousFailed))
+			);
+		} else {
+			onFailed = putModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+		} 
 				
 		JAnonymousClass PutModelRunnable = getCodeModel().anonymousClass(getJClass(Runnable.class));
 		JMethod run = PutModelRunnable.method(JMod.PUBLIC, VOID, "run");
 		PutModelRunnable.annotate(Override.class);
 		
 		//Populate the _put_ method
-		JBlock block = putModelMethod.body();
 		JVar putModelRunnable = block.decl(PutModelRunnable, "putModelRunnable", _new(PutModelRunnable));
 		JBlock putModelMethodBlock = block.block();
 		putModelMethodBlock.invoke(putModelRunnable, "run");
@@ -333,9 +405,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		} 
 				
 		String converted = null;
-		if (!className.endsWith("_")) {
+		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			converted = className;
-			className = className + "_";
+			className = TypeUtils.getGeneratedClassName(className, environment());
 		}
 		
 		AbstractJClass ModelClass = getJClass(className);
@@ -345,7 +417,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JBlock putModel = new JBlock();
 		JBlock ifNotPut = putModel._if(
 				(converted == null ? beanField : cast(ModelClass, beanField))
-				  	.invoke(useModelHolder.getPutModelMethod())
+				  	.invoke(useModelPutModelMethod(useModelHolder))
 				  	.arg(query)
 				  	.arg(orderBy)
 				  	.arg(fields)
@@ -362,10 +434,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ifNotPut._return();
 		
 		//Use the BackgroundExecutor for asynchronous calls
-		final Model annotation = element.getAnnotation(Model.class);
-		if (annotation != null) {
+		if (modelAnnotation != null) {
 			JTryBlock tryBlock;
-			if (annotation.asyncPut()) {
+			if (modelAnnotation.asyncPut()) {
 				JDefinedClass anonymousTaskClass = getCodeModel().anonymousClass(BackgroundExecutor.Task.class);
 
 				JMethod executeMethod = anonymousTaskClass.method(JMod.PUBLIC, getCodeModel().VOID, "execute");
@@ -389,8 +460,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				tryBlock.body().add(putModel);
 			}
 			
-			tryBlock.body()._if(onFinished.ne(_null()))._then()
-						   .invoke(onFinished, "run");
+			tryBlock.body()._if(onDone.ne(_null()))._then()
+						   .invoke(onDone, "run");
 			
 			JCatchBlock catchBlock = tryBlock._catch(THROWABLE);
 			JVar caughtException = catchBlock.param("e");

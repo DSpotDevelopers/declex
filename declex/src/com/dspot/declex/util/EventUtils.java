@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
@@ -84,8 +85,7 @@ public class EventUtils {
 	public static JMethod getEventMethod(String eventClass, Element element, BaseGeneratedClassHolder holder, 
 			ViewsHolder viewsHolder, AndroidAnnotationsEnvironment environment) {
 		
-		if (!eventClass.endsWith("_")) eventClass = eventClass + "_";
-		eventClass = TypeUtils.typeFromTypeString(eventClass, environment);
+		eventClass = TypeUtils.getGeneratedClassName(eventClass, environment);
 		
 		String eventSimpleName = eventClass;
 		Matcher matcher = Pattern.compile("\\.([A-Za-z_][A-Za-z0-9_]+)$").matcher(eventClass);
@@ -154,12 +154,19 @@ public class EventUtils {
 					Map<String, String> eventFields = new TreeMap<String, String>();
 					if (OriginalEventClass != null && OriginalEventClass.toString().contains(".")) {
 						List<? extends Element> els = OriginalEventClass.getEnclosedElements();
-						for (Element el : els)
+						for (Element el : els) {
 							if (el.getKind() == ElementKind.FIELD) {
-								eventFields.put(el.getSimpleName().toString(), el.asType().toString());
+								final String paramName = el.getSimpleName().toString();
+								String paramType = el.asType().toString();
+								
+								if (!paramType.equals(TypeUtils.getGeneratedClassName(originalEventClass, environment)) 
+									&& !paramType.equals(originalEventClass)) {
+									eventFields.put(paramName, paramType);
+								}
 							}
+						}
 					} else {
-						eventFields = eventsFields.get(originalEventClass);
+						eventFields = eventsFields.get(originalEventClass);						
 						if (eventFields == null) {
 							eventFields = new TreeMap<String, String>();
 							System.out.println("NO EVENT FOR " + originalEventClass + " in " + eventsFields);
@@ -175,12 +182,13 @@ public class EventUtils {
 							invocation = invocation.arg(ref("event").invoke(FormatsUtils.fieldToGetter(param.getSimpleName().toString())));
 						} else {
 							paramType = SharedRecords.getEvent(paramType, environment);
-							if (paramType != null && (paramType.equals(originalEventClass+"_") || 
-								paramType.equals(originalEventClass))) {
+							if (paramType != null 
+								&& (paramType.equals(TypeUtils.getGeneratedClassName(originalEventClass, environment))  
+									|| paramType.equals(originalEventClass))) {
 								
 								invocation = invocation.arg(ref("event"));
 							} else {
-								ParamUtils.injectParam(paramName, invocation, viewsHolder);
+								ParamUtils.injectParam(paramName, paramType, invocation, viewsHolder);
 							}
 						}
 					}
@@ -205,6 +213,14 @@ public class EventUtils {
 		}
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
+				
+		if (!FilesCacheHelper.getInstance().hasCachedFile(className)) {
+			FilesCacheHelper.getInstance().addGeneratedClass(className, null);
+			FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(className, env, false), 
+				null
+			);
+		}
 		
 		ActionInfo actionInfo = new ActionInfo(className);
 		Actions.getInstance().addAction(eventName, className, actionInfo);
@@ -237,7 +253,7 @@ public class EventUtils {
 		EventUtils.createEventInfo(className, env);
 	}
 	
-	public static AbstractJClass createNewEvent(String className, String reference, AndroidAnnotationsEnvironment env) {
+	public static AbstractJClass createNewEvent(String className, Element fromElement, AndroidAnnotationsEnvironment env) {
 		if (!className.contains(".")) {
 			className = DeclexConstant.EVENT_PATH + className;
 		}
@@ -246,13 +262,22 @@ public class EventUtils {
 
 		final ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(className);
 
+		final String reference = JavaDocUtils.referenceFromElement(fromElement);
+		
 		JDefinedClass EventClass;
 		try {
+			
+			if (FilesCacheHelper.getInstance().hasCachedFile(className)) {
+				throw new JClassAlreadyExistsException(null);
+			}
 			
 			EventClass = env.getCodeModel()._class(className);
 			
 			actionInfo.setReferences(reference);
 			EventClass.javadoc().add(actionInfo.references);
+			
+			Element rootElement = TypeUtils.getRootElement(fromElement);
+			FilesCacheHelper.getInstance().addGeneratedClass(className, rootElement);
 			
 		} catch (JClassAlreadyExistsException e) {
 			

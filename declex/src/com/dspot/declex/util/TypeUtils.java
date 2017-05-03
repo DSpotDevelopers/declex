@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,10 @@
  */
 package com.dspot.declex.util;
 
-import java.util.LinkedList;
+import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,12 +33,12 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.annotations.EBean;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
-import org.androidannotations.internal.model.AnnotationElements;
 
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
@@ -50,6 +49,15 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
 public class TypeUtils {
+	
+	public static TypeElement getRootElement(Element element) {
+		Element rootElement = element;
+		while (!rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
+			rootElement = rootElement.getEnclosingElement();
+		} 
+		
+		return (TypeElement) rootElement;
+	}
 	
 	public static void annotateVar(JVar var, AnnotationMirror annotationMirror, AndroidAnnotationsEnvironment env) {
 		JAnnotationUse fieldAnnotation = var.annotate(env.getJClass(annotationMirror.getAnnotationType().toString()));
@@ -137,35 +145,67 @@ public class TypeUtils {
 
 		//This means that an inference over the type is need it
 		if (!toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			toInfereIfNeeded = toInfereIfNeeded.substring(0, toInfereIfNeeded.length()-1);
-			
-			for (String className : getAllToBeGeneratedClassesName(environment)) {
-				if (className.endsWith("." + toInfereIfNeeded)) {
-					return type.replace(toInfereIfNeeded + ModelConstants.generationSuffix(), className + ModelConstants.generationSuffix());
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + toInfereIfNeeded)) {
+					return type.replace(toInfereIfNeeded, generatedClass);
 				}
 			}
 
 		}
 		
+		//Check the inference over the type for inner classes
+		if (toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
+			String prevClass = toInfereIfNeeded.substring(0, toInfereIfNeeded.lastIndexOf("."));
+			if (!prevClass.contains(".") && prevClass.endsWith(ModelConstants.generationSuffix())) {
+				for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+					if (generatedClass.endsWith("." + prevClass)) {
+						return type.replace(
+							toInfereIfNeeded, 
+							generatedClass + "." + toInfereIfNeeded.substring(toInfereIfNeeded.lastIndexOf(".") + 1));
+					}
+				}
+			}
+		}
+		
 		return type;
 	}
 	
-	public static List<String> getAllToBeGeneratedClassesName(AndroidAnnotationsEnvironment environment) {
+	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {
+		boolean checkNested = true;
+		if (element.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) checkNested = false;
+		return  getGeneratedClassName(element.asType().toString(), environment, checkNested);
+	}
+	
+	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment) {
+		return getGeneratedClassName(clazz, environment, true);
+	}
+	
+	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment, boolean checkNested) {
 		
-		AnnotationElements validatedModel = environment.getValidatedElements();
+		if (clazz.trim().equals("")) return "";
 		
-		List<String> classesName = new LinkedList<String>();
-		
-		Set<? extends Element> annotatedElements = validatedModel.getRootAnnotatedElements(EBean.class.getCanonicalName());
-		for (Element elem : annotatedElements) {
-			classesName.add(elem.toString());
+		if (!clazz.endsWith(ModelConstants.generationSuffix())) {
+			clazz = clazz + ModelConstants.generationSuffix();
 		}
 		
-		classesName.addAll(SharedRecords.getEventGeneratedClasses(environment).keySet());
-		classesName.addAll(SharedRecords.getModelGeneratedClasses(environment));
+		if (!clazz.contains(".")) {
+			return typeFromTypeString(clazz, environment);
+		}		
 		
-		return classesName;
-	}	
+		if (checkNested) {
+			int lastPoint = clazz.lastIndexOf('.');
+			TypeElement typeElement = environment.getProcessingEnvironment()
+					                             .getElementUtils()
+					                             .getTypeElement(clazz.substring(0, lastPoint));
+			if (typeElement != null) {
+				//It is a nested class
+				clazz = clazz.substring(0, lastPoint) + ModelConstants.generationSuffix() 
+						+ clazz.substring(lastPoint);  
+			}
+		}
+		
+		return clazz;
+	}
 	
 	public static String getClassFieldValue(Element element, final String annotationName, String methodName, AndroidAnnotationsEnvironment environment) {
 		TargetAnnotationHelper helper = new TargetAnnotationHelper(environment, annotationName);
@@ -272,6 +312,8 @@ public class TypeUtils {
 	}
 
 	public static boolean isSubtype(String t1, String t2, ProcessingEnvironment processingEnv) {
+		if (t1.equals(t2)) return true;
+		
 		if (t1.contains("<")) t1 = t1.substring(0, t1.indexOf('<'));
 
 		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(t1);
@@ -297,6 +339,25 @@ public class TypeUtils {
 		return false;
 	}
 	
+	public static boolean isClassAnnotatedWith(String className, Class<? extends Annotation> annotation, AndroidAnnotationsEnvironment environment) {
+		ADIHelper adiHelper = new ADIHelper(environment);
+		
+		TypeElement element = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);				
+		if (element == null) return false;
+		
+		return adiHelper.hasAnnotation(element, annotation);
+
+	}
+	
+	public static <T extends Annotation> T getClassAnnotation(String className, Class<T> annotation, AndroidAnnotationsEnvironment environment) {
+		ADIHelper adiHelper = new ADIHelper(environment);
+		
+		TypeElement element = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);				
+		if (element == null) return null;
+		
+		return adiHelper.getAnnotation(element, annotation);		
+	}
+	
 	public static ClassInformation getClassInformation(Element element, AndroidAnnotationsEnvironment environment) {
 		return getClassInformation(element, environment, false);
 	}
@@ -318,11 +379,22 @@ public class TypeUtils {
 			className = TypeUtils.typeFromTypeString(className, environment);
 			originalClassName = className;
 			className = className.substring(0, className.length()-1);
+			
 		}
 		
 		TypeElement typeElement = null;
 		if (getElement) {
 			typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);
+			
+			if (typeElement == null && className.contains(".")) {
+				//Check if it is an inner class
+				String prevClass = className.substring(0, className.lastIndexOf("."));
+				if (prevClass.endsWith(ModelConstants.generationSuffix())) {
+					className = prevClass.substring(0, prevClass.length()-1) + "." + className.substring(className.lastIndexOf(".") + 1);
+					typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);
+				}
+			}
+
 		}
 		
 		return new ClassInformation(isList, className, originalClassName, typeElement);

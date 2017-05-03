@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
@@ -28,8 +29,9 @@ import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.GeneratedClassHolder;
 
-import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 
 
@@ -44,19 +46,23 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 	}
 	
 	@Override
+	public JMethod findAlreadyGeneratedMethod(
+			ExecutableElement executableElement, GeneratedClassHolder holder, boolean checkForAction) {
+		return super.findAlreadyGeneratedMethod(executableElement, holder, checkForAction);
+	}
+	
+	@Override
 	public TypeMirror getActualType(final Element element, DeclaredType enclosingClassType, GeneratedClassHolder holder) {
 		String className = element.asType().toString();
 		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {
-			className = className.substring(0, className.length()-1);
 			
-			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
-				if (name.endsWith("." + className)) {
-					className = name + ModelConstants.generationSuffix();
-					
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + className)) {
 					TypeElement typeElement = holder.getEnvironment().getProcessingEnvironment()
-							                        .getElementUtils().getTypeElement(name);
+							                        .getElementUtils()
+							                        .getTypeElement(generatedClass.substring(0, generatedClass.length()-1));
 					TypeMirror typeMirror = typeElement.asType();
-					mappedNamesForTypeMirrors.put(typeMirror, className);
+					mappedNamesForTypeMirrors.put(typeMirror, generatedClass);
 					return typeMirror;
 				}
 			}
@@ -76,13 +82,10 @@ public class DeclexAPTCodeModelHelper extends APTCodeModelHelper {
 		}
 		
 		String className = type.toString();
-		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {
-			className = className.substring(0, className.length()-1);
-			
-			for (String name : TypeUtils.getAllToBeGeneratedClassesName(environment)) {
-				if (name.endsWith("." + className)) {
-					className = name + ModelConstants.generationSuffix();
-					return environment.getJClass(className);
+		if (!className.contains(".") && className.endsWith(ModelConstants.generationSuffix())) {			
+			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
+				if (generatedClass.endsWith("." + className)) {
+					return environment.getJClass(generatedClass);
 				}
 			}
 		}

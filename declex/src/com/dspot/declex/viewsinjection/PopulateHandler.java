@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,8 +53,10 @@ import org.androidannotations.rclass.IRClass.Res;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.event.holder.ViewListenerHolder;
+import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.model.ModelHolder;
 import com.dspot.declex.plugin.JClassPlugin;
 import com.dspot.declex.share.holder.ViewsHolder;
@@ -62,6 +64,7 @@ import com.dspot.declex.share.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
+import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
@@ -105,6 +108,9 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
+		
+		final String elementName = element.getSimpleName().toString();
+		
 		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
@@ -113,20 +119,20 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				populatorMethods.put(element.getEnclosingElement(), methods);
 			}
 			
-			methods.put(element.getSimpleName().toString(), (ExecutableElement) element);
+			methods.put(elementName, (ExecutableElement) element);
 			
 			return;
 		}
-		
-		
+				
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
-
 		validatorHelper.isNotPrivate(element, valid);
+		
+		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
 		
 		//Validate special methods
 		boolean specialAssignField = false;
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems)
+		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.METHOD) {
 				ExecutableElement executableElement = (ExecutableElement) elem;
 				
@@ -156,25 +162,27 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				}
 				
 			}
+		}
 		
 		//Check if the field is a primitive or a String
-//		if (element.asType().getKind().isPrimitive() || 
-//			element.asType().toString().equals(String.class.getCanonicalName())) {
-//			
-//			if (!layoutObjects.containsKey(element.getSimpleName().toString())) {
-//				valid.addError("The element with Id \"" + element.getSimpleName() + "\" cannot be found in the Layout ");
-//			} else if (!specialAssignField) {
-//				String className = layoutObjects.get(element.getSimpleName().toString());
-//				if (!specialAssignField) {
-//					if (!TypeUtils.isSubtype(className, "android.widget.TextView", getProcessingEnvironment()) &&
-//						!TypeUtils.isSubtype(className, "android.widget.ImageView", getProcessingEnvironment())) {
-//						valid.addError("You should provide an assignField method for the class \"" + className + 
-//								"\" used on the field " + element.getSimpleName());
-//					}
-//				}
-//			}
-//		}
+		if (element.asType().getKind().isPrimitive() || 
+			element.asType().toString().equals(String.class.getCanonicalName())) {
+			
+			if (!viewsHelper.getLayoutObjects().containsKey(elementName)) {
+				valid.addError("The element with Id \"" + elementName + "\" cannot be found in the Layout ");
+			} else if (!specialAssignField) {
+				LayoutObject layoutObject = viewsHelper.getLayoutObjects().get(elementName);
+				String className = layoutObject.className;
 				
+				if (!specialAssignField) {
+					if (!TypeUtils.isSubtype(className, "android.widget.TextView", getProcessingEnvironment()) &&
+						!TypeUtils.isSubtype(className, "android.widget.ImageView", getProcessingEnvironment())) {
+						valid.addError("You should provide an assignField method for the class \"" + className + 
+								"\" used on the field " + elementName);
+					}
+				}
+			}
+		}
 		
 		boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		
 		if (isList) {
@@ -185,9 +193,28 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				valid.addError("Cannot infer the List Type from " + className);
 			}
 						
-//			if (!layoutObjects.containsKey(element.getSimpleName().toString())) {
-//				valid.addError("The element with Id \"" + element.getSimpleName() + "\" cannot be found in the Layout ");
-//			}
+			if (!viewsHelper.getLayoutObjects().containsKey(elementName)) {
+				valid.addError("The element with Id \"" + elementName + "\" cannot be found in the Layout");
+			} else {
+				LayoutObject layoutObject = viewsHelper.getLayoutObjects().get(elementName);
+				
+				if (layoutObject.domElement.hasAttribute("tools:listitem")) {
+					String listItem = layoutObject.domElement.getAttribute("tools:listitem");
+					String listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
+					
+					if (!getEnvironment().getRClass().get(Res.LAYOUT).containsField(listItemId)) {
+						valid.addError(
+								"The \"tools:listitem\" layout provided to the "
+								+ layoutObject.className + " with id \"" + elementName + "\" in your layout is not valid"
+								+ " The current value it is \"" + listItem + "\"");
+					};
+				} else {
+					valid.addError(
+							"You should provide an attribute \"tools:listitem\" as the layout for the list items, "
+							+ "please review the " + layoutObject.className + " with id \"" + elementName + "\" in the layout"
+						);
+				}
+			}
 		} 		
 		
 	}
@@ -542,8 +569,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		boolean castNeeded = false;
 		String className = element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
-			if (SharedRecords.getModel(className, getEnvironment()) != null) {
-				className = className + ModelConstants.generationSuffix();
+			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
+				className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 				castNeeded = true;
 			}
 		}
@@ -614,7 +641,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 				for (int i = 1; i < info.extraParams.size(); i++) {
 					final String viewId = info.extraParams.get(i);
-					assignRef = ParamUtils.injectParam(viewId, (JInvocation) assignRef, viewsHolder);
+					assignRef = ParamUtils.injectParam(viewId, info.type.toString(), (JInvocation) assignRef, viewsHolder);
 				}
 				
 				block.add((JInvocation)assignRef);
@@ -624,7 +651,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		if (assignRef instanceof JInvocation) {
 			for (String param : info.extraParams) {
-				assignRef = ParamUtils.injectParam(param, (JInvocation) assignRef, viewsHolder);
+				assignRef = ParamUtils.injectParam(param, info.type.toString(), (JInvocation) assignRef, viewsHolder);
 			}
 		}
 		
@@ -698,7 +725,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				if (matcher.find()) {
 					className = matcher.group(1);
 					String originalClassName = className;
-					if (className.endsWith("_")) {
+					if (className.endsWith(ModelConstants.generationSuffix())) {
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						originalClassName = className;
 						className = className.substring(0, className.length()-1);
@@ -741,11 +768,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			for (VariableElement param : exeElem.getParameters()) {
 				final String paramName = param.getSimpleName().toString();
+				final String paramType = param.asType().toString();
 				
 				if (viewHolder != null && viewHolder != _this() && fields.contains(paramName)) {
 					invoke.arg(viewHolder.ref(paramName + DeclexConstant.VIEW));
 				} else {
-					ParamUtils.injectParam(paramName, invoke, viewsHolder);
+					ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 				}
 			}
 		}

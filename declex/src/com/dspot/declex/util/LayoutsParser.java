@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 public class LayoutsParser {
+	
 	private Logger LOGGER;
 	
 	private Map<String, Map<String, LayoutObject>> layoutMaps = new HashMap<>();
@@ -79,7 +80,7 @@ public class LayoutsParser {
 				for (File file : layout.listFiles()) {
 					if (file.isFile() && file.getName().equals(layoutName + ".xml")) {
 						
-						layoutObjects = parse(file, idHelper, layoutId);
+						layoutObjects = parseLayout(file, idHelper, layoutId);
 						
 						layoutMaps.put(layoutName, layoutObjects);
 						break;
@@ -183,6 +184,21 @@ public class LayoutsParser {
 						foundObjects.putAll(headerLayoutObjects);
 					}
 				}
+				
+				if (TypeUtils.isSubtype(className, "android.support.design.widget.NavigationView", processingEnv)) {
+					if (node.hasAttribute("app:headerLayout")) {
+						String layoutName = node.getAttribute("app:headerLayout");
+						layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
+				
+						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName, idHelper);
+						
+						for (LayoutObject headerLayoutObject : headerLayoutObjects.values()) {
+							headerLayoutObject.holderId = id;
+						}
+						
+						foundObjects.putAll(headerLayoutObjects);
+					}
+				}
 			}
 		}		
 		
@@ -193,7 +209,7 @@ public class LayoutsParser {
 		}
 	}
 	
-	private Map<String, LayoutObject> parse(File xmlLayoutFile, IdAnnotationHelper idHelper, String layoutId) {
+	private Map<String, LayoutObject> parseLayout(File xmlLayoutFile, IdAnnotationHelper idHelper, String layoutId) {
 		LOGGER.info("Layout Parsing: " + xmlLayoutFile.getName());
 		
 		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
@@ -220,7 +236,8 @@ public class LayoutsParser {
 	public static class LayoutObject {
 		public String className;
 		public Element domElement;
-		public String holderId;
+		
+		public String holderId; //Used by NavigationView
 		
 		public LayoutObject(String className, Element domElement) {
 			this.className = className;

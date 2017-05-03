@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.List;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.Option;
 import org.androidannotations.handler.AnnotationHandler;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.core.handler.AfterExtrasHandler;
 import org.androidannotations.internal.core.handler.AfterPreferencesHandler;
 import org.androidannotations.internal.core.handler.AfterTextChangeHandler;
@@ -98,16 +99,7 @@ import org.androidannotations.internal.core.model.AndroidRes;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.ActionForHandler;
-import com.dspot.declex.action.ActionHandler;
-import com.dspot.declex.action.EActivityActionHandler;
-import com.dspot.declex.action.EFragmentActionHandler;
-import com.dspot.declex.action.EventsActionHandler;
-import com.dspot.declex.action.android.AlertDialogActionHandler;
-import com.dspot.declex.action.android.ProgressDialogActionHandler;
-import com.dspot.declex.action.android.ToastActionHandler;
-import com.dspot.declex.action.sequence.ParallelActionHandler;
-import com.dspot.declex.action.sequence.SequenceActionHandler;
-import com.dspot.declex.define.DefineHandler;
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.eventbus.EventHandler;
 import com.dspot.declex.eventbus.UseEventBusHandler;
 import com.dspot.declex.eventbus.UseEventsHandler;
@@ -115,6 +107,7 @@ import com.dspot.declex.eventbus.oneventhandler.LoadOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnActionHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.UpdateOnEventHandler;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.json.JsonModelHandler;
 import com.dspot.declex.localdb.LocalDBModelHandler;
 import com.dspot.declex.localdb.LocalDBTransactionHandler;
@@ -137,6 +130,7 @@ import com.dspot.declex.override.handler.ItemClickHandler;
 import com.dspot.declex.override.handler.ItemLongClickHandler;
 import com.dspot.declex.override.handler.LongClickHandler;
 import com.dspot.declex.plugin.JClassPlugin;
+import com.dspot.declex.runwith.RunWithHandler;
 import com.dspot.declex.server.ServerModelHandler;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.viewsinjection.AdapterClassHandler;
@@ -145,10 +139,17 @@ import com.dspot.declex.viewsinjection.RecollectHandler;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
+	private final String DECLEX_ISSUES_URL = "https://github.com/smaugho/declex/issues";
+	
 	private static final String NAME = "DecleX";
 
 	public DeclexCorePlugin() {
 		SharedRecords.reset();
+	}
+	
+	@Override
+	public String getIssuesUrl() {
+		return DECLEX_ISSUES_URL;
 	}
 	
 	@Override
@@ -158,7 +159,17 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
 	@Override
 	public List<Option> getSupportedOptions() {
-		return Arrays.asList(TraceHandler.OPTION_TRACE, SupposeThreadHandler.OPTION_THREAD_CONTROL);
+		return Arrays.asList(
+				
+			TraceHandler.OPTION_TRACE, 
+			SupposeThreadHandler.OPTION_THREAD_CONTROL,
+			
+			FilesCacheHelper.OPTION_CACHE_FILES,
+			FilesCacheHelper.OPTION_DEBUG_CACHE,
+			FilesCacheHelper.OPTION_CACHE_FILES_IN_PROCESS,
+			
+			Actions.OPTION_DEBUG_ACTIONS
+		);
 	}
 	
 	@Override
@@ -180,7 +191,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new SharedPrefHandler(androidAnnotationEnv));
 
 		annotationHandlers.add(new ActionForHandler(androidAnnotationEnv));
-		annotationHandlers.add(new DefineHandler(androidAnnotationEnv));
 
 		//Events Handlers
 		annotationHandlers.add(new EventHandler(androidAnnotationEnv));
@@ -215,16 +225,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new ExtraHandler(androidAnnotationEnv));
 		
 		//Actions and its plugins
-		annotationHandlers.add(new ActionHandler(androidAnnotationEnv));
-		ActionHandler.clearPlugins();
-		ActionHandler.addPlugin(new EActivityActionHandler());
-		ActionHandler.addPlugin(new EFragmentActionHandler());
-		ActionHandler.addPlugin(new EventsActionHandler());
-		ActionHandler.addPlugin(new ToastActionHandler());
-		ActionHandler.addPlugin(new ProgressDialogActionHandler());
-		ActionHandler.addPlugin(new AlertDialogActionHandler());
-		ActionHandler.addPlugin(new SequenceActionHandler(ActionHandler.getPlugins()));
-		ActionHandler.addPlugin(new ParallelActionHandler(ActionHandler.getPlugins()));
+		annotationHandlers.add(new RunWithHandler<EComponentHolder>(androidAnnotationEnv));
 
 		//Listeners Handlers
 		annotationHandlers.add(new ClickHandler(androidAnnotationEnv));

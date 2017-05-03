@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -41,14 +42,12 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.api.eventbus.Event;
 import com.dspot.declex.api.eventbus.UseEventBus;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.EventUtils;
-import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
@@ -106,21 +105,20 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (annotation == null) {
 				valid.addError("The enclosing class should be annotated with @UseEventBus");
 			}
-			
-			ActionsProcessor.validateActions(element, valid, getEnvironment());
 
 			if (!valid.isValid()) return;
 			
 			className = DeclexConstant.EVENT_PATH + className;			
-			final Map<String, String> fields = new HashMap<>();
+			final Map<String, String> fields = new LinkedHashMap<>();
 			
 			List<? extends VariableElement> parameters = executableElement.getParameters();				
 			if (parameters.size() != 0) {
 				for (VariableElement param : parameters) {
 					final String paramName = param.getSimpleName().toString();
-					String paramType = param.asType().toString();
+					final String paramType = param.asType().toString();
 					
-					if (paramType.equals(className)) continue;
+					if (paramType.equals(className) 
+						|| paramType.equals(TypeUtils.getGeneratedClassName(className, getEnvironment()))) continue;
 					if (!paramType.contains(".") && className.endsWith("." + paramType)) continue;
 					
 					fields.put(paramName, paramType);
@@ -161,7 +159,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	               element.asType().toString();
         if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
         
-        AbstractJClass EventClass = EventUtils.createNewEvent(className, JavaDocUtils.referenceFromElement(element), getEnvironment());
+        AbstractJClass EventClass = EventUtils.createNewEvent(className, element, getEnvironment());
 		Map<String, String> eventFields = EventUtils.eventsFields.get(EventClass.fullName());
 		
 		if (element instanceof ExecutableElement) {
@@ -198,9 +196,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				}	
 			}	
 			
-			ExecutableElement executableElement = (ExecutableElement) element;				
-			ActionsProcessor.processActions(executableElement, holder);
-			
+			ExecutableElement executableElement = (ExecutableElement) element;
 			EventUtils.getEventMethod(EventClass.fullName(), executableElement, holder, viewsHolder, getEnvironment());		
 		}
 				
@@ -208,7 +204,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 		if (EventClass instanceof JDefinedClass) {
 			
 			JMethod initMethod = null;
-			
 			for (Entry<String, String> field : eventFields.entrySet()) {
 				
 				if (initMethod == null) {

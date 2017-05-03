@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,8 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				ActionMethod noPopulate = getActionMethod("noPopulate");
 				if (noPopulate.metaData != null) {
 					Populate populatorAnnotation = field.getAnnotation(Populate.class);
@@ -92,6 +94,8 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					}
 				}
 				
+				actionInfo.isTimeConsuming = modelAnnotation.async();
+				
 				JMethod getModelMethod = getMethodInHolder(
 						"getLoadModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);
@@ -126,7 +130,7 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				JInvocation invoke = invoke(getModelMethod)
 										.arg(contextExpr)
 										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
-						                .arg(getAction().invoke("getAfterLoad"))
+						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
 				
 				ActionMethod noPopulate = getActionMethod("noPopulate");

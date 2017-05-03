@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.FormattedExpression;
 
 @EBean
-@ActionFor("Toast")
+@ActionFor(value="Toast", timeConsuming = false)
 public class ToastActionHolder {
 
     String text;
@@ -61,8 +61,10 @@ public class ToastActionHolder {
 			public void run() {
 				if (text != null) {
 		            Toast.makeText(context, text, duration).show();
-		        } else {
+		        } else if (res != 0) {
 		            Toast.makeText(context, res, duration).show();
+		        } else {
+		        	Toast.makeText(context, "Toast Error: Toast message was not provided", duration).show();
 		        }
 		        if (Shown != null) Shown.run();
 			}

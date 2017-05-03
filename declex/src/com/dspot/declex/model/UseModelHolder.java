@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.model;
 
 import static com.helger.jcodemodel.JExpr._new;
@@ -29,11 +44,11 @@ import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.api.action.Action;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.api.localdb.LocalDBModel;
 import com.dspot.declex.api.model.UseModel;
+import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.api.server.ServerModel;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
@@ -194,13 +209,13 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 				} else if (fieldClass.equals("double")) {
 					writeObjectMethod.body().invoke(oos, "writeDouble").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readDouble"));
-				} else if (fieldClass.equals("short")) {
+				} else if (fieldClass.equals("float")) {
 					writeObjectMethod.body().invoke(oos, "writeFloat").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readFloat"));
 				} else if (fieldClass.equals("byte")) {
 					writeObjectMethod.body().invoke(oos, "writeByte").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readByte"));
-				} else if (fieldClass.equals("short")) {
+				} else if (fieldClass.equals("long")) {
 					writeObjectMethod.body().invoke(oos, "writeLong").arg(fieldRef);
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readLong"));
 				} 
@@ -224,7 +239,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 
 			//Omit specials and private fields
-			if (elem.getAnnotation(Action.class) != null) continue;
+			if (elem.getAnnotation(RunWith.class) != null) continue;
 			if (elem.getAnnotation(ServerModel.class) != null) continue;
 			if (elem.getAnnotation(LocalDBModel.class) != null) continue;
 			if (elem.getAnnotation(UseModel.class) != null) continue;
@@ -385,6 +400,22 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		return constructorBody;
 	}
 	
+	public static String getModelName() {
+		return "getModel_";
+	}
+	
+	public static String modelInitName() {
+		return "modelInit_";
+	}
+	
+	public static String putModelName() {
+		return "putModel_";
+	}
+	
+	public static String getModelListName() {
+		return "getModelList_";
+	}
+	
 	private void setConstructor() {
 		constructorMethod = getGeneratedClass().constructor(JMod.PUBLIC);
 		constructorBody = constructorMethod.body();
@@ -392,7 +423,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	}
 	
 	private void setGetModel() {
-		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), "getModel_");
+		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), getModelName());
 		JVar context = getModelMethod.param(CONTEXT, "context");
 		getModelMethod.param(STRING, "query");
 		getModelMethod.param(STRING, "orderBy");
@@ -411,10 +442,8 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		getModelMethod.body()._return( _new(getGeneratedClass()).arg(context));	
 	}
 	
-	
-	
 	private void setModelInit() {
-		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, "modelInit_");
+		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, modelInitName());
 		modelInitMethod.param(STRING, "query");
 		modelInitMethod.param(STRING, "orderBy");
 		modelInitMethod.param(STRING, "fields");
@@ -422,7 +451,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setGetModelList() {
 		//getModelList method
-		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), "getModelList_");
+		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), getModelListName());
 		JVar context = getModelListMethod.param(CONTEXT, "context");
 		JVar query = getModelListMethod.param(STRING, "query");
 		getModelListMethod.param(STRING, "orderBy");
@@ -473,7 +502,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	}
 	
 	private void setPutModel() {
-		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, "putModel_");
+		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, putModelName());
 		putModelMethod.param(STRING, "query");
 		putModelMethod.param(STRING, "orderBy");
 		putModelMethod.param(STRING, "fields");

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,28 +41,33 @@ public class AnimateActionHolder {
     private View view;
 
     /**
-     * @param view The View to which the application will be applied
+     * @param view The View to which the animation will be applied
      *
      * @param anim The resource id of the animation to load
      */
     void init(View view, @AnimRes int anim) {
         this.view = view;
-        this.animation = AnimationUtils.loadAnimation(context, anim);
+        
+        if (context != null) {
+        	this.animation = AnimationUtils.loadAnimation(context, anim);
+        }
     }
 
     /**
-     * @param Started Notifies the start of the animation.
-     *
-     * @param Ended Notifies the end of the animation. This callback is not invoked
+     * @param Ended <i><b>(default)</b></i> Notifies the end of the animation. This callback is not invoked
      * for animations with repeat count set to INFINITE.
+     * 
+     * @param Started Notifies the start of the animation.
      *
      * @param Repeated Notifies the repetition of the animation.
      */
     void build(
-        final Runnable Started,
         final Runnable Ended,
+        final Runnable Started,
         final Runnable Repeated
     ) {
+    	
+    	if (animation == null) return;
 
         this.animation.setAnimationListener(new Animation.AnimationListener() {
             @Override
@@ -83,7 +88,9 @@ public class AnimateActionHolder {
     }
 
     void execute() {
-        view.startAnimation(animation);
+    	if (animation != null) {
+    		view.startAnimation(animation);
+    	}        
     }
     
     /**

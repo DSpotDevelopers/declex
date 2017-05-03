@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.action.ActionsProcessor;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
@@ -49,14 +48,10 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		validatorHelper.isNotPrivate(element, valid);
 
 		validatorHelper.doesntThrowException(executableElement, valid);
-		
-		ActionsProcessor.validateActions(element, valid, getEnvironment());
 	}
 
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) throws Exception {
-		
-		ActionsProcessor.processActions(element, holder);
 		
 		uniquePriorityCounter++;
 		
@@ -69,7 +64,8 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		ExecutableElement exeElem = (ExecutableElement) element;
 		for (VariableElement param : exeElem.getParameters()) {
 			final String paramName = param.getSimpleName().toString();
-			ParamUtils.injectParam(paramName, invoke, viewsHolder);
+			final String paramType = param.asType().toString();
+			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 		}
 		
 		SharedRecords.priorityAdd(holder.getOnViewChangedBody(), block, uniquePriorityCounter);

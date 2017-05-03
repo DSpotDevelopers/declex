@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,5 +27,6 @@ import com.dspot.declex.api.action.process.ActionProcessor;
 public @interface ActionFor {
 	String[] value();
 	boolean global() default false;
+	boolean timeConsuming() default true;
 	Class<? extends ActionProcessor>[] processors() default {};
 }

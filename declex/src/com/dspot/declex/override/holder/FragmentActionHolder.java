@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.override.holder;
 
 import static com.helger.jcodemodel.JExpr._null;
@@ -30,6 +45,8 @@ import com.dspot.declex.action.Actions;
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
@@ -60,6 +77,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private JFieldVar contextField;
 	private JFieldVar startedField;
 	private JFieldVar builderField;
+	private JFieldVar tagField;
 	private JMethod initMethod;
 	private JFieldVar containerField;
 	private JFieldVar transactionField;
@@ -78,7 +96,15 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 		
+		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
+		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(actionName, env, false), 
+				null
+			);
+		
 		ActionInfo actionInfo = new ActionInfo(actionName);
+		actionInfo.isTimeConsuming = false;
 		
 		//This will avoid generation for parent classes, not used in the project
 		actionInfo.generated = false; 
@@ -96,6 +122,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		actionInfo.addMethod(ADD_NAME, actionName);
 		
 		actionInfo.addMethod(INIT_NAME, env.getCodeModel().VOID.fullName());
+		actionInfo.addMethod(
+				INIT_NAME, 
+				env.getCodeModel().VOID.fullName(),
+				Arrays.asList(new ActionMethodParam("tag", env.getClasses().STRING))
+			);
 		
 		actionInfo.addMethod(
 				BUILD_NAME, 
@@ -184,6 +215,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 				FragmentAction = getCodeModel()._class(actionName);
 				FragmentAction.annotate(EBean.class);
 				JAnnotationUse actionFor = FragmentAction.annotate(ActionFor.class);
+				actionFor.param("timeConsuming", false);	
 				actionFor.param("value", fragmentName);		
 				
 				ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(FragmentAction.fullName());
@@ -278,11 +310,18 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		startedField = FragmentAction.field(JMod.PRIVATE, getJClass(Runnable.class), "Started");
 		builderField = FragmentAction.field(JMod.PRIVATE, holder().getBuilderClass(), "builder");
 		
+		tagField = FragmentAction.field(JMod.PRIVATE, getClasses().STRING, "tag");
+		
 		transactionMethodField = FragmentAction.field(JMod.PRIVATE, getCodeModel().INT, "transactionMethod", lit(0));
 	}
 	
 	private void setInit() {
 		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
+		initMethod.body().invoke(INIT_NAME).arg(_null());
+		
+		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
+		JVar tagParam = initMethod.param(getClasses().STRING, "tag");
+		initMethod.body().assign(_this().ref("tag"), tagParam);
 		initMethod.body().assign(builderField, getGeneratedClass().staticInvoke("builder"));
 	}
 	
@@ -298,11 +337,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		executeMethod.body()._if(transactionField.eq(_null()))._then()._return();
 		
 		JInvocation transactionReplaceInvoke = transactionField.invoke("replace").arg(containerField)
-				.arg(builderField.invoke("build"))
+				.arg(builderField.invoke("build")).arg(tagField)
 				.invoke("commit"); 
 
 		JInvocation transactionAddInvoke = transactionField.invoke("add").arg(containerField)
-				.arg(builderField.invoke("build"))
+				.arg(builderField.invoke("build")).arg(tagField)
 				.invoke("commit"); 
 		
 		JConditional ifReplace = executeMethod.body()._if(transactionMethodField.eq(lit(0)));

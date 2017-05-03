@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,11 +45,13 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.atteo.evo.inflector.English;
 
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.api.localdb.LocalDBModel;
+import com.dspot.declex.api.localdb.UseLocalDB;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.util.FormatsUtils;
@@ -102,13 +104,26 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			return;
 		}
 		
-		validatorHelper.extendsType(element, "com.activeandroid.Model", valid);
+		String applicationClassName = getEnvironment().getAndroidManifest().getApplicationClassName();
+		if (applicationClassName != null) {		
+			
+			if (applicationClassName.endsWith(ModelConstants.generationSuffix())) {
+				applicationClassName = applicationClassName.substring(0, applicationClassName.length()-1);
+			}
+			
+			if (!TypeUtils.isClassAnnotatedWith(applicationClassName, UseLocalDB.class, getEnvironment())) {
+				valid.addError("The current application \"" + applicationClassName + "\" should be annotated with @UseLocalDB");				
+			}
+		} else {
+			valid.addError("To use LocalDBModels you should declare an application object");
+		}
 		
+		validatorHelper.extendsType(element, "com.activeandroid.Model", valid);
 		
 		if (valid.isValid()) {
 			TypeElement typeElement = (TypeElement) element;
 			final String qualifiedName = typeElement.getQualifiedName().toString();
-			SharedRecords.addModelGeneratedClass(qualifiedName, getEnvironment());
+			SharedRecords.addDBModelGeneratedClass(qualifiedName, getEnvironment());
 		}
 	}
 
@@ -148,7 +163,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 							}
 						} 
 
-						if (elemType.endsWith("_")) {
+						if (elemType.endsWith(ModelConstants.generationSuffix())) {
 							String elemGeneratedType = TypeUtils.typeFromTypeString(elemType, getEnvironment());
 							TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(elemGeneratedType.substring(0, elemGeneratedType.length()-1));
 							if (typeElement == null) continue;

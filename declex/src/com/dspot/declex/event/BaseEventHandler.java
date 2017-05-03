@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.dspot.declex.event;
 
-import static com.helger.jcodemodel.JExpr.TRUE;
 import static com.helger.jcodemodel.JExpr._super;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -26,8 +25,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -43,12 +40,10 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
-import org.androidannotations.holder.HasOptionsMenu;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
-import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.api.action.Action;
+import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
@@ -68,10 +63,6 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseEventHandler.class);
 	
-	protected final String[] actions = {
-			"Menu", "_menu", "MenuItem", "_menuitem",
-	};
-			
 	private String referecedId;
 	
 	public BaseEventHandler(Class<?> targetClass, AndroidAnnotationsEnvironment environment) {
@@ -82,28 +73,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	public void validate(Element element, ElementValidation valid) {
 		
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
-		 
-		String elementName = element.getSimpleName().toString();
-		int actionIndex = -1;
-		for (int i = 0; i < actions.length; i++) {
-			String action = actions[i];
-			
-			Matcher match = Pattern.compile("(((?:\\w|_|\\d|\\$)+)" + action + ")\\d*$").matcher(elementName);
-			if (match.find()) {
-				elementName = match.group(2);
-				actionIndex = i;
-				break;
-			}
-		}	
 		
-		if (actionIndex==0 || actionIndex==1 || actionIndex==2 || actionIndex==3) {
-//			List<String> menuObjects = getMenuObjects(element);
-//			if (!menuObjects.contains(elementName)) {
-//				valid.addError("The menu element " + element.getSimpleName() + 
-//						" cannot be found with the id \"" + elementName + "\"");
-//			}
-		} 
-
 	}
 	
 	protected List<String> getNames(Element element) {
@@ -115,77 +85,24 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	protected ViewListenerHolder getListenerHolder(String elementName, String elementClass, Map<AbstractJClass, IJExpression> declForListener, 
 			Element element, ViewsHolder viewsHolder, T holder) {
 		
-		String elementNameAsClass = elementName; 
-		
-		int actionIndex = -1;
-		for (int i = 0; i < actions.length; i++) {
-			String action = actions[i];
+		//Check if it is an event, only permitted in fields
+		if (element.getKind().equals(ElementKind.FIELD) && referecedId.startsWith("on")) {
+			String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
 			
-			Matcher match = Pattern.compile("(((?:\\w|_|\\d|\\$)+)" + action + ")\\d*$").matcher(elementName);
-			if (match.find()) {
-				referecedId = match.group(2);
-				elementNameAsClass = match.group(1);
-				actionIndex = i;
-				break;
+			if (eventClassName != null) {
+				JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
+				method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
+				return null;
 			}
 		}
 		
-		switch (actionIndex) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-			//Menu
-			if (viewsHolder != null) {
-				menuHandler(elementClass, referecedId, element, viewsHolder, holder);
-				return null;				
-			}
-			
-		default:
-			String referencedIdEnumerated = null;
-			Matcher match = Pattern.compile("((?:\\w|_|\\d|\\$)+\\w)\\d+$").matcher(elementName);
-			if (match.find()) {
-				referencedIdEnumerated = match.group(1);
-			}
-			
-			if (viewsHolder != null) {
-				//If detected as a menu, fall back as menuEvent
-				List<String> menuObjects = viewsHolder.getMenuObjects();
-				if (referencedIdEnumerated != null && menuObjects.contains(referencedIdEnumerated)) {
-					referecedId = referencedIdEnumerated;
-				}
-				if (menuObjects.contains(referecedId)) {
-					menuHandler(elementClass, referecedId, element, viewsHolder, holder);
-					return null;
-				}
-				
-				if (referencedIdEnumerated != null && viewsHolder.layoutContainsId(referencedIdEnumerated)) {
-					referecedId = referencedIdEnumerated;
-				}				
-			}
-			
-			//Check if it is an event, only permitted in fields
-			if (element.getKind().equals(ElementKind.FIELD) && referecedId.startsWith("on")) {
-				String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
-				
-				if (eventClassName != null) {
-					JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-					method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
-					return null;
-				}
-			}
-			
-			//Fallback as Method call
-			methodHandler(elementClass, referecedId, element, viewsHolder, holder);
-			return null;
-		}		
+		//Fallback as Method call
+		methodHandler(elementClass, referecedId, element, viewsHolder, holder);
+		return null;		
 	}
 	
 	protected String getClassName(Element element) {
-		String elementClass = element.asType().toString();
-		if (!elementClass.endsWith("_")) elementClass = elementClass + "_";
-		
-		return elementClass;
+		return TypeUtils.getGeneratedClassName(element, getEnvironment());
 	}
 
 	@Override
@@ -231,20 +148,6 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			}
 			
 		}
-	}
-	
-	private void menuHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
-		final HasOptionsMenu hasOptionsMenuHolder = (HasOptionsMenu) viewsHolder.holder();
-		
-		JFieldRef idRef = getEnvironment().getRClass().get(Res.ID).getIdStaticRef(elementName, getEnvironment());
-
-		IJExpression ifExpr = hasOptionsMenuHolder.getOnOptionsItemSelectedItemId().eq(idRef);
-
-		JBlock block = hasOptionsMenuHolder.getOnOptionsItemSelectedMiddleBlock();
-		JBlock itemIfBody = block._if(ifExpr)._then();
-
-		itemIfBody.add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
-		itemIfBody._return(TRUE);
 	}
 	
 	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
@@ -299,7 +202,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     	
     	if (element instanceof ExecutableElement) {
     		//This give support to Override methods where
-    		if (element.getAnnotation(Action.class) != null) {
+    		if (element.getAnnotation(RunWith.class) != null) {
     			
     			if (elementName.endsWith("_")) {
     				elementName = elementName.substring(0, elementName.length()-1);

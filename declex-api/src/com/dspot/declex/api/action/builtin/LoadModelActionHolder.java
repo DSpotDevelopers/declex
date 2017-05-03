@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016 DSpot Sp. z o.o
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,9 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import android.os.Handler;
-import android.os.Looper;
-
 import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Field;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
-import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 /**
  * An Action to load a {@link com.dspot.declex.api.model.Model @Model} 
@@ -47,76 +42,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
  */
 
 @ActionFor(value="LoadModel", processors=LoadModelActionProcessor.class)
-public class LoadModelActionHolder {
-
-	private Runnable AfterLoad;
-	private OnFailedRunnable Failed;
-	
-	private boolean keepCallingThread;
-	
-	private String query;
-	private String orderBy;
-	private String fields;
-	
-	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
-	 */
-    void init(@Field Object field) {
-    }
-    
-    /**
-     * <i>"query"</i> that will be used as a query to load the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated field.
-     * If it is not provided, the "query" parameter of the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
-     */
-    public LoadModelActionHolder query(@FormattedExpression String query) {
-    	this.query = query;
-    	return this;
-    }
-
-    /**
-     * "<i>orderBy</i>" that will be used to load the 
-     * {@link com.dspot.declex.api.model.Model @Model} annotated field.
-     * If it is not provided, the "orderBy" parameter of the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
-     */
-    public LoadModelActionHolder orderBy(@FormattedExpression String orderBy) {
-    	this.orderBy = orderBy;
-    	return this;
-    }
-
-    /**
-     * "<i>fields</i>" that will be loaded by @Model annotated field.
-     * If it is not provided, the "fields" parameter of the
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
-     */
-    public LoadModelActionHolder fields(@FormattedExpression String fields) {
-    	this.fields = fields;
-    	return this;
-    }
-    
-    /**
-     * @param AfterLoad <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated
-     * field is loaded
-     * 
-     * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated field fails loading.
-     */
-    void build(Runnable AfterLoad, OnFailedRunnable Failed) {
-    	this.AfterLoad = AfterLoad;
-    	this.Failed = Failed;
-    }
-    
-    /**
-     * Keeps the calling Thread for the Action. This avoids the automatic switch to
-     * the UIThread after the Action finishes execution
-     */
-    public LoadModelActionHolder keepCallingThread() {
-    	keepCallingThread = true; //This will keep the Action in the thread that is executed, after finalization
-    	return this;
-    }
+public class LoadModelActionHolder extends BaseModelActionHolder {
 
     /**
      * No populate the Model after it is loaded
@@ -124,66 +50,5 @@ public class LoadModelActionHolder {
     public LoadModelActionHolder noPopulate() {
     	return this;
     }
-    
-    String getQuery() {
-    	return this.query;
-    }
-    
-    String getOrderBy() {
-    	return this.orderBy;
-    }
-    
-    String getFields() {
-    	return this.fields;
-    }
-    
-    Runnable getAfterLoad() {    	
-    	if (!keepCallingThread && this.AfterLoad != null) {
-    		
-    		//Return to the main thread    		
-			return new Runnable() {
-				
-				@Override
-				public void run() {
-					if(Looper.myLooper() == Looper.getMainLooper()) {
-						AfterLoad.run();;
-					} else {
-						Handler handler = new Handler(Looper.getMainLooper());
-						handler.post(AfterLoad);	
-					}					
-				}
-			};
-			
-    	}
-    	
-    	return this.AfterLoad;
-    }
-    
-    OnFailedRunnable getFailed() {
-    	if (!keepCallingThread && this.Failed != null) {
-    		
-    		//Return to the main thread    		
-			return new OnFailedRunnable() {
-				
-				@Override
-				public void run() {
-					Failed.e = this.e;
-					
-					if(Looper.myLooper() == Looper.getMainLooper()) {
-						Failed.run();;
-					} else {
-						Handler handler = new Handler(Looper.getMainLooper());
-						handler.post(Failed);	
-					}					
-				}
-			};
-			
-    	}
-
-    	return this.Failed;
-    }
-
-    void execute() {
-    }
-    
+        
 }
