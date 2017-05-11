@@ -1263,6 +1263,9 @@ public class FilesCacheHelper {
 		}
 		
 		private static void initialization() {
+			
+			if (!isCacheFilesEnabled()) return;
+			
 			initializing = true;
 			cacheExecutor.execute(new Runnable() {
 				

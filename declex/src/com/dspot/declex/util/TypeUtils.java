@@ -39,6 +39,7 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 
 import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
@@ -229,8 +230,11 @@ public class TypeUtils {
 					final StringBuilder resultBuilder = new StringBuilder();
 					
 					//Try to get the value using Compiler API Tree
-					Trees trees = Trees.instance(environment.getProcessingEnvironment());
-		        	TreePath treePath = trees.getPath(element);
+					final Trees trees = Trees.instance(environment.getProcessingEnvironment());
+					final TreePath treePath = trees.getPath(
+			    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+					);
+					
 		        	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
 		        		
 		        		private Pattern pattern = Pattern.compile("value\\s*=\\s*([a-zA-Z_][a-zA-Z_0-9.]+)\\.class$");

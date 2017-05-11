@@ -81,20 +81,6 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 			
 			return;
 		}
-		
-		//Validate special methods
-		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems)
-			if (elem.getKind() == ElementKind.METHOD) {
-				ExecutableElement executableElement = (ExecutableElement) elem;
-				
-				if (executableElement.getSimpleName().toString().equals("afterLoad") || 
-					executableElement.getSimpleName().toString().equals("afterPut")) {
-					
-					validatorHelper.returnTypeIsVoid(executableElement, valid);					
-				}
-				
-			}
 	}
 
 	private void getFieldsAndMethods(Map<String, String> fields, Map<String, String> methods, TypeElement element) {

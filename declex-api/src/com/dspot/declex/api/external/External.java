@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.runwith;
+package com.dspot.declex.api.external;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+//TODO: Add fields as dependencies as well
+
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.FIELD, ElementType.METHOD})
-public @interface RunWith {
-	String value() default "";
-	boolean debug() default false;
+@Target({ElementType.METHOD}) 
+public @interface External {
+	boolean required() default true;
 }

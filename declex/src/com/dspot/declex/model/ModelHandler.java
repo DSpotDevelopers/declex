@@ -21,9 +21,6 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
@@ -53,8 +50,8 @@ import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JConditional;
@@ -62,7 +59,6 @@ import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
-import com.helger.jcodemodel.JMod;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
@@ -123,6 +119,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				//TODO validate fields
 			}
 		}
+		
 	}
 
 	@Override
@@ -161,58 +158,19 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			//If this is a lazy loading model, create or change the getter method
 			if (element.getAnnotation(Model.class).lazy()) {
 				
-				boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
-				
-				AbstractJType[] params = isStatic ? new AbstractJType[]{getClasses().CONTEXT} : new AbstractJType[]{};
-				JMethod getter = holder.getGeneratedClass().getMethod(
-						FormatsUtils.fieldToGetter(element.getSimpleName().toString()),
-						params
-					);
-				if (getter == null) {
-					String elemType = TypeUtils.typeFromTypeString(element.asType().toString(), getEnvironment());
-					AbstractJClass elemClass = getJClass(elemType);
-					
-					Matcher matcher = Pattern.compile("<([A-Za-z_][A-Za-z0-9_.]+)>$").matcher(elemType);
-					if (matcher.find()) {
-						String innerElem = matcher.group(1);
-						
-						elemClass = getJClass(elemType.substring(0, elemType.length() - matcher.group(0).length()));
-						elemClass = elemClass.narrow(getJClass(innerElem));
-					}
-					
-					int mods = JMod.PUBLIC;
-					if (isStatic) {
-						mods |= JMod.STATIC;
-					}
-					
-					getter = holder.getGeneratedClass().method(
-							mods,
-							elemClass,
-							FormatsUtils.fieldToGetter(element.getSimpleName().toString())
-						);
-					
-					if (isStatic) {
-						getter.param(getClasses().CONTEXT, "context");
-					}
-				}
-				
-				//Remove previous method body
-				codeModelHelper.removeBody(getter);
-				
-				JFieldRef field = ref(element.getSimpleName().toString());
-				
 				//In the init(), set the field to null
 				if (element.getEnclosingElement().getAnnotation(UseModel.class) != null) { 
-					block._if(useModelHolder.getFullInitVar())._then().assign(field, _null());
+					block._if(useModelHolder.getFullInitVar())._then()
+					     .invoke(modelHolder.getSetterMethod(element)).arg(_null());
 				} else {
 					if (element.getAnnotation(Extra.class)==null && element.getAnnotation(FragmentArg.class)==null) {
-						block.assign(field, _null());
+						block.invoke(modelHolder.getSetterMethod(element)).arg(_null());
 					}	
 				}
 								
-				block = getter.body()._if(field.eq(_null()))._then();
+				block = modelHolder.getGetterBody(element)
+						            ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
 				
-				getter.body()._return(field);
 			} else {
 				checkNull = true;
 			}
@@ -298,11 +256,13 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	private void generateGetModelCallInBlock(final JBlock block, final boolean checkNull, final Element element, 
-			final ModelHolder holder, final UseModelHolder useModelHolder, final boolean isStatic) {
+			final ModelHolder modelHolder, final UseModelHolder useModelHolder, final boolean isStatic) {
 		
 		//This ensures the priority of the @Model
 		final Trees trees = Trees.instance(getProcessingEnvironment());
-    	final TreePath treePath = trees.getPath(element);
+		final TreePath treePath = trees.getPath(
+    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+		);
     	
     	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
     		
@@ -318,15 +278,15 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
     				Model annotation = element.getAnnotation(Model.class);
 
     				//Get the internal calling method
-    				JMethod getModelMethod = holder.getLoadModelMethod(element);
+    				JMethod getModelMethod = modelHolder.getLoadModelMethod(element);
     				
     				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
     				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
 					final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
     				
-    				IJExpression contextExpr = holder.getContextRef();
+    				IJExpression contextExpr = modelHolder.getContextRef();
     				if (contextExpr == _this()) {
-    					contextExpr = holder.getGeneratedClass().staticRef("this");
+    					contextExpr = modelHolder.getGeneratedClass().staticRef("this");
     				}
     				if (isStatic) contextExpr = ref("context");
     				
@@ -342,9 +302,8 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
     															   .arg(onFailed);
     				
     				if (checkNull) {
-    					JFieldRef field = ref(element.getSimpleName().toString());
     					JBlock maskBlock = new JBlock();
-    					maskBlock._if(field.eq(_null()))._then()
+    					maskBlock._if(invoke(modelHolder.getGetterMethod(element)).eq(_null()))._then()
     							 .add(invocation);
     					SharedRecords.priorityAdd(block, maskBlock, position);
     				} else {

@@ -37,6 +37,7 @@ import com.dspot.declex.event.IStatementCreator;
 import com.dspot.declex.util.DeclexConstant;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JFieldRef;
@@ -117,7 +118,10 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 		
 		//If the listener block was already created, simply add the statement
 		if (listenerInfo.block != null) {
-			listenerInfo.block.add(statementCreator.getStatement());
+			IJStatement statement = statementCreator.getStatement();
+			if (statement != null) {
+				listenerInfo.block.add(statement);
+			}
 		}
 	}
 
@@ -162,7 +166,10 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 			
 			//Add all the pre-added statements
 			for (IStatementCreator statementCreator : listenerInfo.statementCreators) {
-				listenerInfo.block.add(statementCreator.getStatement());
+				IJStatement statement = statementCreator.getStatement();
+				if (statement != null) {
+					listenerInfo.block.add(statement);
+				}
 			}
 		}		
 		

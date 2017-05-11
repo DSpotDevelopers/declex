@@ -22,6 +22,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.action.ActionsProcessor.ActionCallSuperException;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
+import com.dspot.declex.util.element.VirtualElement;
 
 public class ActionHelper {
 	
@@ -139,8 +140,13 @@ public class ActionHelper {
 		if (actionsMap.containsKey(element)) {
 			throw new RuntimeException("Actions should be validated only once");
 		}
-		
-		actionsMap.put(element, new ElementDetails(element, handler));
+
+		//Actions will be executed in the same object independently of the Virtual State
+		if (element instanceof VirtualElement) {
+			actionsMap.put(((VirtualElement) element).getElement(), new ElementDetails(((VirtualElement) element).getElement(), handler));
+		} else {
+			actionsMap.put(element, new ElementDetails(element, handler));
+		}
 	}
 	
 	public void process() {

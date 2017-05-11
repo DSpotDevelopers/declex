@@ -297,7 +297,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			}
 		}
 		
-		//Mark for generation the Action object is it is in cached,
+		//Mark for generation the Action object if it is cached,
 		//this will ensure that if the object is invalidated, it can be generated again
 		try {
 			FileDetails actionDetails = filesCacheHelper.getFileDetails(DeclexConstant.ACTION);

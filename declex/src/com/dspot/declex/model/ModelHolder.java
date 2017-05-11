@@ -17,9 +17,11 @@ package com.dspot.declex.model;
 
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.cond;
 import static com.helger.jcodemodel.JExpr.dotclass;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -38,6 +40,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
 import org.androidannotations.api.BackgroundExecutor;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
@@ -46,11 +49,15 @@ import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
+import com.dspot.declex.api.external.External;
 import com.dspot.declex.api.model.Model;
+import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJAssignmentTarget;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -74,8 +81,11 @@ import com.sun.source.util.Trees;
 
 public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	
-	private Map<Element, PutModelRecord> putModelMethods = new HashMap<>();
-	private Map<Element, LoadModelRecord> loadModelMethods = new HashMap<>();
+	private Map<Element, ModelMethod> putModelMethods = new HashMap<>();
+	private Map<Element, ModelMethod> loadModelMethods = new HashMap<>();
+	
+	private Map<Element, ModelMethod> getterModelMethods = new HashMap<>();
+	private Map<Element, ModelMethod> setterModelMethods = new HashMap<>();
 	
 	final AbstractJClass STRING;
 	final AbstractJClass LIST;
@@ -84,6 +94,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	final AbstractJClass THROWABLE;
 	final AbstractJClass THREAD;
 	final JPrimitiveType VOID;
+	
+	private APTCodeModelHelper codeModelHelper;
 		
 	public ModelHolder(EComponentHolder holder) {
 		super(holder);
@@ -95,11 +107,240 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		THROWABLE = environment().getClasses().THROWABLE;
 		THREAD = environment().getClasses().THREAD;
 		VOID = getCodeModel().VOID;
+		
+		codeModelHelper = new APTCodeModelHelper(environment());
+	}
+	
+	public JMethod getGetterMethod(Element element) {
+		ModelMethod getter = getterModelMethods.get(element);
+		if (getter == null) {
+			getter = setGetterMethod(element);
+		}
+			
+		return getter.method;
+	}
+	
+	public JBlock getGetterBody(Element element) {
+		ModelMethod getter = getterModelMethods.get(element);
+		if (getter == null) {
+			getter = setGetterMethod(element);
+		}
+			
+		return getter.methodBlock;
+	}
+	
+	public JMethod getSetterMethod(Element element) {
+		ModelMethod setter = setterModelMethods.get(element);
+		if (setter == null) {
+			setter = setSetterMethod(element);
+		}
+			
+		return setter.method;
+	}
+	
+	public JBlock getSetterBody(Element element) {
+		ModelMethod setter = setterModelMethods.get(element);
+		if (setter == null) {
+			setter = setSetterMethod(element);
+		}
+			
+		return setter.methodBlock;
+	}
+	
+	private ModelMethod setSetterMethod(Element element) {
+		
+		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
+		final String elementName = element.getSimpleName().toString();
+
+		ModelMethod modelMethod = null;
+		
+		BaseGeneratedClassHolder holder = holder();
+		if (element.getAnnotation(External.class) != null) {
+		
+			//It will never be static here
+			
+			JMethod setter = holder.getGeneratedClass().method(
+					JMod.PUBLIC,
+					getCodeModel().VOID,
+					FormatsUtils.fieldToSetter(elementName)
+				);
+			JVar param = setter.param(elementModelClass(element), elementName);
+					
+			final Element referenceElement = ((VirtualElement) element).getReference();
+			final String referenceElementName = referenceElement.getSimpleName().toString();
+			String referenceElementClass = referenceElement.asType().toString();
+			
+			boolean converted = false;
+			if (!referenceElementClass.endsWith(ModelConstants.generationSuffix())) {
+				converted = true;
+				referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, environment());
+			}
+			
+			if (converted) {
+				setter.body().add(
+					cast(getJClass(referenceElementClass), ref(referenceElementName)).invoke(setter).arg(param)
+				);
+			} else {
+				setter.body().add(
+					ref(referenceElementName).invoke(setter).arg(param)
+				);				
+			}
+			
+			modelMethod = new ModelMethod(setter, setter.body());
+			
+			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, environment(), true);
+			ProcessHolder processHolder = environment().getProcessHolder();
+			holder = (BaseGeneratedClassHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
+			
+		}
+				
+		JMethod setter = holder.getGeneratedClass().getMethod(
+				FormatsUtils.fieldToSetter(elementName),
+				new AbstractJType[]{elementModelClass(element)}
+			);
+		if (setter == null) {		
+			
+			int mods = JMod.PUBLIC;
+			if (isStatic) {
+				mods |= JMod.STATIC;
+			}
+			
+			setter = holder.getGeneratedClass().method(
+					mods,
+					getCodeModel().VOID,
+					FormatsUtils.fieldToSetter(elementName)
+				);
+			setter.param(elementModelClass(element), elementName);
+		}
+		
+		//Remove previous method body
+		codeModelHelper.removeBody(setter);
+		
+		if (isStatic) {
+			setter.body().assign(holder.getGeneratedClass().staticRef(elementName), ref(elementName));
+		} else {
+			setter.body().assign(_this().ref(elementName), ref(elementName));			
+		}
+		
+		if (modelMethod != null) {
+			modelMethod.methodBlock = setter.body();
+			setterModelMethods.put(element, modelMethod);
+			return modelMethod;
+		}
+		
+		modelMethod = new ModelMethod(setter, setter.body());
+		setterModelMethods.put(element, modelMethod);
+		
+		return modelMethod;
+	}
+	
+	private ModelMethod setGetterMethod(Element element) {
+		
+		final String elementName = element.getSimpleName().toString();
+		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
+		final boolean isLazy = element.getAnnotation(Model.class).lazy();
+		
+		ModelMethod modelMethod = null;
+		
+		BaseGeneratedClassHolder holder = holder();
+		if (element.getAnnotation(External.class) != null) {
+
+			//It will never be static here
+			
+			JMethod getter = holder.getGeneratedClass().method(
+					JMod.PUBLIC,
+					elementModelClass(element),
+					FormatsUtils.fieldToGetter(elementName)
+				);
+					
+			final Element referenceElement = ((VirtualElement) element).getReference();
+			final String referenceElementName = referenceElement.getSimpleName().toString();
+			String referenceElementClass = referenceElement.asType().toString();
+			
+			boolean converted = false;
+			if (!referenceElementClass.endsWith(ModelConstants.generationSuffix())) {
+				converted = true;
+				referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, environment());
+			}
+			
+			JBlock getterBody = getter.body().blockVirtual();
+			if (converted) {
+				getter.body()._return(
+					cast(getJClass(referenceElementClass), ref(referenceElementName)).invoke(getter)
+				);
+			} else {
+				getter.body()._return(
+					ref(referenceElementName).invoke(getter)
+				);				
+			}
+			
+			modelMethod = new ModelMethod(getter, getterBody);
+			
+			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, environment(), true);
+			ProcessHolder processHolder = environment().getProcessHolder();
+			holder = (BaseGeneratedClassHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
+		}
+				
+		AbstractJType[] params = isStatic && isLazy ? new AbstractJType[]{getClasses().CONTEXT} : new AbstractJType[]{};
+		JMethod getter = holder.getGeneratedClass().getMethod(
+				FormatsUtils.fieldToGetter(elementName),
+				params
+			);
+		if (getter == null) {
+			
+			int mods = JMod.PUBLIC;
+			if (isStatic) {
+				mods |= JMod.STATIC;
+			}
+			
+			getter = holder.getGeneratedClass().method(
+					mods,
+					elementModelClass(element),
+					FormatsUtils.fieldToGetter(elementName)
+				);
+			
+			if (isStatic && isLazy) {
+				getter.param(getClasses().CONTEXT, "context");
+			}
+		}
+		
+		//Remove previous method body
+		codeModelHelper.removeBody(getter);
+		
+		JFieldRef field = ref(element.getSimpleName().toString());
+		JBlock getterBody = getter.body().blockVirtual();
+		getter.body()._return(field);
+		
+		if (modelMethod != null) {
+			modelMethod.methodBlock = getterBody;
+			getterModelMethods.put(element, modelMethod);
+			return modelMethod;
+		}
+		
+		modelMethod = new ModelMethod(getter, getterBody);
+		getterModelMethods.put(element, modelMethod);
+		
+		return modelMethod;
+	}
+	
+	private AbstractJClass elementModelClass(Element element) {
+		String elemType = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
+		AbstractJClass elemClass = getJClass(elemType);
+		
+		Matcher matcher = Pattern.compile("<([A-Za-z_][A-Za-z0-9_.]+)>$").matcher(elemType);
+		if (matcher.find()) {
+			String innerElem = matcher.group(1);
+			
+			elemClass = getJClass(elemType.substring(0, elemType.length() - matcher.group(0).length()));
+			elemClass = elemClass.narrow(getJClass(innerElem));
+		}
+		
+		return elemClass;
 	}
 	
 	private UseModelHolder useModelHolderForElement(Element element) {
 		
-		//If CacheFiles is enabled, crossed references couldn't be handled
+		//If CacheFiles is enabled, crossed references cannot be handled
 		if (FilesCacheHelper.isCacheFilesEnabled()) return null;
 		
 		ClassInformation classInformation = TypeUtils.getClassInformation(element, environment(), true);
@@ -131,32 +372,33 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	}
 	
 	public JMethod getLoadModelMethod(Element element) {
-		LoadModelRecord loadModelRecord = loadModelMethods.get(element);
+		ModelMethod loadModelRecord = loadModelMethods.get(element);
 		if (loadModelRecord == null) {
 			loadModelRecord = setLoadModelMethod(element);
 		}
 			
-		return loadModelRecord.loadModelMethod;
+		return loadModelRecord.method;
 	}
 	
 	public JBlock getAfterLoadModelBlock(Element element) {
-		LoadModelRecord loadModelRecord = loadModelMethods.get(element);
+		ModelMethod loadModelRecord = loadModelMethods.get(element);
 		if (loadModelRecord == null) {
 			loadModelRecord = setLoadModelMethod(element);
 		}
 			
-		return loadModelRecord.afterLoadModelBlock;
+		return loadModelRecord.methodBlock;
 	}
 	
-	private LoadModelRecord setLoadModelMethod(Element element) {
-
+	private ModelMethod setLoadModelMethod(Element element) {		
+		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
 		final String fieldName = element.getSimpleName().toString();
 		final Model modelAnnotation = element.getAnnotation(Model.class);
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
+		final boolean isLazy = element.getAnnotation(Model.class).lazy();
 		
-		IJAssignmentTarget beanField = ref(fieldName);
+		IJAssignmentTarget beanField = null;
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
 		
 		JMethod loadModelMethod = getGeneratedClass().method(JMod.NONE | (isStatic? JMod.STATIC : 0), getCodeModel().VOID, "_load_" + fieldName);
@@ -165,6 +407,12 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JVar orderBy = loadModelMethod.param(JMod.FINAL, STRING, "orderBy");
 		JVar fields = loadModelMethod.param(JMod.FINAL, STRING, "fields");
 		JVar onDone = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
+		
+		JInvocation getter = invoke(getGetterMethod(element));
+		if (isStatic && isLazy) {
+			getter = getter.arg(context);
+		}		
+		JInvocation setter = invoke(getSetterMethod(element));
 		
 		JBlock block = loadModelMethod.body();
 
@@ -218,7 +466,10 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		//TreePathScanner is used to determine the order in the code and ensure
 		//that it doens't depends on the compiler implementation
 		final Trees trees = Trees.instance(environment().getProcessingEnvironment());
-    	final TreePath treePath = trees.getPath(element);
+		final TreePath treePath = trees.getPath(
+    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+		);
+		
     	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
     		
     		@Override
@@ -278,7 +529,13 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		if (isList) tryBlock.body().decl(LIST.narrow(ModelClass), fieldName + "Local");
 		
-		assign = tryBlock.body().assign(beanField, getModel);
+		assign = tryBlock.body();		
+		if (beanField != null) {
+			assign.assign(beanField, getModel);
+		} else {
+			assign.add(setter.arg(getModel));
+		}
+		
 		JCatchBlock catchBlock = tryBlock._catch(THROWABLE);
 		JVar caughtException = catchBlock.param("e");
 		IJStatement uncaughtExceptionCall = THREAD 
@@ -291,71 +548,80 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
 		ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		
+		IJExpression assignField = beanField == null? getter : beanField;
 		if (isList) {
 			
-			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", beanField).body();
+			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", assignField).body();
 			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)	
-			  .arg(fields);
-			
-			IJExpression assignField = beanField;
+			  .arg(fields);			
 			
 			if (converted != null) {
-				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, beanField));
+				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, assignField));
 			}
 			
-			JFieldRef view = ref(fieldName);
-			JConditional ifCond = assign._if(view.eq(_null()));
-			ifCond._then().assign(view, _new(getJClass(LinkedList.class)));
+			JConditional ifCond = assign._if(getter.eq(_null()));
+			ifCond._then().add(setter.arg(_new(getJClass(LinkedList.class))));
 			
-			JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(ref(fieldName));
-			syncBlock.body().invoke(view, "clear");
-			syncBlock.body().invoke(view, "addAll").arg(assignField);
+			JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(getter);
+			syncBlock.body().add(getter.invoke("clear"));
+			syncBlock.body().add(getter.invoke("addAll").arg(assignField));
 						
 		} else {
-			assign.invoke(converted == null ? beanField : cast(ModelClass, beanField), useModelModelInitMethod(useModelHolder))
+			assign.invoke(converted == null ? assignField : cast(ModelClass, assignField), useModelModelInitMethod(useModelHolder))
 			  .arg(query)
 			  .arg(orderBy)
 			  .arg(fields);
 		}
 		
-		JBlock afterGetModelBlock = assign.block();
+		JBlock afterGetModelBlock = assign.blockVirtual();
 		
 		assign._if(onDone.ne(_null()))._then()
 			  .invoke(onDone, "run");
 
-		LoadModelRecord getModelRecord = new LoadModelRecord(loadModelMethod, afterGetModelBlock);
+		ModelMethod getModelRecord = new ModelMethod(loadModelMethod, afterGetModelBlock);
 		loadModelMethods.put(element, getModelRecord);
 		return getModelRecord;
 	}
 	
 	public JMethod getPutModelMethod(Element element) {
-		PutModelRecord putModelRecord = putModelMethods.get(element);
+		ModelMethod putModelRecord = putModelMethods.get(element);
 		if (putModelRecord == null) {
 			putModelRecord = setPutModelMethod(element);
 		}
 			
-		return putModelRecord.putModelMethod;
+		return putModelRecord.method;
 	}
 	
 	public JBlock getPutModelMethodBlock(Element element) {
-		PutModelRecord putModelRecord = putModelMethods.get(element);
+		ModelMethod putModelRecord = putModelMethods.get(element);
 		if (putModelRecord == null) {
 			putModelRecord = setPutModelMethod(element);
 		}
 			
-		return putModelRecord.putModelMethodBlock;
+		return putModelRecord.methodBlock;
 	}
 	
-	private PutModelRecord setPutModelMethod(Element element) {
+	private ModelMethod setPutModelMethod(Element element) {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
 		final Model modelAnnotation = element.getAnnotation(Model.class);		
 		final String fieldName = element.getSimpleName().toString();
 
-		JFieldRef beanField = ref(fieldName);
+		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
+		final boolean isLazy = element.getAnnotation(Model.class).lazy();
+		JInvocation getter = invoke(getGetterMethod(element));
+		if (isStatic && isLazy) {
+			IJExpression context = holder().getContextRef();
+			if (context == _this()) {
+				context = holder().getGeneratedClass().staticRef("this");
+			}
+			getter = getter.arg(context);
+		}
+		
+		IJExpression beanField = getter;
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
 		
 		JMethod putModelMethod = getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_put_" + fieldName);
@@ -453,8 +719,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			}
 			
 			if (isList) {
-				JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(ref(fieldName));
-				JBlock forEachBlock = syncBlock.body().forEach((converted == null ? ModelClass : getJClass(converted)), fieldName + "Local", ref(fieldName)).body();				
+				JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(getter);
+				JBlock forEachBlock = syncBlock.body().forEach((converted == null ? ModelClass : getJClass(converted)), fieldName + "Local", getter).body();				
 				forEachBlock.add(putModel);
 			} else {
 				tryBlock.body().add(putModel);
@@ -477,7 +743,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		}
 		
-		PutModelRecord putModelRecord = new PutModelRecord(putModelMethod, putModelMethodBlock);
+		ModelMethod putModelRecord = new ModelMethod(putModelMethod, putModelMethodBlock);
 		putModelMethods.put(element, putModelRecord);
 		return putModelRecord;
 	}
@@ -486,24 +752,14 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		return holder().getContextRef();
 	}	
 	
-	private class LoadModelRecord {
-		JMethod loadModelMethod;
-		JBlock afterLoadModelBlock;
+	private class ModelMethod {
+		JMethod method;
+		JBlock methodBlock;
 		
-		public LoadModelRecord(JMethod getModelMethod, JBlock afterGetModelBlock) {
-			this.loadModelMethod = getModelMethod;
-			this.afterLoadModelBlock = afterGetModelBlock;
+		ModelMethod(JMethod method, JBlock methodBlock) {
+			this.method = method;
+			this.methodBlock = methodBlock;
 		}
 	}
 	
-	private class PutModelRecord {
-		JMethod putModelMethod;
-		JBlock putModelMethodBlock;
-		
-		public PutModelRecord(JMethod putModelMethod, JBlock putModelMethodBlock) {
-			this.putModelMethod = putModelMethod;
-			this.putModelMethodBlock = putModelMethodBlock;
-		}
-	}
-
 }

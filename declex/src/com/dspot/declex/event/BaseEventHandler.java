@@ -22,6 +22,7 @@ import static com.helger.jcodemodel.JExpr.ref;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,9 +78,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	}
 	
 	protected List<String> getNames(Element element) {
-		List<String> names = new ArrayList<>(1);
-		names.add(element.getSimpleName().toString());
-		return names;
+		return Arrays.asList(element.getSimpleName().toString());
 	}	
 	
 	protected ViewListenerHolder getListenerHolder(String elementName, String elementClass, Map<AbstractJClass, IJExpression> declForListener, 
@@ -91,7 +90,12 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			
 			if (eventClassName != null) {
 				JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
-				method.body().add(getStatement(getJClass(eventClassName), element, viewsHolder, holder));
+				
+				IJStatement statement = getStatement(getJClass(eventClassName), element, viewsHolder, holder);
+				if (statement != null) {
+					method.body().add(statement);
+				}
+				
 				return null;
 			}
 		}
@@ -154,8 +158,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 
 		//See if the method exists in the holder
 		final String methodName = "get" + elementName.substring(0, 1).toUpperCase() + elementName.substring(1);
-    	
+    			
     	//Try to find the method using reflection
+		//TODO This search by method name in the holder should be improve, one approach is to 
+		//search in methods of the holder annotated by some annotation which provides the method which
+		//it references
     	Method holderMethod = null;
     	try {
 			holderMethod = holder.getClass().getMethod(methodName);
@@ -191,7 +198,10 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     			}
     			
 				if (block != null) {
-					block.add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
+					IJStatement statement = getStatement(getJClass(elementClass), element, viewsHolder, holder);
+					if (statement != null) {
+						block.add(statement);
+					}
 					return true;
 				}
 			} catch (IllegalAccessException | IllegalArgumentException
@@ -201,6 +211,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     	}
     	
     	if (element instanceof ExecutableElement) {
+    		
     		//This give support to Override methods where
     		if (element.getAnnotation(RunWith.class) != null) {
     			
@@ -209,7 +220,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     				return methodHandler(elementClass, elementName, element, viewsHolder, holder);
     			}			
     			
-    			//Override methods is handled in ActionHandler
+    			//Override methods is handled in RunWithHandler
     			if (element.getAnnotation(Override.class) != null) {
     				return true;
     			}
@@ -245,7 +256,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     		}
     		
     		//The same method invocating itself is handled in a different
-    		//handler (Ex. ActionHandler)
+    		//handler (Ex. RunWithHandler)
     		return true;
     	}
     	

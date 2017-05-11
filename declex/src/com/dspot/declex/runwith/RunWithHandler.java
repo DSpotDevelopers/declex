@@ -15,9 +15,12 @@
  */
 package com.dspot.declex.runwith;
 
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.List;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -28,13 +31,13 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.action.ActionHelper;
+import com.dspot.declex.api.external.External;
 import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.event.BaseEventHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJStatement;
-import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
 
 public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler<T> {
@@ -68,12 +71,29 @@ public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler
 	}
 	
 	@Override
+	protected List<String> getNames(Element element) {
+		RunWith runWith = element.getAnnotation(RunWith.class);
+		if (runWith != null) {
+			if (!runWith.value().isEmpty()) {
+				return Arrays.asList(runWith.value());
+			}
+		}
+		
+		return super.getNames(element);
+	}
+	
+	@Override
 	protected IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder, T holder) {
 
-		if (element instanceof ExecutableElement) {
+		if (element instanceof ExecutableElement ) { 
+			
+			if (adiHelper.hasAnnotation(element, External.class)) {
+				return null;
+			};
+			
 			final String methodName = element.getSimpleName().toString();
 			
-			JInvocation invoke = JExpr.invoke(methodName);
+			JInvocation invoke = invoke(methodName);
 			
 			ExecutableElement exeElem = (ExecutableElement) element;
 			for (VariableElement param : exeElem.getParameters()) {

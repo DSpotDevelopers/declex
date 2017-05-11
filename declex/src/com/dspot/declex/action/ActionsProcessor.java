@@ -74,6 +74,7 @@ import com.dspot.declex.share.holder.EnsureImportsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -199,7 +200,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (hasAction != null) return hasAction;
 		
 		final Trees trees = Trees.instance(env.getProcessingEnvironment());
-    	final TreePath treePath = trees.getPath(element);
+    	final TreePath treePath = trees.getPath(
+    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+		);
     	
     	//Check if the Action Api was activated for this compilation unit
     	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
@@ -1359,59 +1362,61 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		//TODO Replace calls to super, if any
 		for (Object content : block.getContents()) {
 			
-			boolean contentReplaced = false;
-			StringWriter writer = new StringWriter();
-			JFormatter formatter = new JFormatter(writer);
-			IJStatement statement = (IJStatement) content;
-			statement.state(formatter);
-			String statementString = writer.getBuffer().toString();
-			
-			Matcher matcher = Pattern.compile(
-					"((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
-					+ "([a-zA-Z_$][a-zA-Z_$0-9]*)\\(([^;]*);"
-				).matcher(statementString);
-			
-			while (matcher.find()) {
-				String methodName = matcher.group(2);
-				String parameters = matcher.group(3);
-				parameters = parameters.substring(0, parameters.lastIndexOf(')'));
+			if (content instanceof IJStatement) {
+				boolean contentReplaced = false;
+				StringWriter writer = new StringWriter();
+				JFormatter formatter = new JFormatter(writer);
+				IJStatement statement = (IJStatement) content;
+				statement.state(formatter);
+				String statementString = writer.getBuffer().toString();
 				
-				//Count parameters TODO: determine parameter types
-				int deep = 0;
-				int parametersCount = 0;
-				for (int i = 0; i < parameters.length(); i++) {
-					char ch = parameters.charAt(i);
-					if (ch == '(') deep++;
-					if (ch == ')') deep--;
-					if (ch == ',' && deep == 0) parametersCount++;
-				}
-				if (!parameters.equals("")) parametersCount++;
+				Matcher matcher = Pattern.compile(
+						"((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
+						+ "([a-zA-Z_$][a-zA-Z_$0-9]*)\\(([^;]*);"
+					).matcher(statementString);
 				
-				String executableElementName = executableElement.getSimpleName().toString();
-				if (executableElementName.startsWith("$")) {
-					executableElementName = executableElementName.substring(1);
-				}
-				
-				if (parametersCount == executableElement.getParameters().size()
-					&& methodName.equals(executableElementName)) {
+				while (matcher.find()) {
+					String methodName = matcher.group(2);
+					String parameters = matcher.group(3);
+					parameters = parameters.substring(0, parameters.lastIndexOf(')'));
 					
-					statementString = statementString.replace(matcher.group(1), "$");
-					replace = true;
-					contentReplaced = true;
+					//Count parameters TODO: determine parameter types
+					int deep = 0;
+					int parametersCount = 0;
+					for (int i = 0; i < parameters.length(); i++) {
+						char ch = parameters.charAt(i);
+						if (ch == '(') deep++;
+						if (ch == ')') deep--;
+						if (ch == ',' && deep == 0) parametersCount++;
+					}
+					if (!parameters.equals("")) parametersCount++;
+					
+					String executableElementName = executableElement.getSimpleName().toString();
+					if (executableElementName.startsWith("$")) {
+						executableElementName = executableElementName.substring(1);
+					}
+					
+					if (parametersCount == executableElement.getParameters().size()
+						&& methodName.equals(executableElementName)) {
+						
+						statementString = statementString.replace(matcher.group(1), "$");
+						replace = true;
+						contentReplaced = true;
+					}
+				}
+				
+				if (contentReplaced) {
+					newBody.directStatement("//Action Method \"" + executableElement + "\" was injected");
+					String[] lines = statementString.split(System.lineSeparator());
+					for (String line : lines) {
+						newBody.directStatement(line);
+					}
+					continue;
 				}
 			}
 			
-			if (contentReplaced) {
-				newBody.directStatement("//Action Method \"" + executableElement + "\" was injected");
-				String[] lines = statementString.split(System.lineSeparator());
-				for (String line : lines) {
-					newBody.directStatement(line);
-				}
-				continue;
-			}
-			
-			if (statement instanceof JVar) {
-				JVar var = (JVar) statement;
+			if (content instanceof JVar) {
+				JVar var = (JVar) content;
 				try {
 					java.lang.reflect.Field varInitField = JVar.class.getDeclaredField("m_aInitExpr");
 					varInitField.setAccessible(true);
@@ -1422,7 +1427,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					throw new RuntimeException(e);
 				}
 			} else {
-				newBody.add((IJStatement) statement);
+				newBody.add((IJStatement) content);
 			}
 		}
 		
