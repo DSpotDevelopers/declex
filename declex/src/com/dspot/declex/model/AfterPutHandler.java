@@ -20,9 +20,8 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -49,16 +48,9 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 	}
 
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					UseModel.class
-			   ));
-	}
-	
-	@Override
-	public Element dependentElement(Element element,
-			Class<? extends Annotation> dependency) {
-		return element.getEnclosingElement();
+	public void getDependencies(Element element,
+			Map<Class<? extends Annotation>, Element> dependencies) {
+		dependencies.put(UseModel.class, element.getEnclosingElement());
 	}
 	
 	@Override

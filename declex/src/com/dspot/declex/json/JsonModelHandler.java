@@ -18,12 +18,9 @@ package com.dspot.declex.json;
 import static com.helger.jcodemodel.JExpr._new;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -59,12 +56,12 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					UseModel.class
-			   ));
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			dependencies.put(UseModel.class, element);
+		}
 	}
-
+	
 	@Override
 	protected void setTemplateDataModel(Map<String, Object> rootDataModel,
 			Element element, EComponentHolder holder) {

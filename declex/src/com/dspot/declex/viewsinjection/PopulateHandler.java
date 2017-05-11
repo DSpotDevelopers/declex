@@ -108,7 +108,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		
+				
 		final String elementName = element.getSimpleName().toString();
 		
 		//Ignore @Populate Methods

@@ -108,6 +108,7 @@ import com.dspot.declex.eventbus.oneventhandler.PutOnActionHandler;
 import com.dspot.declex.eventbus.oneventhandler.PutOnEventHandler;
 import com.dspot.declex.eventbus.oneventhandler.UpdateOnEventHandler;
 import com.dspot.declex.external.ExternalHandler;
+import com.dspot.declex.external.ExternalPopulateHandler;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.json.JsonModelHandler;
 import com.dspot.declex.localdb.LocalDBModelHandler;
@@ -347,6 +348,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		//DependencyHandler should be one of the last, in order to permit
 		//the generation of all the methods which would be generated
 		annotationHandlers.add(new ExternalHandler(androidAnnotationEnv));
+		annotationHandlers.add(new ExternalPopulateHandler(androidAnnotationEnv));
 		
 		return annotationHandlers;		
 	}

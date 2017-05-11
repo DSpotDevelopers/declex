@@ -21,16 +21,12 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
@@ -65,10 +61,10 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					EBean.class
-			   ));
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			dependencies.put(EBean.class, element);
+		}
 	}
 	
 	@Override

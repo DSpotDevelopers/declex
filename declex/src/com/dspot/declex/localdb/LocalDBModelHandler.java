@@ -25,12 +25,9 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,10 +72,10 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					UseModel.class
-			   ));
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			dependencies.put(UseModel.class, element);
+		}
 	}
 
 	@Override

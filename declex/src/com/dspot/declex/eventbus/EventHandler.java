@@ -61,19 +61,9 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					UseEventBus.class
-			   ));
-	}
-	
-	@Override
-	public Element dependentElement(Element element,
-			Class<? extends Annotation> dependency) {
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
 		if (element instanceof ExecutableElement) {
-			return element.getEnclosingElement();
-		} else {
-			return null;
+			dependencies.put(UseEventBus.class, element.getEnclosingElement());
 		}
 	}
 	

@@ -25,13 +25,10 @@ import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -103,10 +100,10 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					JsonModel.class
-			   ));
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			dependencies.put(JsonModel.class, element);
+		}
 	}
 
 	@Override

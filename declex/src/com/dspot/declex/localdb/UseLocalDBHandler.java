@@ -16,10 +16,8 @@
 package com.dspot.declex.localdb;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Map;
 
 import javax.lang.model.element.Element;
 
@@ -27,7 +25,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EApplication;
 import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EApplicationHolder;
 import org.androidannotations.holder.EComponentHolder;
@@ -48,12 +45,10 @@ public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassH
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					EApplication.class
-			   ));
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		dependencies.put(EApplication.class, element);
 	}
-
+	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 	}

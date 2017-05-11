@@ -16,11 +16,8 @@
 package com.dspot.declex.eventbus.oneventhandler;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.Element;
 
@@ -44,16 +41,8 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	}
 	
 	@Override
-	public Set<Class<? extends Annotation>> getDependencies() {
-		return new HashSet<>(Arrays.<Class<? extends Annotation>>asList(
-					UseEventBus.class
-			   ));
-	}
-	
-	@Override
-	public Element dependentElement(Element element,
-			Class<? extends Annotation> dependency) {
-		return element.getEnclosingElement();
+	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+		dependencies.put(UseEventBus.class, element.getEnclosingElement());
 	}
 
 	@Override
