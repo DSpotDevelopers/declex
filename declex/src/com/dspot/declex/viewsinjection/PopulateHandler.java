@@ -230,30 +230,27 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 	}
-	
-	private boolean existsPopulateFieldWithElementName(Element element) {
-		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.FIELD
-				&& adiHelper.getAnnotation(elem, Populate.class) != null
-				&& elem.getSimpleName().toString().equals(element.getSimpleName().toString())) 
-			{
-					return true;
-			}
-		}
-	
-		return false;
-	}
 
 	@Override
 	public void process(Element element, EComponentWithViewSupportHolder holder) {		
 		uniquePriorityCounter++;
 		
-		//Ignore @Populate Methods
-		if (element instanceof ExecutableElement) return;
+		final boolean isMethod;
+		if (element instanceof ExecutableElement) {
+		
+			//Ignore @Populate support methods
+			if (existsPopulateFieldWithElementName(element)) {
+				return;
+			}
+			
+			isMethod = true;
+		} else {
+			isMethod = false;
+		}
 
-		final boolean isPrimitive = element.asType().getKind().isPrimitive() || 
-				element.asType().toString().equals(String.class.getCanonicalName());
+		final boolean isPrimitive = !isMethod && (
+				element.asType().getKind().isPrimitive() || 
+				element.asType().toString().equals(String.class.getCanonicalName()));
 		
 		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
 		final String className = classInformation.generatorClassName;
@@ -279,8 +276,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				processEventsInViews(element, viewsHolder);
 			}
 			
-			//Check if the field is a primitive or a String
-			if (isPrimitive) {
+			if (isMethod) {
+				
+				processMethod(element, viewsHolder, onEventMethods, classInformation);
+				
+			} else if (isPrimitive) { //Check if the field is a primitive or a String
 				
 				processPrimitive(className, element, viewsHolder, onEventMethods);
 				
@@ -305,7 +305,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		} while (layoutId != 0);
 		
 		if (!isList) {
-			callPopulatorMethod(
+			callPopulateSupportMethod(
 					element.getSimpleName().toString(), 
 					holder.getOnViewChangedBody(), 
 					null, null, element, viewsHolder
@@ -314,6 +314,20 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 
 		viewsHolder.setDefLayoutId(defLayoutId);
 		holder.setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);		
+	}
+	
+	private boolean existsPopulateFieldWithElementName(Element element) {
+		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.FIELD
+				&& adiHelper.getAnnotation(elem, Populate.class) != null
+				&& elem.getSimpleName().toString().equals(element.getSimpleName().toString())) 
+			{
+					return true;
+			}
+		}
+	
+		return false;
 	}
 	
 	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
@@ -397,6 +411,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, viewsHolder.holder());
+	}
+	
+	private void processMethod(Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods, ClassInformation classInformation) {
+		final String fieldName = element.getSimpleName().toString();
+		
+		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
+		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
+		viewsHolder.findFieldsAndMethods(classInformation.getGeneratorClassName(), fieldName, element, fields, methods, true);
 	}
 	
 	private void processPrimitive(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
@@ -731,6 +753,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			context = viewsHolder.getGeneratedClass().staticRef("this");
 		}
 		
+		//Support for getters and setters
+		if (info.getterOrSetter != null) {
+			block.invoke(view, "set" + info.getterOrSetter).arg(origAssignRef);
+			return;
+		}
+		
 		//CompoundButtons, if the param is boolean, it will set the checked state
 		if (TypeUtils.isSubtype(viewClass, "android.widget.CompoundButton", getProcessingEnvironment())) {
 			if (type.getKind().equals(TypeKind.BOOLEAN)) {
@@ -821,7 +849,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 	}
 	
-	public void callPopulatorMethod(String viewName, JBlock block, IJExpression viewHolder, List<String> fields, 
+	public void callPopulateSupportMethod(String viewName, JBlock block, IJExpression viewHolder, List<String> fields, 
 			Element element, ViewsHolder viewsHolder) {
 		Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 		if (methods == null) return;

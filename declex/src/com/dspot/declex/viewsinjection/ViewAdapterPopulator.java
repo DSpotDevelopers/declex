@@ -334,7 +334,7 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 			}
 		}
 		
-		handler.callPopulatorMethod(fieldName, methodBody, viewHolder, fieldNames, element, viewsHolder);
+		handler.callPopulateSupportMethod(fieldName, methodBody, viewHolder, fieldNames, element, viewsHolder);
 		
 		createViewBody.invoke(rootView, "setTag").arg(viewHolder);
 		methodBody._return(rootView);

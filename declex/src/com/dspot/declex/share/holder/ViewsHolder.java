@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -43,6 +44,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.FoundViewHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.dspot.declex.api.extension.Extension;
 import com.dspot.declex.helper.ViewsHelper;
@@ -62,6 +64,9 @@ import com.helger.jcodemodel.JVar;
 public class ViewsHolder extends
 		PluginClassHolder<EComponentWithViewSupportHolder> {
 
+	//<Class Id, <Getter<Name, Class>, Setter<Name, Class>>>
+	private static Map<String, Pair<Map<String, TypeMirror>, Map<String, TypeMirror>>> gettersAndSettersPerClass = new HashMap<>();
+	
 	// <Layout Id, <View Id, View Information>>
 	private Map<String, Map<String, LayoutObject>> layoutObjects = new HashMap<>();
 	private Map<String, JVar> onViewChangedHasViewsParamValues = new HashMap<>();
@@ -364,18 +369,21 @@ public class ViewsHolder extends
 			Element element, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, boolean getter) {
 		
-		findFieldsAndMethods(className, fieldName, element, fields, methods,getter, false, null);
+		findFieldsAndMethods(className, fieldName, element, fields, methods, getter, false, null);
 	}
 
 	public void findFieldsAndMethods(String className, String fieldName,
 			Element element, Map<String, IdInfoHolder> fields,
-			Map<String, IdInfoHolder> methods, boolean getter, boolean isList,
-			String layoutId) {
+			Map<String, IdInfoHolder> methods, boolean getter, 
+			boolean isList, String layoutId) {
 		
 		TypeElement typeElement = environment().getProcessingEnvironment()
-				.getElementUtils().getTypeElement(className);
-		findFieldsAndMethods(fieldName, typeElement, fields, methods,
-				className, getLayoutObjects(layoutId), getter, isList);
+				                               .getElementUtils().getTypeElement(className);
+		
+		findFieldsAndMethodsInternal(
+			className, fieldName, typeElement, fields, methods,
+			getLayoutObjects(layoutId), getter, isList
+		);
 
 		// Apply to Extensions
 		List<? extends TypeMirror> superTypes = environment()
@@ -386,17 +394,20 @@ public class ViewsHolder extends
 					.getElementUtils().getTypeElement(type.toString());
 
 			if (superElement.getAnnotation(Extension.class) != null) {
-				findFieldsAndMethods(type.toString(), fieldName, element,
-						fields, methods, getter, isList, layoutId);
+				findFieldsAndMethods(
+					type.toString(), fieldName, element,
+					fields, methods, getter, isList, layoutId
+				);
 			}
 
 			break;
 		}
 	}
 
-	private void findFieldsAndMethods(String fieldName,
+	private void findFieldsAndMethodsInternal(
+			String className, String fieldName,
 			TypeElement typeElement, Map<String, IdInfoHolder> fields,
-			Map<String, IdInfoHolder> methods, String className,
+			Map<String, IdInfoHolder> methods, 
 			Map<String, LayoutObject> layoutObjects, boolean getter, boolean isList) {
 		
 		String classSimpleName = getJClass(className).name();
@@ -406,39 +417,111 @@ public class ViewsHolder extends
 
 			if (id.startsWith(fieldName)) {
 				startsWith = fieldName;
-			}
-
-			if (id.startsWith(fieldName + "_")) {
-				startsWith = fieldName + "_";
-			}
-
-			if (id.startsWith(classSimpleName + "_")) {
-				startsWith = classSimpleName + "_";
-			}
-
-			if (id.startsWith(classSimpleName.toLowerCase() + "_")) {
-				startsWith = classSimpleName.toLowerCase() + "_";
+				
+				if (id.startsWith(fieldName + "_")) {
+					startsWith = fieldName + "_";
+				}
+			} if (id.startsWith(classSimpleName)) {
+				startsWith = classSimpleName;
+				
+				if (id.startsWith(classSimpleName + "_")) {
+					startsWith = classSimpleName + "_";
+				}				
+						
+			} else if (id.startsWith(classSimpleName.toLowerCase())) {
+				startsWith = classSimpleName.toLowerCase();
+				
+				if (id.startsWith(classSimpleName.toLowerCase() + "_")) {
+					startsWith = classSimpleName.toLowerCase() + "_";
+				};
 			}
 
 			if (startsWith != null) {
 				id = id.substring(startsWith.length());
 			} else {
-				if (!isList)
-					continue;
+				if (!isList) continue;
+				
+				//List element will be checked for coinciding IDs
 			}
 
-			deepFieldsAndMethodsSearch(id, null, typeElement, fields, methods,
-					originalId, layoutObjects.get(originalId).className, getter);
+			deepFieldsAndMethodsSearch(
+				id, null, typeElement, 
+				fields, methods,
+				originalId, layoutObjects.get(originalId).className, getter
+			);
 		}
 	}
-
-	private void deepFieldsAndMethodsSearch(String id, String prevField,
-			TypeElement testElement, Map<String, IdInfoHolder> fields,
-			Map<String, IdInfoHolder> methods, String originalId,
-			String idClass, boolean getter) {
+	
+	private void readGettersAndSetters(String fromClass, Map<String, TypeMirror> getters, Map<String, TypeMirror> setters) {
 		
-		if (id == null || id.isEmpty())
+		Pair<Map<String, TypeMirror>, Map<String, TypeMirror>> gettersAndSetters = gettersAndSettersPerClass.get(fromClass);
+		if (gettersAndSetters != null) {
+			getters.putAll(gettersAndSetters.getKey());
+			setters.putAll(gettersAndSetters.getValue());
 			return;
+		} else {
+			gettersAndSetters = Pair.of(getters, setters);
+			gettersAndSettersPerClass.put(fromClass, gettersAndSetters);
+		}
+		
+		Element classElement = processingEnv().getElementUtils().getTypeElement(fromClass);
+	
+		List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(classElement.asType());
+		
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = processingEnv().getElementUtils().getTypeElement(type.toString());
+
+			List<? extends Element> elems = superElement.getEnclosedElements();
+			
+			for (Element elem : elems) {
+				if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
+
+					final String elemNameStart = elem.getSimpleName().toString().substring(0, 4);
+					
+					if (elemNameStart.matches("set[A-Z]")) {
+						
+						ExecutableElement executableElem = (ExecutableElement) elem;
+						if (executableElem.getReturnType().toString().equals("void")
+							&& executableElem.getParameters().size() == 1) {
+							setters.put(
+								elem.getSimpleName().toString().substring(3), 
+								executableElem.getParameters().get(0).asType()
+							);
+						}
+						
+					}
+					
+					if (elemNameStart.matches("get[A-Z]")) {
+						
+						ExecutableElement executableElem = (ExecutableElement) elem;
+						if (!executableElem.getReturnType().toString().equals("void")
+							&& executableElem.getParameters().size() == 0) {
+							getters.put(
+								elem.getSimpleName().toString().substring(3), 
+								executableElem.getReturnType()
+							);
+						}
+						
+					}
+				}
+			}
+			
+			Map<String, TypeMirror> superGetters = new HashMap<>();
+			Map<String, TypeMirror> superSetters = new HashMap<>();
+			readGettersAndSetters(type.toString(), superGetters, superSetters);
+			
+			getters.putAll(superGetters);
+			setters.putAll(superSetters);
+		}
+	}
+	
+	private void deepFieldsAndMethodsSearch(
+			String id, String prevField,
+			TypeElement testElement, 
+			Map<String, IdInfoHolder> fields, Map<String, IdInfoHolder> methods, 
+			String layoutElementId, String layoutElementIdClass, boolean getter) {
+		
+		if (id == null || id.isEmpty()) return;
 
 		final String normalizedId = id.substring(0, 1).toLowerCase() + id.substring(1);
 
@@ -452,6 +535,7 @@ public class ViewsHolder extends
 				// If the class element is not a primitive, then call the method
 				// in that element combinations (recursive DFS)
 				if (!elem.asType().getKind().isPrimitive()) {
+					
 					String elemType = TypeUtils.typeFromTypeString(elem.asType().toString(), environment());
 					if (elemType.endsWith(ModelConstants.generationSuffix()))
 						elemType = elemType.substring(0, elemType.length() - 1);
@@ -467,26 +551,26 @@ public class ViewsHolder extends
 							int extraToRemove = id.startsWith(elemName + "_") ? 1 : 0;
 							
 							deepFieldsAndMethodsSearch(
-									id.substring(elemName.length()
-											+ extraToRemove), completeElemName,
+									id.substring(elemName.length() + extraToRemove), completeElemName,
 									fieldTypeElement, fields, methods,
-									originalId, idClass, getter);
+									layoutElementId, layoutElementIdClass, getter);
 						}
 					}
 				}
 
 				if (id.equals(elemName) || normalizedId.equals(elemName)) {
-					fields.put(completeElemName, new IdInfoHolder(originalId,
-							elem, elem.asType(), idClass,
+					fields.put(completeElemName, new IdInfoHolder(layoutElementId,
+							elem, elem.asType(), layoutElementIdClass,
 							new ArrayList<String>(0)));
 				}
 			}
 
 			if (elem.getKind() == ElementKind.METHOD) {
-				if (id.equals(elemName) || normalizedId.equals(elemName)) {
+				
+				ExecutableElement exeElem = (ExecutableElement) elem;
+				
+				if (id.equals(elemName) || normalizedId.equals(elemName) || elemName.startsWith(id)) {
 					// Only setter methods
-					ExecutableElement exeElem = (ExecutableElement) elem;
-
 					if (exeElem.getParameters().size() < (getter ? 0 : 1))
 						continue;
 
@@ -504,9 +588,34 @@ public class ViewsHolder extends
 						paramType = exeElem.getParameters().get(0).asType();
 					}
 
-					methods.put(completeElemName, new IdInfoHolder(originalId,
-							elem, paramType, idClass, extraParams));
-				}
+					if (id.equals(elemName) || normalizedId.equals(elemName)) {
+						methods.put(
+							completeElemName, new IdInfoHolder(layoutElementId,
+							elem, paramType, layoutElementIdClass, extraParams)
+						);						
+					} else { //elemName.startsWith(id)
+						Map<String, TypeMirror> getters = new HashMap<>();
+						Map<String, TypeMirror> setters = new HashMap<>();
+						readGettersAndSetters(layoutElementIdClass, getters, setters);
+						
+						String getterOrSetter = elemName.substring(id.length());
+						if (getter && getters.containsKey(getterOrSetter)) {
+							if (getters.get(getterOrSetter).toString().equals(paramType.toString())) {
+								methods.put(
+									completeElemName, 
+									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, getterOrSetter)
+								);
+							}
+						} else if (setters.containsKey(getterOrSetter)) {
+							if (setters.get(getterOrSetter).toString().equals(paramType.toString())) {
+								methods.put(
+									completeElemName, 
+									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, getterOrSetter)
+								);								
+							}
+						}
+					}
+				} 
 			}
 		}
 	}
@@ -519,15 +628,23 @@ public class ViewsHolder extends
 
 		public List<String> extraParams;
 		public Element element;
+		
+		public String getterOrSetter;
 
 		public IdInfoHolder(String idName, Element element, TypeMirror type,
 				String className, List<String> extraParams) {
+			this(idName, element, type, className, extraParams, null);
+		}
+		
+		private IdInfoHolder(String idName, Element element, TypeMirror type,
+				String className, List<String> extraParams, String getterOrSetter) {
 			super();
 			this.element = element;
 			this.idName = idName;
 			this.type = type;
 			this.viewClass = className;
 			this.extraParams = extraParams;
+			this.getterOrSetter = getterOrSetter;
 		}
 
 		@Override

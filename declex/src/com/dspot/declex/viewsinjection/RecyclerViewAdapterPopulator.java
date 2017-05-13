@@ -378,7 +378,7 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 			}
 		}
 
-		handler.callPopulatorMethod(fieldName, onBindMethodBody, viewHolder,
+		handler.callPopulateSupportMethod(fieldName, onBindMethodBody, viewHolder,
 				fieldNames, element, viewsHolder);
 
 		onCreateViewMethodBody._return(viewHolder);

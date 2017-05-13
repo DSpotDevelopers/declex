@@ -298,6 +298,18 @@ public class TypeUtils {
 		return isSubTypeRecusive(potentialSubtype, potentialSupertype, processingEnv);
 	}
 
+	public static boolean isSubtype(TypeMirror t1, String t2, ProcessingEnvironment processingEnv) {
+		if (t2.contains("<")) t2 = t2.substring(0, t2.indexOf('<'));
+		
+		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(t2);
+		if (typeElement != null) {
+			TypeMirror expectedType = typeElement.asType();
+			return isSubtype(t1, expectedType, processingEnv);
+		}
+		
+		return false;
+	}
+	
 	public static boolean isSubtype(TypeElement t1, TypeElement t2, ProcessingEnvironment processingEnv) {
 		return isSubtype(t1.asType(), t2.asType(), processingEnv);
 	}
@@ -367,10 +379,17 @@ public class TypeUtils {
 	}
 	
 	public static ClassInformation getClassInformation(Element element, AndroidAnnotationsEnvironment environment, boolean getElement) {
-		String className = element.asType().toString();
+		
+		TypeMirror elementTypeMirror;
+		if (element instanceof ExecutableElement) {
+			elementTypeMirror = ((ExecutableElement) element).getReturnType();			
+		} else {
+			elementTypeMirror = element.asType();
+		}
+		String className = elementTypeMirror.toString();
 		
 		//Detect when the method is a List, in order to generate all the Adapters structures
-		final boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
+		final boolean isList = TypeUtils.isSubtype(elementTypeMirror, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
 		if (isList) {
 			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 			if (matcher.find()) {
