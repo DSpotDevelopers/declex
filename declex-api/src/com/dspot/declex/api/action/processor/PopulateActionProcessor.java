@@ -16,13 +16,18 @@
 package com.dspot.declex.api.action.processor;
 
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.viewsinjection.Populate;
+import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JConditional;
+import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 
 public class PopulateActionProcessor extends BaseActionProcessor {
@@ -38,8 +43,9 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 			
 			if (field != null) {
-				Populate populatorAnnotation = field.getAnnotation(Populate.class);
-				if (populatorAnnotation == null) {
+				Populate populateAnnotation = field.getAnnotation(Populate.class);
+				ExternalPopulate externalPopulateAnnotation = field.getAnnotation(ExternalPopulate.class);
+				if (populateAnnotation == null && externalPopulateAnnotation == null) {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
 				}				
 			}
@@ -57,10 +63,34 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 			
 			if (field != null) {
-				JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
-						.arg(getAction().invoke("getDone"))
-						.arg(getAction().invoke("getFailed"));
-				addPostBuildBlock(invoke);						
+				
+				if (field.getAnnotation(ExternalPopulate.class) != null) {
+					final String fieldName = field.getSimpleName().toString();
+					final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
+	                        + fieldName.substring(1);
+				
+					JFieldRef listenerField = ref(populateListenerName);
+					
+					JBlock block = new JBlock();
+					JConditional ifNeNull = block._if(listenerField.neNull());
+					ifNeNull._then().invoke(listenerField, "populateModel")
+					           .arg(getAction().invoke("getDone"))
+					           .arg(getAction().invoke("getFailed"));
+					
+					ifNeNull._else()._if(getAction().invoke("getDone").neNull())._then()
+					                                .invoke(getAction(), "getDone")
+					                                .invoke("run");
+					
+					addPostBuildBlock(block);	
+					
+				} else {
+					
+					JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
+							.arg(getAction().invoke("getDone"))
+							.arg(getAction().invoke("getFailed"));
+					addPostBuildBlock(invoke);						
+					
+				}				
 			}
 		}
 	}

@@ -33,10 +33,8 @@ import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
-import org.androidannotations.rclass.IRClass;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.model.UseModel;
@@ -72,8 +70,6 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 	private String modelClassName;
 	private String fieldName;
 
-	private TargetAnnotationHelper annotationHelper;
-
 	public RecyclerViewAdapterPopulator(PopulateHandler handler,
 			String fieldName, String adapterClassName, String modelClassName,
 			ViewsHolder viewsHolder) {
@@ -84,9 +80,6 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		this.adapterClassName = adapterClassName;
 		this.modelClassName = modelClassName;
 		this.viewsHolder = viewsHolder;
-
-		annotationHelper = new TargetAnnotationHelper(environment,
-				handler.getTarget());
 	}
 
 	@Override
@@ -137,25 +130,7 @@ class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 
 			viewsHolder.addLayout(listItemId);
 			viewsHolder.setDefLayoutId(listItemId);
-		} else {
-			// If the layout is not found, read it from the param value of the
-			// annotation
-			List<JFieldRef> fieldRefs = annotationHelper
-					.extractAnnotationFieldRefs(element, handler.getTarget(),
-							environment.getRClass().get(IRClass.Res.LAYOUT),
-							false);
-			if (fieldRefs.size() == 1) {
-				contentViewId = fieldRefs.get(0);
-			}
-			if (contentViewId == null)
-				return;
-
-			// TODO not sure of behavior
 		}
-
-		// if (element.getAnnotation(Populator.class).debug())
-		// LOGGER.warn("\nPopulator layouts: " + layoutObjects, element,
-		// element.getAnnotation(Populator.class));
 
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();

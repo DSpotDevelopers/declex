@@ -32,7 +32,6 @@ import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.helper.TargetAnnotationHelper;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
@@ -68,8 +67,6 @@ class ViewAdapterPopulator extends BaseClassPlugin {
 	private String adapterClassName;
 	private String modelClassName;
 	private String fieldName;
-
-	private TargetAnnotationHelper annotationHelper;
 	
 	public ViewAdapterPopulator(PopulateHandler handler, String fieldName, String adapterClassName, String modelClassName, 
 			ViewsHolder viewsHolder) {

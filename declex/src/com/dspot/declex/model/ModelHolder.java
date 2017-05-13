@@ -50,6 +50,8 @@ import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.External;
+import com.dspot.declex.api.external.ExternalPopulate;
+import com.dspot.declex.api.external.ExternalRecollect;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
@@ -155,7 +157,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element.getAnnotation(External.class) != null) {
+		if (element instanceof VirtualElement && (element.getAnnotation(External.class) != null 
+			|| element.getAnnotation(ExternalPopulate.class) != null
+			|| element.getAnnotation(ExternalRecollect.class) != null)) {
 		
 			//It will never be static here
 			
@@ -176,6 +180,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, environment());
 			}
 			
+			setter.body()._if(ref(referenceElementName).eqNull())._then()._return();
 			if (converted) {
 				setter.body().add(
 					cast(getJClass(referenceElementClass), ref(referenceElementName)).invoke(setter).arg(param)
@@ -187,6 +192,11 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			}
 			
 			modelMethod = new ModelMethod(setter, setter.body());
+			
+			if (element.getAnnotation(ExternalPopulate.class) != null) {
+				setterModelMethods.put(element, modelMethod);
+				return modelMethod;
+			}
 			
 			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, environment(), true);
 			ProcessHolder processHolder = environment().getProcessHolder();
@@ -243,7 +253,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element.getAnnotation(External.class) != null) {
+		if (element instanceof VirtualElement && (element.getAnnotation(External.class) != null 
+			|| element.getAnnotation(ExternalPopulate.class) != null
+			|| element.getAnnotation(ExternalRecollect.class) != null)) {
 
 			//It will never be static here
 			
@@ -264,6 +276,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			}
 			
 			JBlock getterBody = getter.body().blockVirtual();
+			getter.body()._if(ref(referenceElementName).eqNull())._then()._return(_null());
 			if (converted) {
 				getter.body()._return(
 					cast(getJClass(referenceElementClass), ref(referenceElementName)).invoke(getter)
@@ -275,6 +288,11 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			}
 			
 			modelMethod = new ModelMethod(getter, getterBody);
+			
+			if (element.getAnnotation(ExternalPopulate.class) != null) {
+				getterModelMethods.put(element, modelMethod);
+				return modelMethod;
+			}
 			
 			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, environment(), true);
 			ProcessHolder processHolder = environment().getProcessHolder();
