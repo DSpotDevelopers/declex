@@ -91,6 +91,28 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 					addPostBuildBlock(invoke);						
 					
 				}				
+			} else { //Populate "this" call
+				if (getGeneratedClass().containsField("populateThis")) {
+					JFieldRef listenerField = ref("populateThis");
+					
+					JBlock block = new JBlock();
+					JConditional ifNeNull = block._if(listenerField.neNull());
+					ifNeNull._then().invoke(listenerField, "populateModel")
+					           .arg(getAction().invoke("getDone"))
+					           .arg(getAction().invoke("getFailed"));
+					
+					ifNeNull._else()._if(getAction().invoke("getDone").neNull())._then()
+					                                .invoke(getAction(), "getDone")
+					                                .invoke("run");
+					
+					addPostBuildBlock(block);					
+				} else {
+					JInvocation invoke = invoke("_populate_this")
+							.arg(getAction().invoke("getDone"))
+							.arg(getAction().invoke("getFailed"));
+					addPostBuildBlock(invoke);	
+				}
+				
 			}
 		}
 	}

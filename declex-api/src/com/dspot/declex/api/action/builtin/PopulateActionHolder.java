@@ -46,7 +46,7 @@ public class PopulateActionHolder extends BaseFieldActionHolder {
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
 	 */
 	@Override
-    protected void init(@Field Object field) {
+    protected void init(@Field(ignoreExpression="this") Object field) {
     	super.init(field);
     }
 

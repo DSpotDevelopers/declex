@@ -25,6 +25,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -50,6 +51,7 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -84,7 +86,10 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 			Element element, ViewsHolder viewsHolder) {
 		
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems) {				
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
+		
+		for (Element elem : allElems) {				
 			if (elem.getKind() == ElementKind.FIELD) {
 				
 				if (elem.getSimpleName().toString().equals(referecedId)) {

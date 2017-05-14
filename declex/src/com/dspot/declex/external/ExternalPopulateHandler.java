@@ -20,9 +20,12 @@ import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -43,6 +46,8 @@ import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
 public class ExternalPopulateHandler extends ExternalHandler {
+	
+	private Set<Element> referencedElementsLinked = new HashSet<>();
 	
 	public ExternalPopulateHandler(AndroidAnnotationsEnvironment environment) {
 		super(ExternalPopulate.class, environment);
@@ -66,58 +71,80 @@ public class ExternalPopulateHandler extends ExternalHandler {
 		final String elementName = element.getSimpleName().toString();
 		
 		if (element instanceof VirtualElement) {
-			final String populateListenerName = "setPopulate" + elementName.substring(0, 1).toUpperCase()
-                    + elementName.substring(1);
+			createInvokeListenerStructure(elementName, element, holder);
 			
-			JAnonymousClass listener = getCodeModel().anonymousClass(PopulateModelListener.class);
-			JMethod anonymousRunnableRun = listener.method(JMod.PUBLIC, getCodeModel().VOID, "populateModel");
-			anonymousRunnableRun.annotate(Override.class);
-			JVar afterPopulate = anonymousRunnableRun.param(Runnable.class, "afterPopulate");
-			JVar onFailed = anonymousRunnableRun.param(OnFailedRunnable.class, "onFailed");
-			
-			anonymousRunnableRun.body().invoke("_populate_" + elementName)
-			                           .arg(afterPopulate).arg(onFailed);
-			
-			
-			final Element referenceElement = ((VirtualElement) element).getReference();
-			final String referenceElementName = referenceElement.getSimpleName().toString();
-			String referenceElementClass = referenceElement.asType().toString();
-			
-			boolean converted = false;
-			if (!referenceElementClass.endsWith(ModelConstants.generationSuffix())) {
-				converted = true;
-				referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, getEnvironment());
+			if (element instanceof ExecutableElement) {
+				super.process(element, holder);
 			}
 			
-			JBlock ifBlock = holder.getInitBodyAfterInjectionBlock()._if(ref(referenceElementName).neNull())._then();
-			if (converted) {
-				ifBlock.invoke(
-					cast(getJClass(referenceElementClass), ref(referenceElementName)), populateListenerName
-				).arg(_new(listener));
-			} else {
-				ifBlock.invoke(
-					ref(referenceElementName), populateListenerName
-				).arg(_new(listener));
+			if (!referencedElementsLinked.contains(((VirtualElement) element).getReference())) {
+				createInvokeListenerStructure("this", element, holder);
+				referencedElementsLinked.add(((VirtualElement) element).getReference());				
 			}
 			                                       		
 		} else {
-			//Create the listeners structure
-			final String populateListenerName = "populate" + elementName.substring(0, 1).toUpperCase()
-					                               + elementName.substring(1);
 			
-			JFieldVar listenerField = holder.getGeneratedClass().field(JMod.PRIVATE, getJClass(PopulateModelListener.class), populateListenerName);
+			createListenerStructure(elementName, holder);
 			
-			JMethod setter = holder.getGeneratedClass().method(
-				JMod.PUBLIC, getCodeModel().VOID, 
-				"set" + populateListenerName.substring(0, 1).toUpperCase() + populateListenerName.substring(1)
-			);
-			JVar listener = setter.param(PopulateModelListener.class, "listener");
-			
-			setter.body().assign(listenerField, listener);
-			
+			//Create "populate this" listener structure
+			if (!holder.getGeneratedClass().containsField("populateThis")) {
+				createListenerStructure("this", holder);
+			}
 		}
 		
 		
+	}
+	
+	private void createInvokeListenerStructure(String elementName, Element element, EComponentHolder holder) {	
+		final String populateListenerName = "setPopulate" + elementName.substring(0, 1).toUpperCase()
+                + elementName.substring(1);
+		
+		JAnonymousClass listener = getCodeModel().anonymousClass(PopulateModelListener.class);
+		JMethod anonymousRunnableRun = listener.method(JMod.PUBLIC, getCodeModel().VOID, "populateModel");
+		anonymousRunnableRun.annotate(Override.class);
+		JVar afterPopulate = anonymousRunnableRun.param(Runnable.class, "afterPopulate");
+		JVar onFailed = anonymousRunnableRun.param(OnFailedRunnable.class, "onFailed");
+		
+		anonymousRunnableRun.body().invoke("_populate_" + elementName)
+		                           .arg(afterPopulate).arg(onFailed);
+		
+		
+		final Element referenceElement = ((VirtualElement) element).getReference();
+		final String referenceElementName = referenceElement.getSimpleName().toString();
+		String referenceElementClass = referenceElement.asType().toString();
+		
+		boolean converted = false;
+		if (!referenceElementClass.endsWith(ModelConstants.generationSuffix())) {
+			converted = true;
+			referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, getEnvironment());
+		}
+		
+		JBlock ifBlock = holder.getInitBodyAfterInjectionBlock()._if(ref(referenceElementName).neNull())._then();
+		if (converted) {
+			ifBlock.invoke(
+				cast(getJClass(referenceElementClass), ref(referenceElementName)), populateListenerName
+			).arg(_new(listener));
+		} else {
+			ifBlock.invoke(
+				ref(referenceElementName), populateListenerName
+			).arg(_new(listener));
+		}
+	}
+
+	private void createListenerStructure(String elementName, EComponentHolder holder) {
+		//Create the listeners structure
+		final String populateListenerName = "populate" + elementName.substring(0, 1).toUpperCase()
+				                               + elementName.substring(1);
+		
+		JFieldVar listenerField = holder.getGeneratedClass().field(JMod.PRIVATE, getJClass(PopulateModelListener.class), populateListenerName);
+		
+		JMethod setter = holder.getGeneratedClass().method(
+			JMod.PUBLIC, getCodeModel().VOID, 
+			"set" + populateListenerName.substring(0, 1).toUpperCase() + populateListenerName.substring(1)
+		);
+		JVar listener = setter.param(PopulateModelListener.class, "listener");
+		
+		setter.body().assign(listenerField, listener);
 	}
 
 }

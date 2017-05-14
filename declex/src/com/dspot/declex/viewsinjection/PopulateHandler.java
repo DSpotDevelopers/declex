@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -115,7 +116,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	public void validate(Element element, ElementValidation valid) {
 				
 		final String elementName = element.getSimpleName().toString();
-		
+				
 		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			
@@ -278,7 +279,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			if (isMethod) {
 				
-				processMethod(element, viewsHolder, onEventMethods, classInformation);
+				processMethod(element, viewsHolder, onEventMethods, classInformation, layoutId);
 				
 			} else if (isPrimitive) { //Check if the field is a primitive or a String
 				
@@ -333,6 +334,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
 		final String fieldName = element.getSimpleName().toString();
 		
+		final boolean hasExternalPopulate = element.getAnnotation(ExternalPopulate.class) != null;
+		
 		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
 		JMethod loadOnEventMethod = null;
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
@@ -358,11 +361,26 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			populateFieldMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterPopulate");
 			populateFieldMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		}
+		
+		//Create the "populate this" method
+		JMethod populateThisMethod = viewsHolder.getGeneratedClass().getMethod(
+				"_populate_this",
+				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
+			);
+		if (populateThisMethod == null) {
+			populateThisMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_populate_this");
+			JVar afterPopulate = populateThisMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterPopulate");
+			populateThisMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 			
+			JBlock block = new JBlock();
+			block._if(afterPopulate.neNull())._then()
+			     .invoke(afterPopulate, "run");
+			SharedRecords.priorityAdd(populateThisMethod.body(), block, uniquePriorityCounter);
+		}
+		populateThisMethod.body().invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
+		
 		Model model = element.getAnnotation(Model.class); 
-		if (model != null) {
-			final boolean hasExternalPopulate = element.getAnnotation(ExternalPopulate.class) != null;
-			
+		if (model != null) {			
 			final ModelHolder modelHolder;
 			
 			//Support ExternalPopulate
@@ -399,10 +417,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
                         + fieldName.substring(1);
 				
-				 JFieldRef listenerField = ref(populateListenerName);
-				 methodBody._if(listenerField.neNull())._then()
-				           .invoke(listenerField, "populateModel")
-				           .arg(_null()).arg(ref("onFailed"));
+				JFieldRef listenerField = ref(populateListenerName);
+				methodBody._if(listenerField.neNull())._then()
+				          .invoke(listenerField, "populateModel")
+				          .arg(_null()).arg(ref("onFailed"));
 				
 			} else {
 				methodBody.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
@@ -413,18 +431,89 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, viewsHolder.holder());
 	}
 	
-	private void processMethod(Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods, ClassInformation classInformation) {
-		final String fieldName = element.getSimpleName().toString();
+	private void processMethod(Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods, ClassInformation classInformation, int layoutId) {
+		final String methodName = element.getSimpleName().toString();
+		final ExecutableElement executableElement = (ExecutableElement) element;
 		
-		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
-		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
-		viewsHolder.findFieldsAndMethods(classInformation.getGeneratorClassName(), fieldName, element, fields, methods, true);
+		final boolean isPrimitive = 
+				executableElement.getReturnType().getKind().isPrimitive() || 
+				executableElement.getReturnType().toString().equals(String.class.getCanonicalName());
+		final String className = classInformation.generatorClassName;
+		final String originalClassName = classInformation.originalClassName;
+		final boolean isList = classInformation.isList;		
+		
+		if (viewsHolder.layoutContainsId(methodName)) {
+			if (isPrimitive) { //Check if the field is a primitive or a String
+				
+				processPrimitive(className, element, viewsHolder, onEventMethods);
+				
+			} else if (isList) {
+				if (layoutId == 0) {
+					processList(originalClassName, element, viewsHolder, onEventMethods);					
+				}
+			}
+			
+		} else {
+			
+			Map<String, IdInfoHolder> allFields = new HashMap<String, IdInfoHolder>();
+			Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
+			viewsHolder.findFieldsAndMethods(
+					viewsHolder.holder().getAnnotatedElement().asType().toString(), 
+					null, element, allFields, allMethods, true);
+				
+			if (element.getSimpleName().toString().equals("lyClockingDetailsVisibility"))
+				System.out.println("HHH: " + allFields + " : " + allMethods);
+			
+			for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
+				final IdInfoHolder info = entry.getValue();
+				
+				if (methodName.startsWith(info.idName) && info.getterOrSetter != null) {
+					
+					JFieldRef view = viewsHolder.createAndAssignView(info.idName);
+					
+					JBlock block = onEventMethods.populateFieldMethodBody.block();
+					putAssignInBlock(info, block, view, invoke(methodName), element, viewsHolder, onEventMethods);	
+					
+					SharedRecords.priorityAdd(
+							viewsHolder.holder().getOnViewChangedBody(), 
+							JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+							uniquePriorityCounter
+						);
+					
+					return;
+				}
+			}
+			for (Entry<String, IdInfoHolder> entry : allMethods.entrySet()) {
+				final IdInfoHolder info = entry.getValue();
+				
+				if (methodName.startsWith(info.idName) && info.getterOrSetter != null) {
+					
+					JFieldRef view = viewsHolder.createAndAssignView(info.idName);
+					
+					JBlock block = onEventMethods.populateFieldMethodBody.block();
+					putAssignInBlock(info, block, view, invoke(methodName), element, viewsHolder, onEventMethods);	
+					
+					SharedRecords.priorityAdd(
+							viewsHolder.holder().getOnViewChangedBody(), 
+							JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+							uniquePriorityCounter
+						);
+					
+					return;
+				}
+			}
+			
+			processModel(className, element, viewsHolder, onEventMethods);
+			
+		}
+		
+		
 	}
 	
 	private void processPrimitive(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
 			
 		String fieldName = element.getSimpleName().toString();
-		IJExpression assignRef = ref(fieldName);
+		IJExpression assignRef = element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName);
 		
 		if (adiHelper.getAnnotation(element, Populate.class).debug())
 			LOGGER.warn("\nField: " + fieldName, element, adiHelper.getAnnotation(element, Populate.class));
@@ -451,8 +540,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	}
 	
 	private void processList(String className, Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
+		
 		final String fieldName = element.getSimpleName().toString();
-		this.processList(viewsHolder.getClassNameFromId(fieldName), fieldName, className, ref(fieldName), onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);
+		this.processList(
+			viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
+			element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
+			onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);
 		
 		SharedRecords.priorityAdd(
 				viewsHolder.holder().getOnViewChangedBody(), 
@@ -645,7 +738,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 
 		final String fieldName = element.getSimpleName().toString();
-		IJExpression fieldRef = ref(fieldName);
+		IJExpression fieldRef = element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName);
 		
 		if (element.getAnnotation(Model.class)!=null) {
 			ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
@@ -653,7 +746,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 				
 		boolean castNeeded = false;
-		String className = element.asType().toString();
+		String className = element instanceof ExecutableElement? ((ExecutableElement)element).getReturnType().toString()
+																 : element.asType().toString();
 		if (!className.endsWith(ModelConstants.generationSuffix())) {
 			if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 				className = TypeUtils.getGeneratedClassName(className, getEnvironment());

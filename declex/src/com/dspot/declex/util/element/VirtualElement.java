@@ -1,7 +1,11 @@
 package com.dspot.declex.util.element;
 
 import java.lang.annotation.Annotation;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -20,6 +24,16 @@ public class VirtualElement implements Element {
 	
 	protected Element element;
 	private Element enclosingElement;
+	
+	private static Map<Element, List<Element>> mapVirtualEnclosedElements = new HashMap<>();
+	
+	public static List<Element> getVirtualEnclosedElements(Element enclosingElement) {
+		if (mapVirtualEnclosedElements.containsKey(enclosingElement)) {
+			return mapVirtualEnclosedElements.get(enclosingElement);
+		}
+		
+		return Collections.emptyList();
+	}
 	
 	public static VirtualElement from(Element element) {
 		if (element instanceof ExecutableElement) {
@@ -81,6 +95,15 @@ public class VirtualElement implements Element {
 	}
 	
 	public void setEnclosingElement(Element enclosingElement) {
+		
+		List<Element> enclosedElements = mapVirtualEnclosedElements.get(enclosingElement);
+		if (enclosedElements == null) {
+			enclosedElements = new LinkedList<>();
+			mapVirtualEnclosedElements.put(enclosingElement, enclosedElements);
+		}
+		
+		enclosedElements.add(this);
+		
 		this.enclosingElement = enclosingElement;
 	}
 

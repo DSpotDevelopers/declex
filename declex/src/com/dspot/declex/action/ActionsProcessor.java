@@ -1190,7 +1190,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (buildMethods != null && buildMethods.size() > 0) {
 					
 					try {
-						actionInfo.metaData.put("action", action);						
+						actionInfo.metaData.put("action", action);
+						actionInfo.metaData.put("element", element);
 						
 						if (isValidating()) {
 							actionInfo.validateProcessors();
@@ -2141,9 +2142,13 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 								param.metaData.put("fieldClass", fieldClass);
 								param.metaData.put("fieldJClass", getJClass(fieldClass));
 							} else {
-								throw new ActionProcessingException(
-										"There's no an accesible field named: " + currentParam + " in " + invocation
-									);
+								
+								if (!currentParam.equals(((Field) annotation).ignoreExpression())) {
+									throw new ActionProcessingException(
+											"There's no an accesible field named: " + currentParam + " in " + invocation
+										);
+								}
+								
 							}
 						}
 						

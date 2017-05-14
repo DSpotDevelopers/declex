@@ -23,5 +23,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.PARAMETER)
 public @interface Field {
-
+	String ignoreExpression() default "";
 }

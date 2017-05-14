@@ -23,6 +23,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,7 @@ import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -154,7 +156,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	}
 	
 	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
-
+		
 		//See if the method exists in the holder
 		final String methodName = "get" + elementName.substring(0, 1).toUpperCase() + elementName.substring(1);
     			
@@ -262,7 +264,10 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		//Search coinciding methods
     	//TODO recursive search in all the methods of the super classes 
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems)
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
+		
+		for (Element elem : allElems)
 			if (elem.getKind() == ElementKind.METHOD) {
 				if (elem.getModifiers().contains(Modifier.PRIVATE) ||
 					elem.getModifiers().contains(Modifier.STATIC)) {
@@ -304,9 +309,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	
 	private boolean foundMethodIn(Element element, ExecutableElement executableElement, String elementName) {
 		List<? extends Element> elems = element.getEnclosedElements();
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element));
 		
 		ELEMENTS:
-		for (Element elem : elems) {
+		for (Element elem : allElems) {
 			if (elem.getKind() == ElementKind.METHOD) {
 				if (elem.getModifiers().contains(Modifier.PRIVATE) ||
 					elem.getModifiers().contains(Modifier.STATIC)) {

@@ -23,6 +23,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
+import android.support.annotation.StringRes;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
 import com.dspot.declex.api.action.annotation.Assignable;
@@ -96,11 +97,19 @@ public class ProgressDialogActionHolder {
     	return this;
     }
 
+    public ProgressDialogActionHolder title(@StringRes int titleRes) {
+    	return title(context.getString(titleRes));
+    }
+    
     public ProgressDialogActionHolder title(@FormattedExpression String title) {
         dialog.setTitle(title);
         return this;
     }
 
+    public ProgressDialogActionHolder message(@StringRes int messageRes) {
+    	return message(context.getString(messageRes));
+    }
+    
     public ProgressDialogActionHolder message(@FormattedExpression String message) {
         dialog.setMessage(message);
         return this;

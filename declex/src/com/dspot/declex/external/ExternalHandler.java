@@ -15,6 +15,10 @@
  */
 package com.dspot.declex.external;
 
+import static com.helger.jcodemodel.JExpr.FALSE;
+import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
@@ -26,6 +30,7 @@ import javax.lang.model.element.Modifier;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.api.external.External;
@@ -93,7 +98,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void process(Element element, EComponentHolder holder) throws Exception {
+	public void process(Element element, EComponentHolder holder) {
 		
 		if (element instanceof VirtualElement) {
 			
@@ -101,11 +106,26 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 			
 			if (element instanceof ExecutableElement) {
 				JMethod method = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
-				JInvocation invocation = method.body()._if(ref(referenceName).neNull())._then()
-						                              .invoke(ref(referenceName), method);
+				JInvocation invocation = invoke(ref(referenceName), method);
+						
+				if (method.type().fullName().toString().equals("void")) {
+					method.body()._if(ref(referenceName).neNull())._then().add(invocation);
+				} else {
+					method.body()._if(ref(referenceName).neNull())._then()._return(invocation);
+					
+					if (method.type().fullName().equals("boolean")) method.body()._return(FALSE);
+					else if (method.type().fullName().contains(".") 
+							|| method.type().fullName().endsWith(ModelConstants.generationSuffix())) 
+					        {method.body()._return(_null());} 
+					else method.body()._return(lit(0));
+				}
+						
+						                              ;
 				for (JVar param : method.params()) {
 					invocation.arg(ref(param.name()));
 				}
+				
+				
 			}
 		}
 		

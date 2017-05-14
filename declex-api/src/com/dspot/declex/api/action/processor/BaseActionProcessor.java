@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import com.dspot.declex.api.action.process.ActionInfo;
@@ -39,11 +40,13 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 	
 	private JVar action;
 	private Object holder;
+	private Object element;
 	private Object env;
 	
 	private void reset() {
 		action = null;
 		holder = null;
+		element = null;
 		env = null;		
 	}
 	
@@ -135,6 +138,13 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 			holder = actionInfo.metaData.get("holder");
 		}
 		return holder;
+	}
+	
+	protected Element getElement() {
+		if (element == null) {
+			element = actionInfo.metaData.get("element");
+		}
+		return (Element) element;
 	}
 	
 	

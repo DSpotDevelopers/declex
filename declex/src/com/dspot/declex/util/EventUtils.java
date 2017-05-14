@@ -51,6 +51,7 @@ import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
@@ -127,7 +128,10 @@ public class EventUtils {
 				
 				//Search methods in parent referencing this event
 				List<? extends Element> elems = element.getEnclosedElements();
-				for (Element elem : elems) {
+				List<Element> allElems = new LinkedList<>(elems);
+				allElems.addAll(VirtualElement.getVirtualEnclosedElements(element));
+				
+				for (Element elem : allElems) {
 					if (elem.getKind() == ElementKind.METHOD) {
 						ExecutableElement executableElement = (ExecutableElement) elem;
 						

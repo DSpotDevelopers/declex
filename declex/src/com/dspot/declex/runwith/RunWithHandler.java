@@ -31,7 +31,6 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.action.ActionHelper;
-import com.dspot.declex.api.external.External;
 import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.event.BaseEventHandler;
 import com.dspot.declex.share.holder.ViewsHolder;
@@ -86,10 +85,6 @@ public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler
 	protected IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder, T holder) {
 
 		if (element instanceof ExecutableElement ) { 
-			
-			if (adiHelper.hasAnnotation(element, External.class)) {
-				return null;
-			};
 			
 			final String methodName = element.getSimpleName().toString();
 			

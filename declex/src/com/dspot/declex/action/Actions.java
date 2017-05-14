@@ -118,7 +118,6 @@ public class Actions {
 		ACTION_ANNOTATION.add(Field.class);
 		ACTION_ANNOTATION.add(FormattedExpression.class);
 		ACTION_ANNOTATION.add(Literal.class);
-		ACTION_ANNOTATION.add(Assignable.class);
 		ACTION_ANNOTATION.add(StopOn.class);
 		
 		annotationHelper = new IdAnnotationHelper(env, ActionFor.class.getCanonicalName());

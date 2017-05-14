@@ -53,6 +53,7 @@ import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -347,7 +348,7 @@ public class ViewsHolder extends
 
 			if (!views.containsKey(viewName)) {
 				if (getGeneratedClass().fields().get(viewName)==null &&
-						!TypeUtils.fieldInElement(viewName, holder().getAnnotatedElement()))
+					!TypeUtils.fieldInElement(viewName, holder().getAnnotatedElement()))
 					getGeneratedClass().field(JMod.PRIVATE, viewClass, viewName);
 				
 				declaredBlock.assign(view, cast(viewClass, viewRef));
@@ -372,17 +373,22 @@ public class ViewsHolder extends
 		findFieldsAndMethods(className, fieldName, element, fields, methods, getter, false, null);
 	}
 
-	public void findFieldsAndMethods(String className, String fieldName,
+	public void findFieldsAndMethods(
+			String className, String fieldName,
 			Element element, Map<String, IdInfoHolder> fields,
 			Map<String, IdInfoHolder> methods, boolean getter, 
 			boolean isList, String layoutId) {
 		
 		TypeElement typeElement = environment().getProcessingEnvironment()
 				                               .getElementUtils().getTypeElement(className);
+		if (typeElement == null) return;
+		
+		Map<String, LayoutObject> layoutObjects = getLayoutObjects(layoutId);
+		if (layoutObjects == null) return;
 		
 		findFieldsAndMethodsInternal(
 			className, fieldName, typeElement, fields, methods,
-			getLayoutObjects(layoutId), getter, isList
+			layoutObjects, getter, isList
 		);
 
 		// Apply to Extensions
@@ -414,6 +420,15 @@ public class ViewsHolder extends
 		for (String id : layoutObjects.keySet()) {
 			String startsWith = null;
 			String originalId = id;
+			
+			if (fieldName == null) {
+				deepFieldsAndMethodsSearch(
+					id, null, typeElement, 
+					fields, methods,
+					originalId, layoutObjects.get(originalId).className, getter
+				);
+				continue;
+			}
 
 			if (id.startsWith(fieldName)) {
 				startsWith = fieldName;
@@ -526,7 +541,10 @@ public class ViewsHolder extends
 		final String normalizedId = id.substring(0, 1).toLowerCase() + id.substring(1);
 
 		List<? extends Element> elems = testElement.getEnclosedElements();
-		for (Element elem : elems) {
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(testElement));
+		
+		for (Element elem : allElems) {
 			final String elemName = elem.getSimpleName().toString();
 			final String completeElemName = prevField == null ? elemName : prevField + "." + elemName;
 
@@ -615,7 +633,28 @@ public class ViewsHolder extends
 							}
 						}
 					}
-				} 
+				} else {
+					String elemType = TypeUtils.typeFromTypeString(exeElem.getReturnType().toString(), environment());
+					if (elemType.endsWith(ModelConstants.generationSuffix()))
+						elemType = elemType.substring(0, elemType.length() - 1);
+
+					TypeElement executableTypeElement = environment()
+							.getProcessingEnvironment().getElementUtils()
+							.getTypeElement(elemType);
+
+					if (executableTypeElement != null
+						&& !executableTypeElement.toString().equals(String.class.getCanonicalName())) {
+
+						if (id.startsWith(elemName) || normalizedId.startsWith(elemName)) {
+							int extraToRemove = id.startsWith(elemName + "_") ? 1 : 0;
+							
+							deepFieldsAndMethodsSearch(
+									id.substring(elemName.length() + extraToRemove), completeElemName,
+									executableTypeElement, fields, methods,
+									layoutElementId, layoutElementIdClass, getter);
+						}
+					}
+				}
 			}
 		}
 	}
