@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.api.action.processor;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 	private JVar action;
 	private Object holder;
 	private Object element;
+	private Object adi;
 	private Object env;
 	
 	private void reset() {
@@ -193,6 +195,23 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 		}
 		
 		return null;
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <T extends Annotation> T getAnnotation(Element element, Class<T> annotation) {
+		if (adi == null) {
+			adi = actionInfo.metaData.get("adi");
+		}
+		
+		try {
+			Method method = adi.getClass().getMethod("getAnnotation", Element.class, Class.class);
+			return (T) method.invoke(adi, element, annotation);
+		} catch (NoSuchMethodException | SecurityException | IllegalAccessException 
+				 | IllegalArgumentException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
+		
+		return null;		
 	}
 		
 	

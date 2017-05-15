@@ -44,7 +44,7 @@ public class RecollectActionHolder extends BaseFieldActionHolder {
 	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
 	 */
 	@Override
-    protected void init(@Field Object object) {
+    protected void init(@Field(ignoreExpression="this") Object object) {
     	super.init(object);
     }
 

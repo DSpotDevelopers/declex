@@ -15,16 +15,8 @@
  */
 package com.dspot.declex.api.external;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
-@Retention(RetentionPolicy.CLASS)
-@Target({ElementType.METHOD, ElementType.TYPE}) 
-public @interface External {
-	/**
-	 *TODO Not Implemented 
-	 */
-	boolean required() default true;
+public interface RecollectModelListener {
+	void recollectModel(Runnable afterRecollect, OnFailedRunnable onFailed);
 }

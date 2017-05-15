@@ -61,9 +61,9 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
-			dependencies.put(EBean.class, element);
+			dependencies.put(element, EBean.class);
 		}
 	}
 	

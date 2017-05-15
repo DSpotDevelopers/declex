@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.builtin;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.PutModelActionProcessor;
 
@@ -44,10 +45,20 @@ import com.dspot.declex.api.action.processor.PutModelActionProcessor;
 @ActionFor(value="PutModel", processors=PutModelActionProcessor.class)
 public class PutModelActionHolder extends BaseModelActionHolder {
     
+	/**
+	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
+	 */
+	@Override
+	protected void init(@Field Object field) {
+		args.put("recollect", true);
+		super.init(field);
+	}
+	
     /**
      * No recollect the Model after it is loaded
      */
     public PutModelActionHolder noRecollect() {
+    	args.put("recollect", false);
     	return this;
     }
  

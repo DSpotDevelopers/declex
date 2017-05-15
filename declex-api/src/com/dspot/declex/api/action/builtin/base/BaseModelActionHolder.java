@@ -1,5 +1,9 @@
 package com.dspot.declex.api.action.builtin.base;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import android.os.Handler;
 import android.os.Looper;
 
@@ -15,6 +19,8 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 	private String query;
 	private String orderBy;
 	private String fields;
+	
+	protected Map<String, Object> args = new HashMap<>();
 	
 	/**
 	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
@@ -45,6 +51,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
      */
     public BaseModelActionHolder query(@FormattedExpression String query) {
     	this.query = query;
+    	args.put("query", query);
     	return this;
     }
 
@@ -56,6 +63,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
      */
     public BaseModelActionHolder orderBy(@FormattedExpression String orderBy) {
     	this.orderBy = orderBy;
+    	args.put("orderBy", orderBy);
     	return this;
     }
 
@@ -66,6 +74,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
      */
     public BaseModelActionHolder fields(@FormattedExpression String fields) {
     	this.fields = fields;
+    	args.put("fields", fields);
     	return this;
     }
 
@@ -88,6 +97,10 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
     
     protected String getFields() {
     	return this.fields;
+    }
+    
+    protected Map<String, Object> getArgs() {
+    	return Collections.unmodifiableMap(args);
     }
     
     @Override

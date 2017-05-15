@@ -41,8 +41,8 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
-		dependencies.put(UseEventBus.class, element.getEnclosingElement());
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+		dependencies.put(element.getEnclosingElement(), UseEventBus.class);
 	}
 
 	@Override

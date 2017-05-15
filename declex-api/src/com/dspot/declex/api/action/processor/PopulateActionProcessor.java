@@ -43,8 +43,8 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 			
 			if (field != null) {
-				Populate populateAnnotation = field.getAnnotation(Populate.class);
-				ExternalPopulate externalPopulateAnnotation = field.getAnnotation(ExternalPopulate.class);
+				Populate populateAnnotation = getAnnotation(field, Populate.class);
+				ExternalPopulate externalPopulateAnnotation = getAnnotation(field, ExternalPopulate.class);
 				if (populateAnnotation == null && externalPopulateAnnotation == null) {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
 				}				
@@ -64,7 +64,7 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			
 			if (field != null) {
 				
-				if (field.getAnnotation(ExternalPopulate.class) != null) {
+				if (getAnnotation(field, ExternalPopulate.class) != null) {
 					final String fieldName = field.getSimpleName().toString();
 					final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
 	                        + fieldName.substring(1);

@@ -86,7 +86,7 @@ public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler
 
 		if (element instanceof ExecutableElement ) { 
 			
-			final String methodName = element.getSimpleName().toString();
+			final String methodName = element.getSimpleName().toString();			
 			
 			JInvocation invoke = invoke(methodName);
 			
@@ -110,5 +110,4 @@ public class RunWithHandler<T extends EComponentHolder> extends BaseEventHandler
 		
 		return null;
 	}
-
 }

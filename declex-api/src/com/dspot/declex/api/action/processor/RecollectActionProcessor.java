@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.processor;
 
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
@@ -23,6 +24,9 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.viewsinjection.Recollect;
+import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JConditional;
+import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JVar;
 
@@ -58,11 +62,32 @@ public class RecollectActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 			JVar action = (JVar) actionInfo.metaData.get("action");
 			
-			if (field != null && action != null) {					
+			if (field != null && action != null) {		
+				
 				JInvocation invoke = invoke("_recollect_" + field.getSimpleName().toString())
 										.arg(action.invoke("getDone"))
 										.arg(action.invoke("getFailed"));
 				addPostBuildBlock(invoke);
+				
+			} else { //Recollect "this" call
+				
+				if (getGeneratedClass().containsField("recollectThis")) {
+					JFieldRef listenerField = ref("recollectThis");
+					
+					JBlock block = new JBlock();
+					JConditional ifNeNull = block._if(listenerField.neNull());
+					ifNeNull._then().invoke(listenerField, "recollectModel")
+					           .arg(getAction().invoke("getDone"))
+					           .arg(getAction().invoke("getFailed"));
+					
+					addPostBuildBlock(block);					
+				} else {
+					JInvocation invoke = invoke("_recollect_this")
+							.arg(getAction().invoke("getDone"))
+							.arg(getAction().invoke("getFailed"));
+					addPostBuildBlock(invoke);	
+				}
+				
 			}
 		}
 	}

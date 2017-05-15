@@ -15,8 +15,8 @@
  */
 package com.dspot.declex.model;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
-import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -41,6 +41,8 @@ import com.dspot.declex.api.action.PutOnAction;
 import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.eventbus.PutOnEvent;
 import com.dspot.declex.api.eventbus.UpdateOnEvent;
+import com.dspot.declex.api.external.ExternalPopulate;
+import com.dspot.declex.api.external.ExternalRecollect;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.util.FormatsUtils;
@@ -59,6 +61,7 @@ import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JVar;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
@@ -128,6 +131,9 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		JBlock block;
 		boolean checkNull = false;
 		
+		final boolean hasExternal = adiHelper.getAnnotation(element, ExternalPopulate.class) != null
+                                    || adiHelper.getAnnotation(element, ExternalRecollect.class) != null;
+
 		final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));	
 		final UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
 		
@@ -168,8 +174,10 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 					}	
 				}
 								
-				block = modelHolder.getGetterBody(element)
-						            ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
+				if (!hasExternal) {
+					block = modelHolder.getGetterBody(element)
+							            ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
+				}
 				
 			} else {
 				checkNull = true;
@@ -184,8 +192,12 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				
 				block = useModelHolder.getGetModelListInitBlock();
 				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);				
-			} else {
-				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);	
+			} else {			
+				//It is important to avoid this behavior for External fields, because this
+				//causes infinite loops
+				if (!hasExternal) {
+					generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);
+				}
 			}
 			
 		} else {
@@ -211,6 +223,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		if (viewsHolder != null) {
 			PutOnAction putOnAction = element.getAnnotation(PutOnAction.class);
 			if (putOnAction != null) {
+				
 				final ClickHolder listenerHolder = holder.getPluginHolder(new ClickHolder(viewsHolder.holder()));
 				
 				String referecedId = getEnvironment().getRClass().get(Res.ID).getIdQualifiedName(putOnAction.value()[0]);
@@ -279,36 +292,41 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 
     				//Get the internal calling method
     				JMethod getModelMethod = modelHolder.getLoadModelMethod(element);
-    				
-    				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
-    				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
-					final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
-    				
-    				IJExpression contextExpr = modelHolder.getContextRef();
-    				if (contextExpr == _this()) {
-    					contextExpr = modelHolder.getGeneratedClass().staticRef("this");
-    				}
-    				if (isStatic) contextExpr = ref("context");
+    				    				
+					JBlock callBlock = new JBlock();
+					JVar args = callBlock.decl(
+						getClasses().MAP.narrow(String.class, Object.class),
+						"loadModelArgs",
+						_new(getClasses().HASH_MAP)
+					);
+					
+					{
+	    				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
+	    				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
+						final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
+						callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
+						callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
+						callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
+					}
     				
     				IJExpression onFailed = _null();
     				if (isStatic && useModelHolder != null && !annotation.lazy()) 
     					onFailed = useModelHolder.getGetModelInitBlockOnFailed();
     				
-    				JInvocation invocation = invoke(getModelMethod).arg(contextExpr)
-    						                                       .arg(queryExpr)
-    						                                       .arg(orderByExpr)
-    						                                       .arg(fieldsExpr)
-    						                                       .arg(_null())
-    															   .arg(onFailed);
+    				JInvocation invocation = invoke(getModelMethod);    				
+    				if (isStatic) {
+    					invocation = invocation.arg(ref("context"));
+    				}    				
+    				invocation = invocation.arg(args).arg(_null()).arg(onFailed);
     				
     				if (checkNull) {
-    					JBlock maskBlock = new JBlock();
-    					maskBlock._if(invoke(modelHolder.getGetterMethod(element)).eq(_null()))._then()
-    							 .add(invocation);
-    					SharedRecords.priorityAdd(block, maskBlock, position);
+    					callBlock._if(invoke(modelHolder.getGetterMethod(element)).eq(_null()))
+    						     ._then().add(invocation);
     				} else {
-    					SharedRecords.priorityAdd(block, invocation, position);
+    					callBlock.add(invocation);
     				}
+    				
+    				SharedRecords.priorityAdd(block, callBlock, position);
     			}
     			
     			return super.visitAnnotation(annotationTree, trees);
@@ -322,40 +340,48 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		final Model annotation = element.getAnnotation(Model.class);
 		final JMethod putModelMethod = holder.getPutModelMethod(element);
-		final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
-		final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
-		final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
 
+		JBlock callBlock = new JBlock();
+		JVar args = callBlock.decl(
+			getClasses().MAP.narrow(String.class, Object.class),
+			"loadModelArgs",
+			_new(getClasses().HASH_MAP)
+		);
+		
+		{
+			final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
+			final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
+			final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
+			callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
+			callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
+			callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
+		}
+		
 		if (hasEvent) {
 			IJExpression instanceOfExpression = ref("event").invoke("getValues").component(lit(0));
 			
-			JConditional condition = block._if(
+			JConditional condition = callBlock._if(
 						ref("event").invoke("getValues").ref("length").gt(lit(0))
 						.cand(instanceOfExpression._instanceof(getJClass(Runnable.class)))
 					);
 			
 			JBlock ifBlock = condition._then();
 			ifBlock.invoke(putModelMethod)
-				   .arg(queryExpr)
-				   .arg(orderByExpr)
-				   .arg(fieldsExpr)
+				   .arg(args)
 			       .arg(JExpr.cast(getJClass(Runnable.class), instanceOfExpression))
 			       .arg(_null());
 			ifBlock.invoke(ref("event"), "setValues").arg(JExpr.newArray(getJClass(Object.class)));
 			
-			condition._else().invoke(putModelMethod).arg(queryExpr)
-			                                        .arg(orderByExpr)
-			                                        .arg(fieldsExpr)
+			condition._else().invoke(putModelMethod).arg(args)
 			                                        .arg(_null())
 			                                        .arg(_null());
 		} else {
-			block.invoke(putModelMethod).arg(queryExpr)
-										.arg(orderByExpr)
-							            .arg(fieldsExpr)
+			callBlock.invoke(putModelMethod).arg(args)
 							            .arg(_null())
 							            .arg(_null());
 		}
 		
+		block.add(callBlock);
 	}
 
 }

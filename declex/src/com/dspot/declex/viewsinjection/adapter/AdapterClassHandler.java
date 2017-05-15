@@ -13,29 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.viewsinjection;
+package com.dspot.declex.viewsinjection.adapter;
 
-import static com.helger.jcodemodel.JExpr.ref;
 import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.List;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
+import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.viewsinjection.AdapterClass;
 import com.dspot.declex.plugin.JClassPlugin;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JDefinedClass;
@@ -43,6 +47,7 @@ import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JMod;
 
 public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder> implements JClassPlugin {
 	
@@ -63,11 +68,23 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		if (!isList) {
 			valid.addError("This annotation shoud be used only on @Populate for an AdapterView");
 		} 
+		
+		AbstractJClass baseClass = getBaseAdapter(element);
+		if (baseClass != null && adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
+			Element baseClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(baseClass.fullName());
+			if (baseClassElement != null) {
+				if (!baseClassElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
+					if (!baseClassElement.getModifiers().contains(Modifier.STATIC)) {
+						valid.addError("For @ExternalPopulate fields, the provided inner class in @AdapterClass should be static");
+					}
+				}
+			}
+		}
 	}
 
 	@Override
 	public void process(Element element, EComponentHolder holder)
-			throws Exception {
+			throws Exception { 
 	}
 
 	@Override
@@ -92,6 +109,20 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 				
 				List<? extends VariableElement> params = executableElement.getParameters();
 				
+				if (elemName.equals("getModels") && params.size() == 0 && elem.getModifiers().contains(Modifier.ABSTRACT)) {
+					if (TypeUtils.isSubtype(executableElement.getReturnType(), CanonicalNameConstants.LIST, getProcessingEnvironment())) {
+						ClassInformation info = TypeUtils.getClassInformation(element, getEnvironment());
+						
+						JMethod getModelsMethod = AdapterClass.method(
+								JMod.PUBLIC, 
+								getClasses().LIST.narrow(getJClass(info.originalClassName)), 
+								"getModels"
+							);
+						getModelsMethod.annotate(Override.class);
+						getModelsMethod.body()._return(ref("models"));
+					}
+				}
+				
 				if (elemName.equals("inflate")) {
 					
 					if (params.size() > 0 && params.size() < 4) {
@@ -102,7 +133,6 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 							inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
 							isViewAdapter = true;
 						}
-							
 						
 						//Remove previous method body
 						codeModelHelper.removeBody(inflaterMethod);

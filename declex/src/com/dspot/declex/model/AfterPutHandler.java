@@ -49,8 +49,8 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 
 	@Override
 	public void getDependencies(Element element,
-			Map<Class<? extends Annotation>, Element> dependencies) {
-		dependencies.put(UseModel.class, element.getEnclosingElement());
+			Map<Element, Class<? extends Annotation>> dependencies) {
+		dependencies.put(element.getEnclosingElement(), UseModel.class);
 	}
 	
 	@Override

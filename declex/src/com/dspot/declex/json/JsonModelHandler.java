@@ -56,9 +56,9 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
-			dependencies.put(UseModel.class, element);
+			dependencies.put(element, UseModel.class);
 		}
 	}
 	

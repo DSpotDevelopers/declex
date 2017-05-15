@@ -15,11 +15,7 @@
  */
 package com.dspot.declex.api.action.processor;
 
-import static com.helger.jcodemodel.JExpr._this;
-import static com.helger.jcodemodel.JExpr.assign;
 import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
-import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
@@ -30,11 +26,12 @@ import org.apache.commons.lang3.StringUtils;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.external.External;
+import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 
@@ -60,8 +57,9 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				
 				ActionMethod noPopulate = getActionMethod("noPopulate");
 				if (noPopulate.metaData != null) {
-					Populate populatorAnnotation = field.getAnnotation(Populate.class);
-					if (populatorAnnotation == null) {
+					Populate populatorAnnotation = getAnnotation(field, Populate.class);
+					ExternalPopulate externalPopulatorAnnotation = getAnnotation(field, ExternalPopulate.class);
+					if (populatorAnnotation == null && externalPopulatorAnnotation == null) {
 						throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
 					}
 				}
@@ -81,13 +79,15 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
-			String fieldName = (String) initParam.metaData.get("fieldName");
 			
 			if (field != null) {
+				
 				Model modelAnnotation = field.getAnnotation(Model.class);
 					
 				if (field.getEnclosingElement().getAnnotation(EFragment.class) == null
-						&& field.getEnclosingElement().getAnnotation(EActivity.class) == null)
+					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null
+					&& getAnnotation(getElement(), External.class) == null
+					&& getAnnotation(getAnnotatedElement(), External.class) == null)
 				{
 					if (getActionMethod("keepCallingThread").metaData == null) {
 						addPreBuildBlock(getAction().invoke("keepCallingThread"));
@@ -100,43 +100,25 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 						"getLoadModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);
 				
-				IJExpression queryExp = null;
 				if (query.metaData == null) {
-					queryExp = FormatsUtils.expressionFromString(modelAnnotation.query());
-				} else {
-					queryExp = getAction().invoke("getQuery");
-				}
+					IJExpression queryExp = FormatsUtils.expressionFromString(modelAnnotation.query());
+					addPostInitBlock(getAction().invoke("query").arg(queryExp));
+				} 
 				
-				IJExpression orderByExp = null;
 				if (orderBy.metaData == null) {
-					orderByExp = FormatsUtils.expressionFromString(modelAnnotation.orderBy());
-				} else {
-					orderByExp = getAction().invoke("getOrderBy");
+					IJExpression orderByExp = FormatsUtils.expressionFromString(modelAnnotation.orderBy());
+					addPostInitBlock(getAction().invoke("orderBy").arg(orderByExp));
 				}
-				
-				IJExpression fieldsExp = null;
+
 				if (fields.metaData == null) {
-					fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
-				} else {
-					fieldsExp = getAction().invoke("getFields");
-				}
-				
-				IJExpression contextExpr = getMethodInHolder("getContextRef");
-				if (contextExpr == _this()) {
-					JDefinedClass generatedClass = getMethodInHolder("getGeneratedClass");
-					contextExpr = generatedClass.staticRef("this");
+					IJExpression fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
+					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				
 				JInvocation invoke = invoke(getModelMethod)
-										.arg(contextExpr)
-										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
+										.arg(getAction().invoke("getArgs"))
 						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
-				
-				ActionMethod noPopulate = getActionMethod("noPopulate");
-				if (noPopulate.metaData != null) {
-					addPostBuildBlock(assign(ref("_populate_" + fieldName), lit(false)));
-				}
 				
 				addPostBuildBlock(invoke);					
 			}

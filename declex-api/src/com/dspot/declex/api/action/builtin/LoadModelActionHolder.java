@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.builtin;
 
 import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.api.action.annotation.Field;
 import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
 
@@ -44,10 +45,20 @@ import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
 @ActionFor(value="LoadModel", processors=LoadModelActionProcessor.class)
 public class LoadModelActionHolder extends BaseModelActionHolder {
 
+	/**
+	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
+	 */
+	@Override
+	protected void init(@Field Object field) {
+		args.put("populate", true);
+		super.init(field);
+	}
+	
     /**
      * No populate the Model after it is loaded
      */
     public LoadModelActionHolder noPopulate() {
+    	args.put("populate", false);
     	return this;
     }
         

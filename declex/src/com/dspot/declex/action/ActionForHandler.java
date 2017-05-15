@@ -63,8 +63,8 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
-		dependencies.put(EBean.class, element);
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+		dependencies.put(element, EBean.class);
 	}
 		
 	@Override

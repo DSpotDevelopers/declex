@@ -44,6 +44,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
+import com.dspot.declex.api.external.External;
 import com.dspot.declex.api.runwith.RunWith;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.share.holder.ViewsHolder;
@@ -169,10 +170,10 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			holderMethod = holder.getClass().getMethod(methodName);
 		} catch (NoSuchMethodException | SecurityException e) {
 			try {
-				holderMethod = holder.getClass().getMethod(methodName + "Body");
+				holderMethod = holder.getClass().getMethod(methodName + "Method");				
 			} catch (NoSuchMethodException | SecurityException e1) {
 				try {
-					holderMethod = holder.getClass().getMethod(methodName + "Method");
+					holderMethod = holder.getClass().getMethod(methodName + "Body");
 				} catch (NoSuchMethodException | SecurityException e2) {
 					try {
 						holderMethod = holder.getClass().getMethod(methodName + "AfterSuperBlock");
@@ -199,6 +200,17 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     			}
     			
 				if (block != null) {
+					
+					if (element.getAnnotation(RunWith.class) != null && adiHelper.getAnnotation(element, External.class) != null) {
+
+						//If this is an @External @RunWith method, it should not be call by itself,
+						//this code avoids this issue (an infinite loop)
+						
+						//This will be called by ExernalHandler as well
+						JMethod method = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
+						if (method == result) return true;
+					}
+					
 					IJStatement statement = getStatement(getJClass(elementClass), element, viewsHolder, holder);
 					if (statement != null) {
 						block.add(statement);
@@ -243,6 +255,17 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     							JMod.PUBLIC, getJClass(resultType.toString()), elementName
     						);
     					method.annotate(Override.class);
+    					
+    					if (adiHelper.getAnnotation(element, External.class) != null) {
+
+    						//If this is an @External @RunWith method, it should not be call by itself,
+    						//this code avoids this issue (an infinite loop)
+    						
+    						//This will be called by ExernalHandler as well
+    						JMethod externalMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
+    						if (method == externalMethod) return true;
+    					}
+    					
     					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
 
     					List<? extends VariableElement> parameters = executableElement.getParameters();

@@ -22,18 +22,30 @@ import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
+import java.util.List;
+import java.util.Map;
 
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.annotations.AfterInject;
+import org.androidannotations.annotations.AfterViews;
+import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.api.external.External;
+import com.dspot.declex.api.external.ExternalPopulate;
+import com.dspot.declex.api.external.ExternalRecollect;
+import com.dspot.declex.api.external.NonExternal;
+import com.dspot.declex.api.viewsinjection.Populate;
+import com.dspot.declex.api.viewsinjection.Recollect;
 import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
@@ -55,9 +67,67 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 		super(targetClass, environment);
 	}
 	
-	@SuppressWarnings("unchecked")
+	@Override
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+		
+		//External in the super class will inject through ADI all the external methods
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			
+			dependencies.put(element, EBean.class);
+			
+			List<? extends Element> elems = element.getEnclosedElements();
+			for (Element elem : elems) {
+		
+				if (elem.getModifiers().contains(Modifier.STATIC)) continue;
+				if (elem.getModifiers().contains(Modifier.ABSTRACT)) continue;
+				if (elem.getAnnotation(NonExternal.class) != null) continue;
+								
+				if (elem instanceof ExecutableElement) {
+					if (!elem.getModifiers().contains(Modifier.PUBLIC)) continue;
+
+					if (elem.getAnnotation(AfterInject.class) != null) continue;
+					if (elem.getAnnotation(AfterViews.class) != null) continue;
+					if (elem.getAnnotation(ExternalPopulate.class) != null) continue;
+					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
+					
+					if (elem.getAnnotation(Populate.class) != null) {
+						dependencies.put(elem, ExternalPopulate.class);
+						continue;
+					}
+					
+					if (elem.getAnnotation(Recollect.class) != null) {
+						dependencies.put(elem, ExternalRecollect.class);
+						continue;
+					}
+					
+					List<? extends AnnotationMirror> annotations = elem.getAnnotationMirrors();
+					for (AnnotationMirror annotation : annotations) {
+						if (getEnvironment().getSupportedAnnotationTypes()
+								            .contains(annotation.getAnnotationType().toString()))
+						{
+							dependencies.put(elem, External.class);
+							break;
+						}
+					}
+				} else {
+					if (elem.getAnnotation(Populate.class) != null) {
+						dependencies.put(elem, ExternalPopulate.class);
+					}				
+					if (elem.getAnnotation(Recollect.class) != null) {
+						dependencies.put(elem, ExternalRecollect.class);
+					}
+				}
+			}
+		}
+	}
+	
 	@Override
 	public void validate(final Element element, final ElementValidation valid) {
+		
+		if (element.getAnnotation(AfterInject.class) != null) {
+			valid.addError("You cannot use @External in an @AfterInject method");
+			return;
+		}
 		
 		if (element.getModifiers().contains(Modifier.STATIC)) {
 			valid.addError("You cannot use @External in a static element");
@@ -124,7 +194,6 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 				for (JVar param : method.params()) {
 					invocation.arg(ref(param.name()));
 				}
-				
 				
 			}
 		}

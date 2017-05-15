@@ -40,6 +40,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
 import org.androidannotations.api.BackgroundExecutor;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
@@ -91,6 +92,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	
 	final AbstractJClass STRING;
 	final AbstractJClass LIST;
+	final AbstractJClass MAP;
 	final AbstractJClass CONTEXT;
 	final AbstractJClass ARRAYS;
 	final AbstractJClass THROWABLE;
@@ -98,12 +100,14 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	final JPrimitiveType VOID;
 	
 	private APTCodeModelHelper codeModelHelper;
+	private ADIHelper adiHelper;
 		
 	public ModelHolder(EComponentHolder holder) {
 		super(holder);
 		
 		STRING = environment().getClasses().STRING;
 		LIST = environment().getClasses().LIST;
+		MAP = environment().getClasses().MAP.narrow(String.class, Object.class);
 		CONTEXT = environment().getClasses().CONTEXT;
 		ARRAYS = environment().getClasses().ARRAYS;
 		THROWABLE = environment().getClasses().THROWABLE;
@@ -111,6 +115,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		VOID = getCodeModel().VOID;
 		
 		codeModelHelper = new APTCodeModelHelper(environment());
+		adiHelper = new ADIHelper(environment());
 	}
 	
 	public JMethod getGetterMethod(Element element) {
@@ -157,9 +162,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element instanceof VirtualElement && (element.getAnnotation(External.class) != null 
-			|| element.getAnnotation(ExternalPopulate.class) != null
-			|| element.getAnnotation(ExternalRecollect.class) != null)) {
+		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, External.class) != null 
+			|| adiHelper.getAnnotation(element, ExternalPopulate.class) != null
+			|| adiHelper.getAnnotation(element, ExternalRecollect.class) != null)) {
 		
 			//It will never be static here
 			
@@ -193,7 +198,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			modelMethod = new ModelMethod(setter, setter.body());
 			
-			if (element.getAnnotation(ExternalPopulate.class) != null) {
+			if (adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
 				setterModelMethods.put(element, modelMethod);
 				return modelMethod;
 			}
@@ -253,9 +258,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element instanceof VirtualElement && (element.getAnnotation(External.class) != null 
-			|| element.getAnnotation(ExternalPopulate.class) != null
-			|| element.getAnnotation(ExternalRecollect.class) != null)) {
+		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, External.class) != null 
+			|| adiHelper.getAnnotation(element, ExternalPopulate.class) != null
+			|| adiHelper.getAnnotation(element, ExternalRecollect.class) != null)) {
 
 			//It will never be static here
 			
@@ -289,7 +294,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			modelMethod = new ModelMethod(getter, getterBody);
 			
-			if (element.getAnnotation(ExternalPopulate.class) != null) {
+			if (adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
 				getterModelMethods.put(element, modelMethod);
 				return modelMethod;
 			}
@@ -419,11 +424,16 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		IJAssignmentTarget beanField = null;
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
 		
+		IJExpression context = isStatic? ref("context") : holder().getContextRef();
+		if (context == _this()) {
+			context = holder().getGeneratedClass().staticRef("this");
+		}
+		
 		JMethod loadModelMethod = getGeneratedClass().method(JMod.NONE | (isStatic? JMod.STATIC : 0), getCodeModel().VOID, "_load_" + fieldName);
-		JVar context = loadModelMethod.param(JMod.FINAL, CONTEXT, "context");
-		JVar query = loadModelMethod.param(JMod.FINAL, STRING, "query");
-		JVar orderBy = loadModelMethod.param(JMod.FINAL, STRING, "orderBy");
-		JVar fields = loadModelMethod.param(JMod.FINAL, STRING, "fields");
+		if (isStatic) {
+			context = loadModelMethod.param(JMod.FINAL, CONTEXT, "context");
+		}
+		JVar args = loadModelMethod.param(JMod.FINAL, MAP, "args");
 		JVar onDone = loadModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
 		JInvocation getter = invoke(getGetterMethod(element));
@@ -520,9 +530,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				                                 : useModelLoadModelMethod(useModelHolder);
 		JInvocation getModel = ModelClass.staticInvoke(getModelInjectionMethod)
 				  .arg(context)
-				  .arg(query)
-				  .arg(orderBy)
-				  .arg(fields)
+				  .arg(args)
 				  .arg(annotations_invocation);
 		
 		JBlock assign;
@@ -570,10 +578,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		if (isList) {
 			
 			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", assignField).body();
-			forEachBody.invoke(converted == null ? ref("model") : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder))
-			  .arg(query)
-			  .arg(orderBy)	
-			  .arg(fields);			
+			forEachBody.invoke(converted == null ? ref("model") 
+					                               : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder)).arg(args);			
 			
 			if (converted != null) {
 				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, assignField));
@@ -587,10 +593,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			syncBlock.body().add(getter.invoke("addAll").arg(assignField));
 						
 		} else {
-			assign.invoke(converted == null ? assignField : cast(ModelClass, assignField), useModelModelInitMethod(useModelHolder))
-			  .arg(query)
-			  .arg(orderBy)
-			  .arg(fields);
+			assign.invoke(converted == null ? assignField 
+					                          : cast(ModelClass, assignField), useModelModelInitMethod(useModelHolder)).arg(args);
 		}
 		
 		JBlock afterGetModelBlock = assign.blockVirtual();
@@ -643,9 +647,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
 		
 		JMethod putModelMethod = getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_put_" + fieldName);
-		JVar query = putModelMethod.param(JMod.FINAL, STRING, "query");
-		JVar orderBy = putModelMethod.param(JMod.FINAL, STRING, "orderBy");
-		JVar fields = putModelMethod.param(JMod.FINAL, STRING, "fields");
+		JVar args = putModelMethod.param(JMod.FINAL, MAP, "args");
 		JVar onDone = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");
 		
 		JBlock block = putModelMethod.body();
@@ -702,9 +704,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		JBlock ifNotPut = putModel._if(
 				(converted == null ? beanField : cast(ModelClass, beanField))
 				  	.invoke(useModelPutModelMethod(useModelHolder))
-				  	.arg(query)
-				  	.arg(orderBy)
-				  	.arg(fields)
+				  	.arg(args)
 				  	.eq(_null())
 			)
 			._then();

@@ -41,13 +41,16 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.action.error.ValidationException;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
+import com.dspot.declex.api.external.ExternalRecollect;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
 import com.dspot.declex.api.viewsinjection.Recollect;
@@ -57,9 +60,12 @@ import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.LayoutsParser.LayoutObject;
+import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.dspot.declex.util.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JAnonymousClass;
@@ -160,31 +166,71 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
 		final String fieldName = element.getSimpleName().toString();
 		
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
+		final boolean hasExternalRecollect = adiHelper.getAnnotation(element, ExternalRecollect.class) != null;
+		
+		final ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
 		final String className = classInformation.generatorClassName;
 				
 		JMethod recollectModelMethod = holder.getGeneratedClass().method(JMod.PRIVATE, getCodeModel().VOID, "_recollect_" + fieldName);
 		JVar afterRecollect = recollectModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
 		JVar onFailed = recollectModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		
-		JFieldVar recollectField = holder.getGeneratedClass().field(
-				JMod.PRIVATE, getCodeModel().BOOLEAN, 
-				recollectModelMethod.name(), lit(true)
-		);
+		//Create the "populate this" method
+		JMethod recollectThisMethod = viewsHolder.getGeneratedClass().getMethod(
+				"_recollect_this",
+				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
+			);
+		if (recollectThisMethod == null) {
+			recollectThisMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_recollect_this");
+			JVar afterRecollectParam = recollectThisMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
+			recollectThisMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+			
+			JBlock block = new JBlock();
+			block._if(afterRecollectParam.neNull())._then()
+			     .invoke(afterRecollectParam, "run");
+			SharedRecords.priorityAdd(recollectThisMethod.body(), block, 10);
+		}
+		recollectThisMethod.body().invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed"));
 		
-		JBlock notRecollect = recollectModelMethod.body()._if(recollectField.not())._then();
-		notRecollect.invoke(afterRecollect, "run");
-		notRecollect.assign(recollectField, lit(true));
-		notRecollect._return();
-		
-		final Model annotation = element.getAnnotation(Model.class);
-		if (annotation != null) {
-			final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));
-			JBlock putModelMethodBlock = modelHolder.getPutModelMethodBlock(element);
-			putModelMethodBlock.removeAll();
-			putModelMethodBlock.invoke(recollectModelMethod)
-				.arg(ref("putModelRunnable"))
-				.arg(ref("onFailed"));
+		final Model modelAnnotation = element.getAnnotation(Model.class);
+		if (modelAnnotation != null) {
+			
+			EComponentHolder beanHolder = holder;
+			if (hasExternalRecollect) {
+				final Element referenceElement = ((VirtualElement) element).getReference();
+				ClassInformation info = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
+				ProcessHolder processHolder = getEnvironment().getProcessHolder();
+				beanHolder = (EComponentHolder) processHolder.getGeneratedClassHolder(info.generatorElement);
+			}
+
+			final ModelHolder modelHolder = beanHolder.getPluginHolder(new ModelHolder(beanHolder));
+			JBlock putModelMethodBlock = modelHolder.getPutModelMethodBlock(
+				hasExternalRecollect? ((VirtualElement)element).getElement() : element
+			);
+			putModelMethodBlock.removeAll();						
+			
+			JFieldRef args = ref("args");
+
+			JBlock ifRecollect = putModelMethodBlock._if(args.invoke("containsKey").arg("recollect").not()
+					                .cor(cast(getJClass(Boolean.class), args.invoke("get").arg("recollect")))
+					            )._then();
+			
+			if (hasExternalRecollect) {
+				JFieldRef listenerField = ref(
+					"recollect" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1)
+				);
+				
+				JBlock block = new JBlock();
+				JConditional ifNeNull = block._if(listenerField.neNull());
+				ifNeNull._then().invoke(listenerField, "recollectModel")
+				           .arg(ref("putModelRunnable"))
+				           .arg(ref("onFailed"));
+				
+				ifRecollect.add(block);
+			} else {
+				ifRecollect.invoke(recollectModelMethod).arg(ref("putModelRunnable")).arg(ref("onFailed"));
+			}
+
 		} 
 		
 		JBlock recollectBlock;
@@ -394,7 +440,13 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			}
 		}
 		
-		IJExpression assignRef = castNeeded ? cast(getJClass(className), ref(fieldName)) : ref(fieldName);
+		IJExpression fieldRef = ref(fieldName);
+		if (element.getAnnotation(Model.class) != null) {
+			ModelHolder modelHolder = holder.holder().getPluginHolder(new ModelHolder(holder.holder()));
+			fieldRef = invoke(modelHolder.getGetterMethod(element));
+		}
+		
+		final IJExpression assignRef = castNeeded ? cast(getJClass(className), fieldRef) : fieldRef;
 		
 		IJExpression methodsCall = assignRef;
 		
@@ -424,51 +476,60 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		body = body._if(view.ne(_null()))._then();
 		
 		IJExpression readField;
-		if (TypeUtils.isSubtype(info.viewClass, "android.widget.TextView", getProcessingEnvironment())) {
-			readField = cast(getClasses().TEXT_VIEW, view);
-			readField = readField.invoke("getText").invoke("toString");
+		if (info.getterOrSetter != null) {
+			readField = view.invoke("get" + info.getterOrSetter);
 		} else {
-			readField = invoke("readField").arg(view);
+			if (TypeUtils.isSubtype(info.viewClass, "android.widget.TextView", getProcessingEnvironment())) {
+				readField = cast(getClasses().TEXT_VIEW, view);
+				readField = readField.invoke("getText").invoke("toString");
+			} else {
+				readField = invoke("readField").arg(view);
+			}
+
 		}
 
 		JInvocation setInvocation = null;
-		if (info.type.getKind().isPrimitive()) {
-			
-			switch (info.type.getKind()) {
-			case BOOLEAN:
-				setInvocation =((JInvocation)methodsCall).arg(getJClass("Boolean").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case INT:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Integer").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case SHORT:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Short").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case DOUBLE:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Double").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case FLOAT:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Float").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case BYTE:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Byte").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			case LONG:
-				setInvocation = ((JInvocation)methodsCall).arg(getJClass("Long").staticInvoke("valueOf").arg(readField));
-				break;
-				
-			default:
-				break;
-			}
-			
-		} else if (info.type.toString().equals(String.class.getCanonicalName())) {
+		if (info.getterOrSetter != null) {
 			setInvocation = ((JInvocation)methodsCall).arg(readField);
+		} else {
+			if (info.type.getKind().isPrimitive()) {
+				
+				switch (info.type.getKind()) {
+				case BOOLEAN:
+					setInvocation =((JInvocation)methodsCall).arg(getJClass("Boolean").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case INT:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Integer").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case SHORT:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Short").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case DOUBLE:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Double").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case FLOAT:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Float").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case BYTE:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Byte").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				case LONG:
+					setInvocation = ((JInvocation)methodsCall).arg(getJClass("Long").staticInvoke("valueOf").arg(readField));
+					break;
+					
+				default:
+					break;
+				}
+				
+			} else if (info.type.toString().equals(String.class.getCanonicalName())) {
+				setInvocation = ((JInvocation)methodsCall).arg(readField);
+			}			
 		}
 		
 		for (String param : info.extraParams) {

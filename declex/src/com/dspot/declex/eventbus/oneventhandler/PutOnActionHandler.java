@@ -25,6 +25,8 @@ import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.api.action.PutOnAction;
+import com.dspot.declex.api.external.ExternalRecollect;
+import com.dspot.declex.api.viewsinjection.Recollect;
 
 public class PutOnActionHandler extends BaseAnnotationHandler<EComponentHolder> {
 
@@ -34,6 +36,15 @@ public class PutOnActionHandler extends BaseAnnotationHandler<EComponentHolder> 
 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
+		
+		if (adiHelper.getAnnotation(element, ExternalRecollect.class) != null) {
+			valid.addError("@PutOnAction is not available in @ExternalRecollect annotated fields");
+		}
+		
+		if (adiHelper.hasAnnotation(element, Recollect.class)) {
+			valid.addError("@PutOnAction should be used in fields annotated with @Recollect");
+		}
+		
 		validatorHelper.resIdsExist(element, Res.ID, FallbackStrategy.NEED_RES_ID, valid);
 	}
 

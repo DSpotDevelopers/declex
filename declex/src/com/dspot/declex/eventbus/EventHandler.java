@@ -41,6 +41,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.api.eventbus.Event;
 import com.dspot.declex.api.eventbus.UseEventBus;
+import com.dspot.declex.api.external.External;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.share.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
@@ -58,9 +59,9 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Class<? extends Annotation>, Element> dependencies) {
-		if (element instanceof ExecutableElement) {
-			dependencies.put(UseEventBus.class, element.getEnclosingElement());
+	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+		if (element instanceof ExecutableElement && adiHelper.getAnnotation(element, External.class) == null) {
+			dependencies.put(element.getEnclosingElement(), UseEventBus.class);
 		}
 	}
 	

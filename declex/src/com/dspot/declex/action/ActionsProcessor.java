@@ -52,6 +52,7 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.holder.EComponentHolder;
@@ -176,6 +177,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private AndroidAnnotationsEnvironment env;
 	private EComponentHolder holder;
 	private DeclexAPTCodeModelHelper codeModelHelper;
+	private ADIHelper adiHelper;
 	private Element element;
 	
 	private List<? extends ImportTree> imports;
@@ -361,6 +363,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		this.valid = valid;
 		
 		this.codeModelHelper = new DeclexAPTCodeModelHelper(env);
+		this.adiHelper = new ADIHelper(env);
 		imports = treePath.getCompilationUnit().getImports();
 		
 		if (overrideAction.contains(element)) {
@@ -1192,6 +1195,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					try {
 						actionInfo.metaData.put("action", action);
 						actionInfo.metaData.put("element", element);
+						actionInfo.metaData.put("adi", adiHelper);
 						
 						if (isValidating()) {
 							actionInfo.validateProcessors();
@@ -1217,8 +1221,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					@SuppressWarnings("unchecked")
 					List<IJStatement> postInitBlocks = (List<IJStatement>) actionInfo.metaData.get("postInitBlocks");
 					if (postInitBlocks != null) {
-						for (IJStatement postBuildBlock : postInitBlocks) {
-							postInit.add(postBuildBlock);
+						for (IJStatement postInitBlock : postInitBlocks) {
+							postInit.add(postInitBlock);
 						}
 					}
 					

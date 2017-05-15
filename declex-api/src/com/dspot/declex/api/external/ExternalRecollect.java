@@ -21,10 +21,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.METHOD, ElementType.TYPE}) 
-public @interface External {
-	/**
-	 *TODO Not Implemented 
-	 */
-	boolean required() default true;
+@Target(ElementType.FIELD)
+public @interface ExternalRecollect {
+	boolean validate() default false;
+	boolean validateAutoMessage() default true;
+	boolean debug() default false;
 }

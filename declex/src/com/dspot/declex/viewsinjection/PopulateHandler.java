@@ -21,7 +21,6 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.HashMap;
@@ -84,12 +83,10 @@ import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JCatchBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
-import com.helger.jcodemodel.JCodeModel;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
-import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
@@ -334,7 +331,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
 		final String fieldName = element.getSimpleName().toString();
 		
-		final boolean hasExternalPopulate = element.getAnnotation(ExternalPopulate.class) != null;
+		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
 		
 		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
 		JMethod loadOnEventMethod = null;
@@ -395,8 +392,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				element = ((VirtualElement) element).getElement();
 				
 			} else {
-				modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
-				
+				modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));				
 			}
 			
 			JBlock methodBody = modelHolder.getAfterLoadModelBlock(element);
@@ -413,17 +409,22 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				methodBody = annonimousRunnableRun.body();
 			} 
 			
+			JBlock ifPopulate = methodBody._if(
+				ref("args").invoke("containsKey").arg("populate").not()
+				.cor(cast(getJClass(Boolean.class), ref("args").invoke("get").arg("populate")))
+			)._then();
+			
 			if (hasExternalPopulate) {
 				final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
                         + fieldName.substring(1);
 				
-				JFieldRef listenerField = ref(populateListenerName);
-				methodBody._if(listenerField.neNull())._then()
-				          .invoke(listenerField, "populateModel")
-				          .arg(_null()).arg(ref("onFailed"));
+				JFieldRef listenerField = ref(populateListenerName);				
+  			    ifPopulate._if(listenerField.neNull())._then()
+						  .invoke(listenerField, "populateModel")
+			              .arg(_null()).arg(ref("onFailed"));
 				
 			} else {
-				methodBody.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
+				ifPopulate.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
 			}
 			
 		}
@@ -460,9 +461,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			viewsHolder.findFieldsAndMethods(
 					viewsHolder.holder().getAnnotatedElement().asType().toString(), 
 					null, element, allFields, allMethods, true);
-				
-			if (element.getSimpleName().toString().equals("lyClockingDetailsVisibility"))
-				System.out.println("HHH: " + allFields + " : " + allMethods);
 			
 			for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 				final IdInfoHolder info = entry.getValue();
@@ -540,12 +538,24 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	}
 	
 	private void processList(String className, Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
-		
+
 		final String fieldName = element.getSimpleName().toString();
-		this.processList(
-			viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
-			element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
-			onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);
+
+		if (element.getAnnotation(Model.class) != null) {
+			final ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
+
+			this.processList(
+					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
+					element instanceof ExecutableElement? invoke(fieldName) : invoke(modelHolder.getGetterMethod(element)), 
+					onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);			
+		} else {
+			this.processList(
+					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
+					element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
+					onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);			
+		}
+		
+		
 		
 		SharedRecords.priorityAdd(
 				viewsHolder.holder().getOnViewChangedBody(), 
@@ -554,7 +564,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			);
 	}
 	
-	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, final JBlock block, 
+	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, JBlock block, 
 			Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
 		
 		final String adapterName = fieldName + "$adapter";
@@ -562,6 +572,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final AbstractJClass AdapterClass = getJClass(adapterClassName);
 		final JFieldRef adapter = ref(adapterName);
 
+		block = block._if(assignRef.neNull())._then();
+		
 		final JConditional ifNotifBlock = block._if(adapter.ne(_null()));
 		JBlock notifyBlock = ifNotifBlock._then();
 		
@@ -740,7 +752,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String fieldName = element.getSimpleName().toString();
 		IJExpression fieldRef = element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName);
 		
-		if (element.getAnnotation(Model.class)!=null) {
+		if (element.getAnnotation(Model.class) != null) {
 			ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
 			fieldRef = invoke(modelHolder.getGetterMethod(element));
 		}
@@ -998,20 +1010,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			this.populateFieldMethod = populateFieldMethod;
 			
 			if (populateFieldMethod != null) {
-				Classes classes = holder.getEnvironment().getClasses();
-				JCodeModel codeModel = holder.getEnvironment().getCodeModel();
-				
-				JFieldRef afterPopulate = ref("afterPopulate");
-				JFieldVar populateField = holder.getGeneratedClass().field(
-						JMod.PRIVATE, codeModel.BOOLEAN, 
-						populateFieldMethod.name(), lit(true)
-				);
-				
-				JBlock notPopulate = populateFieldMethod.body()._if(populateField.not())._then();
-				notPopulate._if(afterPopulate.ne(_null()))._then()
-	               .invoke(afterPopulate, "run");
-				notPopulate.assign(populateField, lit(true));
-				notPopulate._return();
+				final Classes classes = holder.getEnvironment().getClasses();				
+				final JFieldRef afterPopulate = ref("afterPopulate");				
 				
 				JTryBlock tryBlock = populateFieldMethod.body()._try();
 				{//Catch block

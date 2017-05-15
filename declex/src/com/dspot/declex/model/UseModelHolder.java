@@ -93,6 +93,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private JFieldVar existsVar;
 	
 	final AbstractJClass STRING;
+	final AbstractJClass MAP;
 	final AbstractJClass LIST;
 	final AbstractJClass CONTEXT;
 	final AbstractJClass OBJECT;
@@ -104,6 +105,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		super(holder);
 		
 		STRING = environment().getClasses().STRING;
+		MAP = environment().getClasses().MAP.narrow(String.class, Object.class);
 		LIST = environment().getClasses().LIST;
 		CONTEXT = environment().getClasses().CONTEXT;
 		OBJECT = environment().getClasses().OBJECT;
@@ -425,10 +427,12 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private void setGetModel() {
 		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), getModelName());
 		JVar context = getModelMethod.param(CONTEXT, "context");
-		getModelMethod.param(STRING, "query");
-		getModelMethod.param(STRING, "orderBy");
-		getModelMethod.param(STRING, "fields");
-
+		
+		JVar args = getModelMethod.param(MAP, "args");
+		getModelMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
+		getModelMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
+		getModelMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		
 		JVar useModel = getModelMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelInitBlock = getModelMethod.body().block();
 		
@@ -444,18 +448,23 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setModelInit() {
 		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, modelInitName());
-		modelInitMethod.param(STRING, "query");
-		modelInitMethod.param(STRING, "orderBy");
-		modelInitMethod.param(STRING, "fields");
+		
+		JVar args = modelInitMethod.param(MAP, "args");
+		modelInitMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
+		modelInitMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
+		modelInitMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
 	}
 	
 	private void setGetModelList() {
 		//getModelList method
 		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), getModelListName());
 		JVar context = getModelListMethod.param(CONTEXT, "context");
-		JVar query = getModelListMethod.param(STRING, "query");
-		getModelListMethod.param(STRING, "orderBy");
-		getModelListMethod.param(STRING, "fields");
+		
+		JVar args = getModelListMethod.param(MAP, "args");
+		JVar query = getModelListMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
+		getModelListMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
+		getModelListMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		
 		JVar useModel = getModelListMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelListInitBlock = getModelListMethod.body().block();
 		
@@ -503,10 +512,12 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setPutModel() {
 		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, putModelName());
-		putModelMethod.param(STRING, "query");
-		putModelMethod.param(STRING, "orderBy");
-		putModelMethod.param(STRING, "fields");
 		
+		JVar args = putModelMethod.param(MAP, "args");
+		putModelMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
+		putModelMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
+		putModelMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+
 		JBlock putModelMethodBody = putModelMethod.body(); 
 		JVar result = putModelMethodBody.decl(OBJECT, "result", _new(OBJECT));
 		putModelInitBlock = putModelMethodBody.block();

@@ -15,10 +15,7 @@
  */
 package com.dspot.declex.api.action.processor;
 
-import static com.helger.jcodemodel.JExpr.assign;
 import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
-import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
@@ -29,6 +26,8 @@ import org.apache.commons.lang3.StringUtils;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.external.External;
+import com.dspot.declex.api.external.ExternalRecollect;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.api.viewsinjection.Recollect;
@@ -58,8 +57,9 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				
 				ActionMethod noRecollecte = getActionMethod("noRecollect");
 				if (noRecollecte.metaData != null) {
-					Recollect recollectorAnnotation = field.getAnnotation(Recollect.class);
-					if (recollectorAnnotation == null) {
+					Recollect recollectorAnnotation = getAnnotation(field, Recollect.class);
+					ExternalRecollect externalRecollectorAnnotation = getAnnotation(field, ExternalRecollect.class);
+					if (recollectorAnnotation == null && externalRecollectorAnnotation == null) {
 						throw new IllegalStateException("The field " + field + " is not annotated with @Recollect");
 					}
 				}
@@ -79,13 +79,14 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
-			String fieldName = (String) initParam.metaData.get("fieldName");
 						
 			if (field != null) {
 				Model modelAnnotation = field.getAnnotation(Model.class);
 				
 				if (field.getEnclosingElement().getAnnotation(EFragment.class) == null
-					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null)
+					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null
+					&& getAnnotation(getElement(), External.class) == null
+					&& getAnnotation(getAnnotatedElement(), External.class) == null)
 				{
 					if (getActionMethod("keepCallingThread").metaData == null) {
 						addPreBuildBlock(getAction().invoke("keepCallingThread"));
@@ -98,36 +99,25 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 						"getPutModelMethod", "com.dspot.declex.model.ModelHolder", field
 					);
 				
-				IJExpression queryExp = null;
 				if (query.metaData == null) {
-					queryExp = FormatsUtils.expressionFromString(modelAnnotation.query());
-				} else {
-					queryExp = getAction().invoke("getQuery");
-				}
+					IJExpression queryExp = FormatsUtils.expressionFromString(modelAnnotation.query());
+					addPostInitBlock(getAction().invoke("query").arg(queryExp));
+				} 
 				
-				IJExpression orderByExp = null;
 				if (orderBy.metaData == null) {
-					orderByExp = FormatsUtils.expressionFromString(modelAnnotation.orderBy());
-				} else {
-					orderByExp = getAction().invoke("getOrderBy");
+					IJExpression orderByExp = FormatsUtils.expressionFromString(modelAnnotation.orderBy());
+					addPostInitBlock(getAction().invoke("orderBy").arg(orderByExp));
 				}
 
-				IJExpression fieldsExp = null;
 				if (fields.metaData == null) {
-					fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
-				} else {
-					fieldsExp = getAction().invoke("getFields");
+					IJExpression fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
+					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				
 				JInvocation invoke = invoke(putModelMethod)
-										.arg(queryExp).arg(orderByExp).arg(fieldsExp)
+										.arg(getAction().invoke("getArgs"))
 						                .arg(getAction().invoke("getDone"))
 						                .arg(getAction().invoke("getFailed"));
-				
-				ActionMethod noPopulate = getActionMethod("noRecollect");
-				if (noPopulate.metaData != null) {
-					addPostBuildBlock(assign(ref("_recollect_" + fieldName), lit(false)));
-				}
 				
 				addPostBuildBlock(invoke);				
 			}

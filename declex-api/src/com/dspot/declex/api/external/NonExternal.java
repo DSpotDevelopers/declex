@@ -20,11 +20,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+//TODO: Add fields as dependencies as well
+
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.METHOD, ElementType.TYPE}) 
-public @interface External {
-	/**
-	 *TODO Not Implemented 
-	 */
+@Target({ElementType.METHOD}) 
+public @interface NonExternal {
 	boolean required() default true;
 }

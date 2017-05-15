@@ -86,15 +86,15 @@ public abstract class BaseTemplateHandler<T extends BaseGeneratedClassHolder> ex
 		rootDataModel.put("fromClassFull", element.asType().toString());
         
         if (element.getKind() == ElementKind.CLASS) {
-        	if (element.getAnnotation(EActivity.class) != null) {
+        	if (adiHelper.getAnnotation(element, EActivity.class) != null) {
         		rootDataModel.put("classType", "Activity");
-        	} else if (element.getAnnotation(EFragment.class) != null) {
+        	} else if (adiHelper.getAnnotation(element, EFragment.class) != null) {
         		rootDataModel.put("classType", "Fragment");
-        	} else if (element.getAnnotation(EBean.class) != null) {
+        	} else if (adiHelper.getAnnotation(element, EBean.class) != null) {
         		rootDataModel.put("classType", "Bean");
-        	} if (element.getAnnotation(EApplication.class) != null) {
+        	} if (adiHelper.getAnnotation(element, EApplication.class) != null) {
         		rootDataModel.put("classType", "Application");
-        	} if (element.getAnnotation(EService.class) != null) {
+        	} if (adiHelper.getAnnotation(element, EService.class) != null) {
         		rootDataModel.put("classType", "Service");
         	}
         }
