@@ -175,8 +175,8 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 			String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
 			
 			if (element instanceof ExecutableElement) {
-				JMethod method = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
-				JInvocation invocation = invoke(ref(referenceName), method);
+				final JMethod method = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
+				final JInvocation invocation = invoke(ref(referenceName), method);
 						
 				if (method.type().fullName().toString().equals("void")) {
 					method.body()._if(ref(referenceName).neNull())._then().add(invocation);

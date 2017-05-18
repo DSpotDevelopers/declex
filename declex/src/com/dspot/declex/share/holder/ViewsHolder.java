@@ -23,9 +23,11 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,8 +67,8 @@ import com.helger.jcodemodel.JVar;
 public class ViewsHolder extends
 		PluginClassHolder<EComponentWithViewSupportHolder> {
 
-	//<Class Id, <Getter<Name, Class>, Setter<Name, Class>>>
-	private static Map<String, Pair<Map<String, TypeMirror>, Map<String, TypeMirror>>> gettersAndSettersPerClass = new HashMap<>();
+	//<Class Id, <Getter<Name, Classes>, Setter<Name, Classes>>>
+	private static Map<String, Pair<Map<String, TypeMirror>, Map<String, Set<TypeMirror>>>> gettersAndSettersPerClass = new HashMap<>();
 	
 	// <Layout Id, <View Id, View Information>>
 	private Map<String, Map<String, LayoutObject>> layoutObjects = new HashMap<>();
@@ -467,9 +469,9 @@ public class ViewsHolder extends
 		}
 	}
 	
-	private void readGettersAndSetters(String fromClass, Map<String, TypeMirror> getters, Map<String, TypeMirror> setters) {
+	private void readGettersAndSetters(String fromClass, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
 		
-		Pair<Map<String, TypeMirror>, Map<String, TypeMirror>> gettersAndSetters = gettersAndSettersPerClass.get(fromClass);
+		Pair<Map<String, TypeMirror>, Map<String, Set<TypeMirror>>> gettersAndSetters = gettersAndSettersPerClass.get(fromClass);
 		if (gettersAndSetters != null) {
 			getters.putAll(gettersAndSetters.getKey());
 			setters.putAll(gettersAndSetters.getValue());
@@ -479,50 +481,22 @@ public class ViewsHolder extends
 			gettersAndSettersPerClass.put(fromClass, gettersAndSetters);
 		}
 		
+		if (fromClass.contains("<")) fromClass = fromClass.substring(0, fromClass.indexOf('<'));
+		
 		Element classElement = processingEnv().getElementUtils().getTypeElement(fromClass);
-	
+		readGettersAndSetters(classElement, getters, setters);
+		
 		List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(classElement.asType());
 		
 		for (TypeMirror type : superTypes) {
-			TypeElement superElement = processingEnv().getElementUtils().getTypeElement(type.toString());
-
-			List<? extends Element> elems = superElement.getEnclosedElements();
-			
-			for (Element elem : elems) {
-				if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
-
-					final String elemNameStart = elem.getSimpleName().toString().substring(0, 4);
-					
-					if (elemNameStart.matches("set[A-Z]")) {
-						
-						ExecutableElement executableElem = (ExecutableElement) elem;
-						if (executableElem.getReturnType().toString().equals("void")
-							&& executableElem.getParameters().size() == 1) {
-							setters.put(
-								elem.getSimpleName().toString().substring(3), 
-								executableElem.getParameters().get(0).asType()
-							);
-						}
-						
-					}
-					
-					if (elemNameStart.matches("get[A-Z]")) {
-						
-						ExecutableElement executableElem = (ExecutableElement) elem;
-						if (!executableElem.getReturnType().toString().equals("void")
-							&& executableElem.getParameters().size() == 0) {
-							getters.put(
-								elem.getSimpleName().toString().substring(3), 
-								executableElem.getReturnType()
-							);
-						}
-						
-					}
-				}
-			}
+			String typeName = type.toString();
+			if (typeName.contains("<")) typeName = typeName.substring(0, typeName.indexOf('<'));
+				
+			TypeElement superElement = processingEnv().getElementUtils().getTypeElement(typeName);
+			readGettersAndSetters(superElement, getters, setters);
 			
 			Map<String, TypeMirror> superGetters = new HashMap<>();
-			Map<String, TypeMirror> superSetters = new HashMap<>();
+			Map<String, Set<TypeMirror>> superSetters = new HashMap<>();
 			readGettersAndSetters(type.toString(), superGetters, superSetters);
 			
 			getters.putAll(superGetters);
@@ -530,11 +504,53 @@ public class ViewsHolder extends
 		}
 	}
 	
+	private void readGettersAndSetters(Element element, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
+		List<? extends Element> elems = element.getEnclosedElements();
+		
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
+
+				final String elemNameStart = elem.getSimpleName().toString().substring(0, 4);
+				
+				if (elemNameStart.matches("set[A-Z]")) {
+				
+					ExecutableElement executableElem = (ExecutableElement) elem;
+					if (executableElem.getReturnType().toString().equals("void")
+						&& executableElem.getParameters().size() == 1) {
+						
+						final String property = elem.getSimpleName().toString().substring(3);
+						Set<TypeMirror> types = setters.get(property);
+						if (types == null) {
+							types = new HashSet<>();
+							setters.put(property, types);
+						}
+						
+						types.add(executableElem.getParameters().get(0).asType());
+					}
+					
+				}
+				
+				if (elemNameStart.matches("get[A-Z]")) {
+					
+					ExecutableElement executableElem = (ExecutableElement) elem;
+					if (!executableElem.getReturnType().toString().equals("void")
+						&& executableElem.getParameters().size() == 0) {
+						
+						final String property = elem.getSimpleName().toString().substring(3);
+						
+						getters.put(property, executableElem.getReturnType());
+					}
+					
+				}
+			}
+		}
+	}
+	
 	private void deepFieldsAndMethodsSearch(
-			String id, String prevField,
-			TypeElement testElement, 
-			Map<String, IdInfoHolder> fields, Map<String, IdInfoHolder> methods, 
-			String layoutElementId, String layoutElementIdClass, boolean getter) {
+			final String id, final String prevField,
+			final TypeElement testElement, 
+			final Map<String, IdInfoHolder> fields, Map<String, IdInfoHolder> methods, 
+			final String layoutElementId, final String layoutElementIdClass, final boolean getter) {
 		
 		if (id == null || id.isEmpty()) return;
 
@@ -547,6 +563,9 @@ public class ViewsHolder extends
 		for (Element elem : allElems) {
 			final String elemName = elem.getSimpleName().toString();
 			final String completeElemName = prevField == null ? elemName : prevField + "." + elemName;
+			final String idForMethod = (getter? "get" : "set") 
+                    			        + id.substring(0, 1).toUpperCase() + id.substring(1);
+
 
 			if (elem.getKind() == ElementKind.FIELD) {
 
@@ -580,6 +599,30 @@ public class ViewsHolder extends
 					fields.put(completeElemName, new IdInfoHolder(layoutElementId,
 							elem, elem.asType(), layoutElementIdClass,
 							new ArrayList<String>(0)));
+				} else if (elemName.startsWith(id)) {
+					final Map<String, TypeMirror> getters = new HashMap<>();
+					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
+					readGettersAndSetters(layoutElementIdClass, getters, setters);
+					
+					final String property = elemName.substring(id.length());
+					
+					if (getter && setters.containsKey(property)) {
+						for (TypeMirror propertyType : setters.get(property)) {
+							if (TypeUtils.isSubtype(elem.asType(), propertyType, processingEnv())) {
+								fields.put(
+									completeElemName, 
+									new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
+								);
+							}							
+						}
+					} else if (!getter && getters.containsKey(property)) {
+						if (TypeUtils.isSubtype(elem.asType(), getters.get(property), processingEnv())) {
+							fields.put(
+								completeElemName, 
+								new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
+							);								
+						}
+					}
 				}
 			}
 
@@ -587,7 +630,8 @@ public class ViewsHolder extends
 				
 				ExecutableElement exeElem = (ExecutableElement) elem;
 				
-				if (id.equals(elemName) || normalizedId.equals(elemName) || elemName.startsWith(id)) {
+				if (id.equals(elemName) || normalizedId.equals(elemName) || elemName.startsWith(id)
+					|| idForMethod.equals(elemName) || elemName.startsWith(idForMethod)) {
 					// Only setter methods
 					if (exeElem.getParameters().size() < (getter ? 0 : 1))
 						continue;
@@ -606,29 +650,33 @@ public class ViewsHolder extends
 						paramType = exeElem.getParameters().get(0).asType();
 					}
 
-					if (id.equals(elemName) || normalizedId.equals(elemName)) {
+					if (id.equals(elemName) || normalizedId.equals(elemName) || idForMethod.equals(elemName)) {
 						methods.put(
 							completeElemName, new IdInfoHolder(layoutElementId,
 							elem, paramType, layoutElementIdClass, extraParams)
 						);						
 					} else { //elemName.startsWith(id)
-						Map<String, TypeMirror> getters = new HashMap<>();
-						Map<String, TypeMirror> setters = new HashMap<>();
+						final Map<String, TypeMirror> getters = new HashMap<>();
+						final Map<String, Set<TypeMirror>> setters = new HashMap<>();
 						readGettersAndSetters(layoutElementIdClass, getters, setters);
 						
-						String getterOrSetter = elemName.substring(id.length());
-						if (getter && getters.containsKey(getterOrSetter)) {
-							if (getters.get(getterOrSetter).toString().equals(paramType.toString())) {
-								methods.put(
-									completeElemName, 
-									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, getterOrSetter)
-								);
+						final String property = elemName.startsWith(idForMethod)?
+														elemName.substring(idForMethod.length())
+														: elemName.substring(id.length());
+						if (getter && setters.containsKey(property)) {
+							for (TypeMirror propertyType : setters.get(property)) {
+								if (TypeUtils.isSubtype(paramType, propertyType, processingEnv())) {
+									methods.put(
+										completeElemName, 
+										new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
+									);
+								}
 							}
-						} else if (setters.containsKey(getterOrSetter)) {
-							if (setters.get(getterOrSetter).toString().equals(paramType.toString())) {
+						} else if (!getter && getters.containsKey(property)) {
+							if (TypeUtils.isSubtype(paramType, getters.get(property), processingEnv())) {
 								methods.put(
 									completeElemName, 
-									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, getterOrSetter)
+									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
 								);								
 							}
 						}

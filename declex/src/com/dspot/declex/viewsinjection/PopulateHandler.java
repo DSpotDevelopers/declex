@@ -34,7 +34,6 @@ import java.util.regex.Pattern;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -58,6 +57,7 @@ import com.dspot.declex.api.eventbus.LoadOnEvent;
 import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.model.UseModel;
+import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.event.holder.ViewListenerHolder;
 import com.dspot.declex.helper.ViewsHelper;
@@ -128,6 +128,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 				return;
 			}
+			
 		}
 				
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
@@ -136,7 +137,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
 		
 		//Validate special methods
-		boolean specialAssignField = false;
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.METHOD) {
@@ -162,8 +162,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 						}
 					}
 					
-					specialAssignField = true;
-					
 					break;
 				}
 				
@@ -171,26 +169,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		if (!(element instanceof ExecutableElement)) {
-		
-			//Check if the field is a primitive or a String
-			if (element.asType().getKind().isPrimitive() || 
-				element.asType().toString().equals(String.class.getCanonicalName())) {
-				
-				if (!viewsHelper.getLayoutObjects().containsKey(elementName)) {
-					valid.addError("The element with Id \"" + elementName + "\" cannot be found in the Layout ");
-				} else if (!specialAssignField) {
-					LayoutObject layoutObject = viewsHelper.getLayoutObjects().get(elementName);
-					String className = layoutObject.className;
-					
-					if (!specialAssignField) {
-						if (!TypeUtils.isSubtype(className, "android.widget.TextView", getProcessingEnvironment()) &&
-							!TypeUtils.isSubtype(className, "android.widget.ImageView", getProcessingEnvironment())) {
-							valid.addError("You should provide an assignField method for the class \"" + className + 
-									"\" used on the field " + elementName);
-						}
-					}
-				}
-			}
 			
 			boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		
 			if (isList) {
@@ -315,13 +293,24 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	}
 	
 	private boolean existsPopulateFieldWithElementName(Element element) {
+		
+		final String elementName = element.getSimpleName().toString();
+		String elementNameAsMethod = elementName;
+		if (element.getSimpleName().toString().substring(0, 4).matches("get[A-Z]")) {
+			elementNameAsMethod = elementName.substring(3, 4).toLowerCase() + elementName.substring(4);
+		}
+		
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.FIELD
-				&& adiHelper.getAnnotation(elem, Populate.class) != null
-				&& elem.getSimpleName().toString().equals(element.getSimpleName().toString())) 
+				&& adiHelper.getAnnotation(elem, Populate.class) != null)
 			{
+				if (elem.getSimpleName().toString().equals(elementName)) {
 					return true;
+				}
+				if (elem.getSimpleName().toString().equals(elementNameAsMethod)) {
+					return true;
+				}
 			}
 		}
 	
@@ -464,8 +453,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 				final IdInfoHolder info = entry.getValue();
+				final String infoNameForMethod = "get" + info.idName.substring(0, 1).toUpperCase()
+						                               + info.idName.substring(1);
 				
-				if (methodName.startsWith(info.idName) && info.getterOrSetter != null) {
+				if ((methodName.startsWith(info.idName) || methodName.startsWith(infoNameForMethod)) 
+					&& info.getterOrSetter != null && methodName.endsWith(info.getterOrSetter)) {
 					
 					JFieldRef view = viewsHolder.createAndAssignView(info.idName);
 					
@@ -483,8 +475,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			}
 			for (Entry<String, IdInfoHolder> entry : allMethods.entrySet()) {
 				final IdInfoHolder info = entry.getValue();
+				final String infoNameForMethod = "get" + info.idName.substring(0, 1).toUpperCase()
+                                                       + info.idName.substring(1);
 				
-				if (methodName.startsWith(info.idName) && info.getterOrSetter != null) {
+				if ((methodName.startsWith(info.idName) || methodName.startsWith(infoNameForMethod)) 
+					&& info.getterOrSetter != null && methodName.endsWith(info.getterOrSetter)) {
+					
 					
 					JFieldRef view = viewsHolder.createAndAssignView(info.idName);
 					
@@ -509,24 +505,68 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	}
 	
 	private void processPrimitive(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
+		
+		final String fieldName = element.getSimpleName().toString();
+		IdInfoHolder info = null;
+		
+		final Map<String, IdInfoHolder> allFields = new HashMap<String, IdInfoHolder>();
+		final Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
+		viewsHolder.findFieldsAndMethods(
+				viewsHolder.holder().getAnnotatedElement().asType().toString(), 
+				null, element, allFields, allMethods, true);
+		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 			
-		String fieldName = element.getSimpleName().toString();
-		IJExpression assignRef = element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName);
+			info = entry.getValue();
+			
+			if (info.getterOrSetter != null 
+				&& fieldName.substring(0, fieldName.length() - info.getterOrSetter.length()).equals(info.idName)) {
+				break;
+			}
+			
+			if (info.getterOrSetter == null && fieldName.equals(info.idName)) {
+				break;
+			}
+			
+			info = null;
+		}
+
+		//Not coinciding field found
+		if (info == null) return;	
+
+		EComponentWithViewSupportHolder holder = viewsHolder.holder();
+		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
+		if (hasExternalPopulate) {
+			
+			
+			
+			final Element referenceElement = ((VirtualElement) element).getReference();
+			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
+			ProcessHolder processHolder = getEnvironment().getProcessHolder();
+			holder = (EComponentWithViewSupportHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
+						
+		}
+				
+		//Create getter
+		final String fieldGetter = FormatsUtils.fieldToGetter(fieldName);
+		if (!(element instanceof ExecutableElement)) {
+			JMethod getter = holder.getGeneratedClass().method(
+				JMod.PUBLIC, 
+				getJClass(element.asType().toString()), 
+				fieldGetter
+			);
+			getter.body()._return(ref(fieldName));
+		}
+
+		
+		IJExpression assignRef = invoke(element instanceof ExecutableElement? fieldName : fieldGetter);				
+		if (info.getterOrSetter == null && !element.asType().toString().equals(String.class.getCanonicalName())) {
+			assignRef = getClasses().STRING.staticInvoke("valueOf").arg(assignRef);
+		}
 		
 		if (adiHelper.getAnnotation(element, Populate.class).debug())
 			LOGGER.warn("\nField: " + fieldName, element, adiHelper.getAnnotation(element, Populate.class));
 		
-		TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(className);
-		if (typeElement.asType().getKind().isPrimitive()) {
-			assignRef = getClasses().STRING.staticInvoke("valueOf").arg(assignRef);
-		}
-		
-		JFieldRef view = viewsHolder.createAndAssignView(fieldName);
-		IdInfoHolder info = new IdInfoHolder(
-			fieldName, element, element.asType(), 
-			viewsHolder.getClassNameFromId(fieldName), new LinkedList<String>()
-		);
-
+		JFieldRef view = viewsHolder.createAndAssignView(info.idName);
 		JBlock block = onEventMethods.populateFieldMethodBody.block();
 		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods);	
 		

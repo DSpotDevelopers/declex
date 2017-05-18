@@ -15,8 +15,12 @@
  */
 package com.dspot.declex.external;
 
+import static com.helger.jcodemodel.JExpr.FALSE;
 import static com.helger.jcodemodel.JExpr._new;
+import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
@@ -35,9 +39,11 @@ import org.androidannotations.holder.EComponentHolder;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.external.PopulateModelListener;
+import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.api.viewsinjection.Populate;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.element.VirtualElement;
+import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JFieldVar;
@@ -75,6 +81,36 @@ public class ExternalPopulateHandler extends ExternalHandler {
 			
 			if (element instanceof ExecutableElement) {
 				super.process(element, holder);
+			} else {
+				final boolean isPrimitive = element.asType().getKind().isPrimitive() || 
+						element.asType().toString().equals(String.class.getCanonicalName());
+				
+				final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
+				if (isPrimitive) {
+					
+					final String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
+					IJExpression invocation = invoke(ref(referenceName), fieldGetter);
+					
+					String referenceElementClass = ((VirtualElement) element).getReference().asType().toString();
+					if (!referenceElementClass.endsWith(ModelConstants.generationSuffix())) {
+						referenceElementClass = TypeUtils.getGeneratedClassName(referenceElementClass, getEnvironment());
+						invocation = invoke(cast(getJClass(referenceElementClass), ref(referenceName)), fieldGetter);
+					}
+					
+					JMethod getter = holder.getGeneratedClass().method(
+							JMod.PUBLIC, 
+							getJClass(element.asType().toString()), 
+							fieldGetter
+						);
+					
+					getter.body()._if(ref(referenceName).neNull())._then()._return(invocation);
+					
+					if (getter.type().fullName().equals("boolean")) getter.body()._return(FALSE);
+					else if (getter.type().fullName().contains(".") 
+							|| getter.type().fullName().endsWith(ModelConstants.generationSuffix())) 
+					        {getter.body()._return(_null());} 
+					else getter.body()._return(lit(0));
+				}
 			}
 			
 			if (!referencedElementsLinked.contains(((VirtualElement) element).getReference())) {

@@ -153,19 +153,31 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 					viewsHolder.findFieldsAndMethods(className, fieldName, elem, fields, methods, true);
 					
+					if (referecedId.startsWith("newsletter")) {
+						System.out.println("DDDD: " + fields + ":" + methods);
+					}
+					
 					String composedField = null;
 					for (String field : fields.keySet()) {
-						if (!fields.get(field).idName.equals(referecedId)) continue;
+						
+						final IdInfoHolder info = fields.get(field);
+						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
+						if (!info.idName.equals(referecedId)) continue;
 							
 						composedField = "";
 						for (String fieldPart : field.split("\\."))
 							composedField = composedField + "." + fieldToGetter(fieldPart);
 						
-						className = fields.get(field).type.toString();
+						className = info.type.toString();
+						
+						break;
 					}
 					
 					for (String method : methods.keySet()) {
-						if (!methods.get(method).idName.equals(referecedId)) continue;
+						
+						final IdInfoHolder info = methods.get(method);
+						if (!info.idName.equals(referecedId)) continue;
+						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
 						
 						composedField = "";
 						String[] methodSplit = method.split("\\.");
@@ -174,7 +186,9 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						}
 						composedField = composedField + "." + methodSplit[methodSplit.length-1];
 						
-						className = methods.get(method).type.toString();
+						className = info.type.toString();
+						
+						break;
 					}
 					
 					if (composedField == null) continue;

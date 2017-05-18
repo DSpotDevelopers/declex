@@ -292,7 +292,7 @@ public class TypeUtils {
 		return false;
 	}
 	
-	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
+	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {		
 		
 		//This is because isSubtype is failing with generic classes in gradle
 		return isSubTypeRecusive(potentialSubtype, potentialSupertype, processingEnv);
