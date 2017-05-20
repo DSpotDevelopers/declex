@@ -22,7 +22,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.action.ActionsProcessor.ActionCallSuperException;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 
 public class ActionHelper {
 	

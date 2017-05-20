@@ -51,7 +51,7 @@ import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.share.holder.ViewsHolder;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;

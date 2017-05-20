@@ -1,4 +1,4 @@
-package com.dspot.declex.util.element;
+package com.dspot.declex.wrapper.element;
 
 import java.lang.annotation.Annotation;
 import java.util.Collections;

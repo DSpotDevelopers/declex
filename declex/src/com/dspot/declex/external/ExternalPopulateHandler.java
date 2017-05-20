@@ -24,8 +24,10 @@ import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.lang.model.element.Element;
@@ -39,10 +41,13 @@ import org.androidannotations.holder.EComponentHolder;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.ExternalPopulate;
 import com.dspot.declex.api.external.PopulateModelListener;
+import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.api.viewsinjection.Populate;
+import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
@@ -82,12 +87,10 @@ public class ExternalPopulateHandler extends ExternalHandler {
 			if (element instanceof ExecutableElement) {
 				super.process(element, holder);
 			} else {
-				final boolean isPrimitive = element.asType().getKind().isPrimitive() || 
-						element.asType().toString().equals(String.class.getCanonicalName());
 				
-				final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
-				if (isPrimitive) {
-					
+				if (!adiHelper.hasAnnotation(element, Model.class)) {
+					final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
+						
 					final String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
 					IJExpression invocation = invoke(ref(referenceName), fieldGetter);
 					
@@ -129,6 +132,33 @@ public class ExternalPopulateHandler extends ExternalHandler {
 		}
 		
 		
+	}
+	
+	private boolean hasCoincidingInfoHolder(Element element, ViewsHolder viewsHolder) {
+		
+		final String fieldName = element.getSimpleName().toString();
+		
+		final Map<String, IdInfoHolder> allFields = new HashMap<String, IdInfoHolder>();
+		final Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
+		viewsHolder.findFieldsAndMethods(
+				viewsHolder.holder().getAnnotatedElement().asType().toString(), 
+				null, element, allFields, allMethods, true);
+		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
+			
+			final IdInfoHolder info = entry.getValue();
+			
+			if (info.getterOrSetter != null && fieldName.length() > info.getterOrSetter.length() 
+				&& fieldName.substring(0, fieldName.length() - info.getterOrSetter.length()).equals(info.idName)) {
+				return true;
+			}
+			
+			if (info.getterOrSetter == null && fieldName.equals(info.idName)) {
+				return true;
+			}
+			
+		}
+		
+		return false;
 	}
 	
 	private void createInvokeListenerStructure(String elementName, Element element, EComponentHolder holder) {	

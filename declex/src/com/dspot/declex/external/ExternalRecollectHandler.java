@@ -37,7 +37,7 @@ import com.dspot.declex.api.external.ExternalRecollect;
 import com.dspot.declex.api.external.RecollectModelListener;
 import com.dspot.declex.api.viewsinjection.Recollect;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JFieldVar;

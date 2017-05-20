@@ -187,6 +187,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			findFragmentArgFields(superElement, fragmentArgFields, env);
 		}

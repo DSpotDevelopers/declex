@@ -75,7 +75,7 @@ import com.dspot.declex.share.holder.EnsureImportsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -331,6 +331,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (isSuperMethodInParents(superElement, executableElement, env)) return true;			
 		}
@@ -2195,6 +2196,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			Element elem = findField(superElement, fieldName);
 			if (elem != null) return elem;

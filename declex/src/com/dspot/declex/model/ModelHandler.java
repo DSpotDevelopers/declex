@@ -52,7 +52,7 @@ import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -165,7 +165,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (element.getAnnotation(Model.class).lazy()) {
 				
 				//In the init(), set the field to null
-				if (element.getEnclosingElement().getAnnotation(UseModel.class) != null) { 
+				if (adiHelper.hasAnnotation(element.getEnclosingElement(), UseModel.class)) { 
 					block._if(useModelHolder.getFullInitVar())._then()
 					     .invoke(modelHolder.getSetterMethod(element)).arg(_null());
 				} else {

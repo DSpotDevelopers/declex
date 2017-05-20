@@ -258,6 +258,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				getFieldsAndMethods(superElement);

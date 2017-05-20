@@ -115,6 +115,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				getFieldsAndMethods(superElement, fields, methods);
@@ -167,6 +168,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				getRequiredMaps(superElement, allFields, serializeConditions, jsonSerializedModels);

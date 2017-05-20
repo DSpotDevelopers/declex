@@ -1,4 +1,4 @@
-package com.dspot.declex.util.element;
+package com.dspot.declex.wrapper.element;
 
 import javax.lang.model.element.VariableElement;
 

@@ -108,6 +108,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				getFieldsAndMethods(fields, methods, superElement);

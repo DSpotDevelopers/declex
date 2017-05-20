@@ -180,6 +180,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				getLocalDBModelFields(superElement);

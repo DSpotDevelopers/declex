@@ -50,7 +50,7 @@ import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;

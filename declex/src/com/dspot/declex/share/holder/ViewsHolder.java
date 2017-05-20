@@ -55,7 +55,7 @@ import com.dspot.declex.util.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -400,7 +400,8 @@ public class ViewsHolder extends
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = environment().getProcessingEnvironment()
 					.getElementUtils().getTypeElement(type.toString());
-
+			if (superElement == null) continue;
+			
 			if (superElement.getAnnotation(Extension.class) != null) {
 				findFieldsAndMethods(
 					type.toString(), fieldName, element,
@@ -493,6 +494,8 @@ public class ViewsHolder extends
 			if (typeName.contains("<")) typeName = typeName.substring(0, typeName.indexOf('<'));
 				
 			TypeElement superElement = processingEnv().getElementUtils().getTypeElement(typeName);
+			if (superElement == null) continue;
+			
 			readGettersAndSetters(superElement, getters, setters);
 			
 			Map<String, TypeMirror> superGetters = new HashMap<>();
@@ -736,8 +739,9 @@ public class ViewsHolder extends
 
 		@Override
 		public String toString() {
-			return idName + (type != null ? ": " + type.toString() : "") + " "
-					+ extraParams;
+			return idName + (type != null ? ": " + type : "")
+					+ (getterOrSetter != null ? ": " + getterOrSetter : "")
+					+ " " + extraParams;
 		}
 	}
 

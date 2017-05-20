@@ -188,6 +188,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(superElement.asType());
 			for (TypeMirror type : superTypes) {
 				superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+				if (superElement == null) continue;
 				if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
 				if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
 				continue validation;
@@ -396,6 +397,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
 			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) continue;
 			overrideMethods(superElement, holder, overrideMethods);

@@ -52,7 +52,7 @@ import com.dspot.declex.share.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.element.VirtualElement;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -247,6 +247,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     			
     			for (TypeMirror type : superTypes) {
     				TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+    				if (superElement == null) continue;
     				
     				if (foundMethodIn(superElement, executableElement, elementName)) {
     					TypeMirror resultType = executableElement.getReturnType();
@@ -367,7 +368,8 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		
 		List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
-			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());			
+			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			if (foundMethodIn(superElement, executableElement, elementName)) return true;
 		}
 		

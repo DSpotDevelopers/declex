@@ -154,6 +154,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			findExtraFields(superElement, fragmentArgFields, env);
 		}
