@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 
-import com.dspot.declex.share.holder.EnsureImportsHolder;
+import com.dspot.declex.holder.EnsureImportsHolder;
 import com.dspot.declex.transform.writer.BaseTemplateTransformWriter;
 
 import freemarker.template.TemplateModelException;

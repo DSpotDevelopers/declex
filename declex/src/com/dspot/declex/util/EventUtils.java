@@ -44,13 +44,13 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.UseEvents;
+import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.eventbus.UseEvents;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;

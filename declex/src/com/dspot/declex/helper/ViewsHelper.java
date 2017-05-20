@@ -12,8 +12,8 @@ import org.androidannotations.annotations.EFragment;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.util.LayoutsParser;
-import com.dspot.declex.util.LayoutsParser.LayoutObject;
+import com.dspot.declex.parser.LayoutsParser;
+import com.dspot.declex.parser.LayoutsParser.LayoutObject;
 
 public class ViewsHelper {
 	

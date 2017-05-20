@@ -35,8 +35,8 @@ import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.builtin.base.BaseActivityActionHolder;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;

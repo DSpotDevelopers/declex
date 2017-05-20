@@ -15,14 +15,14 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.api.action.builtin.base.BaseFieldActionHolder;
 import com.dspot.declex.api.action.processor.RecollectActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 /**
- * An Action to recollect a {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect} 
+ * An Action to recollect a {@link com.dspot.declex.annotation.Recollect @Recollect} 
  * annotated field.
  * 
  * <br><br>
@@ -41,7 +41,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 public class RecollectActionHolder extends BaseFieldActionHolder {
 	
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
+	 *@param field The field annotated with {@link com.dspot.declex.annotation.Recollect @Recollect}.
 	 */
 	@Override
     protected void init(@Field(ignoreExpression="this") Object object) {
@@ -50,11 +50,11 @@ public class RecollectActionHolder extends BaseFieldActionHolder {
 
     /**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}  annotated
+     * {@link com.dspot.declex.annotation.Recollect @Recollect}  annotated
      * field is used to recollect from the user interface
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}  
+     * {@link com.dspot.declex.annotation.Recollect @Recollect}  
      * annotated field fails recollecting.
      */
 	@Override

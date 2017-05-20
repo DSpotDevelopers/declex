@@ -42,7 +42,7 @@ import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.helper.FilesCacheHelper;

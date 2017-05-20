@@ -23,7 +23,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.helger.jcodemodel.JBlock;

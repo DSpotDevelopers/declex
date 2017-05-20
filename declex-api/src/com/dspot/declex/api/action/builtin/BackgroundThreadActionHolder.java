@@ -21,7 +21,7 @@ import org.androidannotations.api.BackgroundExecutor;
 
 import android.content.Context;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.action.ActionFor;
 
 @EBean
 @ActionFor("Background")

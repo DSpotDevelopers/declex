@@ -21,7 +21,7 @@ import org.androidannotations.annotations.RootContext;
 import android.content.Context;
 import android.os.Handler;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.action.ActionFor;
 
 @EBean
 @ActionFor("UIThread")

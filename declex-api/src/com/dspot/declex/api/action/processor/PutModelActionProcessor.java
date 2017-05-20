@@ -23,14 +23,14 @@ import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.EFragment;
 import org.apache.commons.lang3.StringUtils;
 
+import com.dspot.declex.annotation.External;
+import com.dspot.declex.annotation.ExternalRecollect;
+import com.dspot.declex.annotation.Model;
+import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.external.External;
-import com.dspot.declex.api.external.ExternalRecollect;
-import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.api.viewsinjection.Recollect;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
@@ -96,7 +96,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				actionInfo.isTimeConsuming = modelAnnotation.async();
 				
 				JMethod putModelMethod = getMethodInHolder(
-						"getPutModelMethod", "com.dspot.declex.model.ModelHolder", field
+						"getPutModelMethod", "com.dspot.declex.holder.ModelHolder", field
 					);
 				
 				if (query.metaData == null) {

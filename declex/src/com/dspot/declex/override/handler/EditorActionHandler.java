@@ -25,9 +25,9 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EditorAction;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.event.holder.EditorActionHolder;
-import com.dspot.declex.event.holder.ViewListenerHolder;
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.view_listener.EditorActionHolder;
+import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 

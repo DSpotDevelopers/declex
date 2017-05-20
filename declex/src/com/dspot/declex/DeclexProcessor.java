@@ -42,14 +42,14 @@ import org.androidannotations.logger.LoggerContext;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
-import com.dspot.declex.action.ActionHelper;
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.generate.DeclexCodeModelGenerator;
+import com.dspot.declex.helper.ActionHelper;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
+import com.dspot.declex.parser.LayoutsParser;
+import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.LayoutsParser;
-import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;

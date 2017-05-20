@@ -44,11 +44,11 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.api.model.UseModel;
-import com.dspot.declex.api.viewsinjection.Populate;
-import com.dspot.declex.runwith.RunWithHandler;
-import com.dspot.declex.share.holder.ViewsHolder;
-import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
+import com.dspot.declex.annotation.Populate;
+import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.handler.RunWithHandler;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
@@ -152,10 +152,6 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 					Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
 					viewsHolder.findFieldsAndMethods(className, fieldName, elem, fields, methods, true);
-					
-					if (referecedId.startsWith("newsletter")) {
-						System.out.println("DDDD: " + fields + ":" + methods);
-					}
 					
 					String composedField = null;
 					for (String field : fields.keySet()) {

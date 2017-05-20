@@ -23,7 +23,7 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.action.ActionFor;
 
 
 /**

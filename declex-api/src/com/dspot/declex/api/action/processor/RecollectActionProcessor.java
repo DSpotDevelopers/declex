@@ -20,10 +20,10 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
+import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.viewsinjection.Recollect;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JFieldRef;

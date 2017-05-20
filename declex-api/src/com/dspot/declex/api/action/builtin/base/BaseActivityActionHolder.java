@@ -2,7 +2,7 @@ package com.dspot.declex.api.action.builtin.base;
 
 import org.androidannotations.api.builder.ActivityIntentBuilder;
 
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.runnable.OnActivityResultRunnable;
 
 public abstract class BaseActivityActionHolder extends BaseActionHolder {

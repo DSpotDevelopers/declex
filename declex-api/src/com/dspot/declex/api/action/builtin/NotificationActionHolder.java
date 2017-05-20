@@ -35,9 +35,9 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationCompat.Style;
 import android.widget.RemoteViews;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.StopOn;
 import com.squareup.picasso.Picasso;
 
 /**

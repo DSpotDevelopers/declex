@@ -15,15 +15,15 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.PutModelActionProcessor;
 
 /**
- * An Action to put a {@link com.dspot.declex.api.model.Model @Model} 
+ * An Action to put a {@link com.dspot.declex.annotation.Model @Model} 
  * annotated field. The Action will force a Recollect if the field is also 
- * annotated with {@link com.dspot.declex.api.viewsinjection.Recollect @Recollect}.
+ * annotated with {@link com.dspot.declex.annotation.Recollect @Recollect}.
  * 
  * <br><br>
  * The model will be put in background by default. If it was specified 
@@ -46,7 +46,7 @@ import com.dspot.declex.api.action.processor.PutModelActionProcessor;
 public class PutModelActionHolder extends BaseModelActionHolder {
     
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
+	 *@param field The field annotated with {@link com.dspot.declex.annotation.Model @Model}.
 	 */
 	@Override
 	protected void init(@Field Object field) {

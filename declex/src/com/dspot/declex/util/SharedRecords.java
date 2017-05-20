@@ -36,8 +36,8 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.internal.model.AnnotationElements;
 
-import com.dspot.declex.api.eventbus.UseEvents;
-import com.dspot.declex.api.localdb.LocalDBModel;
+import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.UseEvents;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 

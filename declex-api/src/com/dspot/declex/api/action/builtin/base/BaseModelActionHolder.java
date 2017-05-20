@@ -7,8 +7,8 @@ import java.util.Map;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.dspot.declex.api.action.annotation.Field;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.annotation.action.Field;
+import com.dspot.declex.annotation.action.FormattedExpression;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 
@@ -23,7 +23,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 	protected Map<String, Object> args = new HashMap<>();
 	
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
+	 *@param field The field annotated with {@link com.dspot.declex.annotation.Model @Model}.
 	 */
 	@Override
     protected void init(@Field Object field) {
@@ -32,11 +32,11 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 	
 	/**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.model.Model @Model} annotated
+     * {@link com.dspot.declex.annotation.Model @Model} annotated
      * field is loaded
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.model.Model @Model} annotated field fails loading.
+     * {@link com.dspot.declex.annotation.Model @Model} annotated field fails loading.
      */
 	@Override
     protected void build(Runnable Done, OnFailedRunnable Failed) {
@@ -45,9 +45,9 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
     
     /**
      * <i>"query"</i> that will be used as a query to load the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotated field.
+     * {@link com.dspot.declex.annotation.Model @Model}  annotated field.
      * If it is not provided, the "query" parameter of the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
+     * {@link com.dspot.declex.annotation.Model @Model}  annotation will be used
      */
     public BaseModelActionHolder query(@FormattedExpression String query) {
     	this.query = query;
@@ -57,9 +57,9 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
 
     /**
      * "<i>orderBy</i>" that will be used to load the 
-     * {@link com.dspot.declex.api.model.Model @Model} annotated field.
+     * {@link com.dspot.declex.annotation.Model @Model} annotated field.
      * If it is not provided, the "orderBy" parameter of the 
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
+     * {@link com.dspot.declex.annotation.Model @Model}  annotation will be used
      */
     public BaseModelActionHolder orderBy(@FormattedExpression String orderBy) {
     	this.orderBy = orderBy;
@@ -70,7 +70,7 @@ public class BaseModelActionHolder extends BaseFieldActionHolder {
     /**
      * "<i>fields</i>" that will be loaded by @Model annotated field.
      * If it is not provided, the "fields" parameter of the
-     * {@link com.dspot.declex.api.model.Model @Model}  annotation will be used
+     * {@link com.dspot.declex.annotation.Model @Model}  annotation will be used
      */
     public BaseModelActionHolder fields(@FormattedExpression String fields) {
     	this.fields = fields;

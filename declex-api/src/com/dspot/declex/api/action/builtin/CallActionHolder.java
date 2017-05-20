@@ -15,8 +15,8 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Literal;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Literal;
 import com.dspot.declex.api.action.processor.CallActionProcessor;
 
 

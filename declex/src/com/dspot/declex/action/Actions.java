@@ -57,22 +57,22 @@ import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Assignable;
-import com.dspot.declex.api.action.annotation.Field;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.Literal;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.Field;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.Literal;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.process.ActionProcessor;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
-import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.FileUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.DeclexAPTCodeModelHelper;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
@@ -92,7 +92,7 @@ public class Actions {
 	private static Actions instance;
 	
 	private final Set<String> ACTION_HOLDERS = new HashSet<>(); 
-	final static Set<Class<? extends Annotation>> ACTION_ANNOTATION = new HashSet<>();
+	public final static Set<Class<? extends Annotation>> ACTION_ANNOTATION = new HashSet<>();
 	
 	private final Map<String, String> ACTION_NAMES = new HashMap<>();
 	private final Map<String, ActionInfo> ACTION_INFOS = new HashMap<>();

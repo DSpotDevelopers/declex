@@ -966,8 +966,6 @@ public class FilesCacheHelper {
 	
 	public void addGeneratedClass(String clazz, Element generator, boolean canBeUpdated) {
 		
-		System.out.println("DD: " + clazz + " : " + generator);
-		
 		if (generator != null && !(generator instanceof TypeElement)) {
 			throw new RuntimeException("Element " + generator + " should be a TypeElement");
 		}

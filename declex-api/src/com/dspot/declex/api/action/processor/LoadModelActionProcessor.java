@@ -23,14 +23,14 @@ import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.EFragment;
 import org.apache.commons.lang3.StringUtils;
 
+import com.dspot.declex.annotation.External;
+import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.Model;
+import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.external.External;
-import com.dspot.declex.api.external.ExternalPopulate;
-import com.dspot.declex.api.model.Model;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.api.viewsinjection.Populate;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
@@ -97,7 +97,7 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				actionInfo.isTimeConsuming = modelAnnotation.async();
 				
 				JMethod getModelMethod = getMethodInHolder(
-						"getLoadModelMethod", "com.dspot.declex.model.ModelHolder", field
+						"getLoadModelMethod", "com.dspot.declex.holder.ModelHolder", field
 					);
 				
 				if (query.metaData == null) {

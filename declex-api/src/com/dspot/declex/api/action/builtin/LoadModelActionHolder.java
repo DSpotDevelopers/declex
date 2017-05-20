@@ -15,15 +15,15 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.api.action.builtin.base.BaseModelActionHolder;
 import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
 
 /**
- * An Action to load a {@link com.dspot.declex.api.model.Model @Model} 
+ * An Action to load a {@link com.dspot.declex.annotation.Model @Model} 
  * annotated field. The Action will force a Populate if the field is also 
- * annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
+ * annotated with {@link com.dspot.declex.annotation.Populate @Populate}.
  * 
  * <br><br>
  * The model will be loaded in background if it was specified {@code "async=true"},
@@ -46,7 +46,7 @@ import com.dspot.declex.api.action.processor.LoadModelActionProcessor;
 public class LoadModelActionHolder extends BaseModelActionHolder {
 
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.model.Model @Model}.
+	 *@param field The field annotated with {@link com.dspot.declex.annotation.Model @Model}.
 	 */
 	@Override
 	protected void init(@Field Object field) {

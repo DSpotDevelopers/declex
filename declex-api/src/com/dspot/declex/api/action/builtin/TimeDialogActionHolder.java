@@ -26,10 +26,10 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.widget.TimePicker;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Assignable;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.StopOn;
 
 /**
  * An Action representing a dialog that prompts the user for the time of day using a

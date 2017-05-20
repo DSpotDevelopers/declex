@@ -1,6 +1,6 @@
 package com.dspot.declex.api.action.builtin.base;
 
-import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 public class BaseFieldActionHolder extends BaseActionHolder {

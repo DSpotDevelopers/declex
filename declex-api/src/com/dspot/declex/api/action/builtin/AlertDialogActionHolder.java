@@ -34,10 +34,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Assignable;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.runnable.dialog.DialogClickRunnable;
 import com.dspot.declex.api.action.runnable.dialog.DialogMultiChoiceClickRunnable;
 

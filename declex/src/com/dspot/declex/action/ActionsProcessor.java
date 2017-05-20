@@ -60,21 +60,21 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.helper.ViewNotifierHelper;
 import org.androidannotations.internal.process.ProcessHolder.Classes;
 
-import com.dspot.declex.api.action.annotation.Assignable;
-import com.dspot.declex.api.action.annotation.Field;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.Literal;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.Field;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.Literal;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.structure.ActionResult;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
-import com.dspot.declex.share.holder.EnsureImportsHolder;
+import com.dspot.declex.holder.EnsureImportsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
@@ -128,7 +128,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
-class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
+public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private String debugIndex = "";
 

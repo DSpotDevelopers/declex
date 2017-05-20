@@ -23,8 +23,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.FormattedExpression;
 
 @EBean
 @ActionFor(value="Toast", timeConsuming = false)

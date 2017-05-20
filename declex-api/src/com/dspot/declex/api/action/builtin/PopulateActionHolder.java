@@ -15,15 +15,15 @@
  */
 package com.dspot.declex.api.action.builtin;
 
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.Field;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.api.action.builtin.base.BaseFieldActionHolder;
 import com.dspot.declex.api.action.processor.PopulateActionProcessor;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 
 
 /**
- * An Action to populate a {@link com.dspot.declex.api.viewsinjection.Populate @Populate} 
+ * An Action to populate a {@link com.dspot.declex.annotation.Populate @Populate} 
  * annotated field.
  * 
  * <br><br>
@@ -43,7 +43,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 @ActionFor(value="Populate", processors=PopulateActionProcessor.class, timeConsuming = false)
 public class PopulateActionHolder extends BaseFieldActionHolder {
 	/**
-	 *@param field The field annotated with {@link com.dspot.declex.api.viewsinjection.Populate @Populate}.
+	 *@param field The field annotated with {@link com.dspot.declex.annotation.Populate @Populate}.
 	 */
 	@Override
     protected void init(@Field(ignoreExpression="this") Object field) {
@@ -52,11 +52,11 @@ public class PopulateActionHolder extends BaseFieldActionHolder {
 
     /**
      * @param Done <i><b>(default)</b></i> It will be executed after the 
-     * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  annotated
+     * {@link com.dspot.declex.annotation.Populate @Populate}  annotated
      * field is used to populate the user interface
      * 
      * @param Failed It will be executed if the 
-     * {@link com.dspot.declex.api.viewsinjection.Populate @Populate}  
+     * {@link com.dspot.declex.annotation.Populate @Populate}  
      * annotated field fails populating.
      */
 	@Override
