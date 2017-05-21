@@ -19,8 +19,8 @@ android {
 }
 
 dependencies {
-    annotationProcessor 'com.dspot:declex:1.3'
-    compile 'com.dspot:declex-api:1.3'
+    annotationProcessor 'com.dspot:declex:2.0.a.1'
+    compile 'com.dspot:declex-api:2.0.a.1'
 }
 
 dependencies {

@@ -13,20 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.action;
+package com.dspot.declex.test.usemodel;
 
-import org.androidannotations.annotations.EBean;
+import com.dspot.declex.annotation.UseModel;
 
-import static com.dspot.declex.Action.$ActionMainActivity;
-import static com.dspot.declex.Action.$ActionMainFragment;
+@UseModel
+public class ModelStatic {
 
-@EBean
-public class ActionBean {
-
-    public void callMainFragment() {
-        $ActionMainFragment();
-    }
-
-//TODO    public void callMainActivity() { $ActionMainActivity(); }
+    String staticField1;
+    String staticField2;
 
 }

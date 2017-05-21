@@ -15,18 +15,16 @@
  */
 package com.dspot.declex.test.action;
 
-import org.androidannotations.annotations.EBean;
+import android.app.Fragment;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 
-import static com.dspot.declex.Action.$ActionMainActivity;
-import static com.dspot.declex.Action.$ActionMainFragment;
+import com.dspot.declex.test.R;
 
-@EBean
-public class ActionBean {
+import org.androidannotations.annotations.EFragment;
 
-    public void callMainFragment() {
-        $ActionMainFragment();
-    }
-
-//TODO    public void callMainActivity() { $ActionMainActivity(); }
+@RequiresApi(api = Build.VERSION_CODES.HONEYCOMB)
+@EFragment(R.layout.fragment_main)
+public class ActionSystemFragment extends Fragment {
 
 }

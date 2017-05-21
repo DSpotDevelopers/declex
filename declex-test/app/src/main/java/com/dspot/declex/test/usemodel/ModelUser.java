@@ -13,20 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.action;
+package com.dspot.declex.test.usemodel;
+
+import com.dspot.declex.annotation.Model;
+import com.dspot.declex.annotation.UseModel;
 
 import org.androidannotations.annotations.EBean;
 
-import static com.dspot.declex.Action.$ActionMainActivity;
-import static com.dspot.declex.Action.$ActionMainFragment;
+import java.util.List;
 
-@EBean
-public class ActionBean {
+@UseModel
+public class ModelUser {
 
-    public void callMainFragment() {
-        $ActionMainFragment();
-    }
+    @Model
+    static ModelStatic modelStatic;
 
-//TODO    public void callMainActivity() { $ActionMainActivity(); }
+    String name;
+    String email;
+    int age;
+
+    String propertyToSet;
+    String propertyToGet;
+    String propertyToSetInSubclass;
+    String propertyToGetInSubclass;
+
+    ModelAddress_ address;
+
+    List<ModelUser> contacts;
 
 }

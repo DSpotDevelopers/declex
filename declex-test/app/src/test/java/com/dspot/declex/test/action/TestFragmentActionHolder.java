@@ -1,6 +1,23 @@
+/**
+ * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dspot.declex.test.action;
 
+import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.AppCompatActivity;
 
 import com.dspot.declex.test.R;
 
@@ -13,9 +30,7 @@ import org.robolectric.annotation.Config;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,29 +49,39 @@ import static org.robolectric.util.ReflectionHelpers.setField;
 )
 public class TestFragmentActionHolder {
 
-    private ActionMainActivity_ activity;
+    @Test
+    public void testInitMethods() throws Exception {
+        FragmentTransaction transaction = mock(FragmentTransaction.class);
 
-    @Before
-    public void loadHolder() {
-        //activity = Robolectric.setupActivity(ActionMainActivity_.class);
+        FragmentManager fragmentManager = mock(FragmentManager.class);
+        when(fragmentManager.beginTransaction()).thenReturn(transaction);
+
+        AppCompatActivity activity = mock(AppCompatActivity.class);
+        when(activity.getSupportFragmentManager()).thenReturn(fragmentManager);
+
+        {
+            ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(activity);
+            {
+                holder.init();
+            }
+
+            assertNotNull(getField(holder, "builder"));
+            assertEquals(transaction, getField(holder, "transaction"));
+        }
+
+        {
+            ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(activity);
+            {
+                holder.init("FragmentTag");
+            }
+
+            assertNotNull(getField(holder, "builder"));
+            assertEquals(transaction, getField(holder, "transaction"));
+        }
     }
 
     @Test
-    public void testActionHolder_initMethods() throws Exception {
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
-
-        holder.init();
-        assertNotNull(getField(holder, "builder"));
-        //assertNotNull(getField(holder, "transaction"));
-
-        holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
-        holder.init("FragmentTag");
-        assertNotNull(getField(holder, "builder"));
-        //assertNotNull(getField(holder, "transaction"));
-    }
-
-    @Test
-    public void testActionHolder_directMethods() throws Exception {
+    public void testDirectMethods() throws Exception {
         ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
 
         //Check default container
@@ -70,7 +95,7 @@ public class TestFragmentActionHolder {
     }
 
     @Test
-    public void testActionHolder_defaultCallToExecute() throws Exception {
+    public void testDefaultCallToExecute() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.commit()).thenReturn(0);
         when(transaction.replace(anyInt(), any(ActionMainFragment_.class), any(String.class))).thenReturn(transaction);
@@ -80,16 +105,17 @@ public class TestFragmentActionHolder {
 
         final AtomicBoolean calledStart = new AtomicBoolean(false);
 
-        holder.init("SomeTag");
-        holder.container(R.id.container);
-        holder.build(new Runnable() {
-            @Override
-            public void run() {
-                calledStart.set(true);
-            }
-        });
-
-        holder.execute();
+        {
+            holder.init("SomeTag");
+            holder.container(R.id.container);
+            holder.build(new Runnable() {
+                @Override
+                public void run() {
+                    calledStart.set(true);
+                }
+            });
+            holder.execute();
+        }
 
         verify(transaction, times(1)).replace(eq(R.id.container), any(ActionMainFragment_.class), eq("SomeTag"));
         verify(transaction, times(1)).commit();
@@ -97,45 +123,51 @@ public class TestFragmentActionHolder {
     }
 
     @Test
-    public void testActionHolder_replaceIsCalled() throws Exception {
+    public void testReplaceIsCalled() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.replace(anyInt(), any(ActionMainFragment_.class), isNull(String.class))).thenReturn(transaction);
 
         ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
-        holder.init();
-        holder.replace().execute();
+        {
+            holder.init();
+            holder.replace().execute();
+        }
 
         verify(transaction, times(1)).replace(eq(R.id.container), any(ActionMainFragment_.class), isNull(String.class));
         verify(transaction, times(1)).commit();
     }
 
     @Test
-    public void testActionHolder_addIsCalled() throws Exception {
+    public void testAddIsCalled() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.add(anyInt(), any(ActionMainFragment_.class), isNull(String.class))).thenReturn(transaction);
 
         ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
-        holder.init();
-        holder.add().execute();
+        {
+            holder.init();
+            holder.add().execute();
+        }
 
         verify(transaction, times(1)).add(eq(R.id.container), any(ActionMainFragment_.class), isNull(String.class));
         verify(transaction, times(1)).commit();
     }
 
     @Test
-    public void testActionHolder_addToBackStackIsCalled() throws Exception {
+    public void testAddToBackStackIsCalled() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.addToBackStack(isNull(String.class))).thenReturn(transaction);
 
         ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
-        holder.init();
-        holder.addToBackStack();
+        {
+            holder.init();
+            holder.addToBackStack();
+        }
 
         verify(transaction, times(1)).addToBackStack(isNull(String.class));
     }
