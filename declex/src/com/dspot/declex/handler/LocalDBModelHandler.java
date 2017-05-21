@@ -75,6 +75,8 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, UseModel.class);
+		} else {
+			dependencies.put(element, Model.class);
 		}
 	}
 

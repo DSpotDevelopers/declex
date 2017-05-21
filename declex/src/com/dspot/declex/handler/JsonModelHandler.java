@@ -36,6 +36,7 @@ import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.annotation.Extension;
 import com.dspot.declex.annotation.JsonModel;
+import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.SerializeCondition;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.handler.base.BaseTemplateHandler;
@@ -59,6 +60,8 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, UseModel.class);
+		} else {
+			dependencies.put(element, Model.class);
 		}
 	}
 	

@@ -103,6 +103,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, JsonModel.class);
+		} else {
+			dependencies.put(element, Model.class);
 		}
 	}
 
