@@ -32,7 +32,7 @@ import static org.robolectric.util.ReflectionHelpers.setField;
     manifest = "app/src/main/AndroidManifest.xml",
     sdk = 25
 )
-public class TestFragmentAction {
+public class TestFragmentActionHolder {
 
     private ActionMainActivity_ activity;
 
