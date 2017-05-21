@@ -66,7 +66,7 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 						String elemClassName = TypeUtils.getGeneratedClassName(elem, getEnvironment());						
 						rootDataModel.put("modelType", TypeUtils.typeFromTypeString(elemClassName, getEnvironment()));
 						
-						Model annotation = elem.getAnnotation(Model.class);
+						Model annotation = adiHelper.getAnnotation(elem, Model.class);
 						rootDataModel.put("modelQuery", annotation.query());
 						rootDataModel.put("modelOrderBy", annotation.orderBy());
 						
@@ -100,7 +100,7 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 				for (Element elem : elems)
 					if (elem.getKind() == ElementKind.FIELD) {
 						if (elem.getSimpleName().toString().equals(model)) {
-							if (elem.getAnnotation(Model.class) == null) {
+							if (adiHelper.getAnnotation(elem, Model.class) == null) {
 								valid.addError("The provided model field \"" + model + "\" is not annotated with @Model");
 							}
 							

@@ -34,7 +34,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.Extension;
 import com.dspot.declex.annotation.JsonModel;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.SerializeCondition;
@@ -120,7 +119,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				getFieldsAndMethods(superElement, fields, methods);
 			}
 			
@@ -173,7 +172,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				getRequiredMaps(superElement, allFields, serializeConditions, jsonSerializedModels);
 			}
 			

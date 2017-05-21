@@ -46,7 +46,6 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.atteo.evo.inflector.English;
 
-import com.dspot.declex.annotation.Extension;
 import com.dspot.declex.annotation.LocalDBModel;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseLocalDB;
@@ -95,7 +94,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		if (element.getKind().isField()) {
-			Model annotated = element.getAnnotation(Model.class);
+			Model annotated = adiHelper.getAnnotation(element, Model.class);
 			if (annotated == null) {
 				valid.addError("You can only apply this annotation in a field annotated with @Model");
 			}
@@ -184,7 +183,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				getLocalDBModelFields(superElement);
 			}
 			

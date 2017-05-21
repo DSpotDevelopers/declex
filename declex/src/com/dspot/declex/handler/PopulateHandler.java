@@ -366,7 +366,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		populateThisMethod.body().invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
 		
-		Model model = element.getAnnotation(Model.class); 
+		Model model = adiHelper.getAnnotation(element, Model.class); 
 		if (model != null) {			
 			final ModelHolder modelHolder;
 			
@@ -561,7 +561,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 
 		final String fieldName = element.getSimpleName().toString();
 
-		if (element.getAnnotation(Model.class) != null) {
+		if (adiHelper.getAnnotation(element, Model.class) != null) {
 			final ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
 
 			this.processList(
@@ -772,7 +772,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String fieldName = element.getSimpleName().toString();
 		IJExpression fieldRef = element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName);
 		
-		if (element.getAnnotation(Model.class) != null) {
+		if (adiHelper.getAnnotation(element, Model.class) != null) {
 			ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
 			fieldRef = invoke(modelHolder.getGetterMethod(element));
 		}

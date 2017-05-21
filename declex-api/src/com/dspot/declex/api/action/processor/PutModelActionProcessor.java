@@ -48,7 +48,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 			
 			if (field != null) {
-				Model modelAnnotation = field.getAnnotation(Model.class);
+				Model modelAnnotation = getAnnotation(field, Model.class);
 				if (modelAnnotation == null) {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
@@ -81,7 +81,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 			Element field = (Element) initParam.metaData.get("field");
 						
 			if (field != null) {
-				Model modelAnnotation = field.getAnnotation(Model.class);
+				Model modelAnnotation = getAnnotation(field, Model.class);
 				
 				if (field.getEnclosingElement().getAnnotation(EFragment.class) == null
 					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null

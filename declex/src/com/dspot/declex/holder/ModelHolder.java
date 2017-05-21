@@ -253,7 +253,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		final String elementName = element.getSimpleName().toString();
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
-		final boolean isLazy = element.getAnnotation(Model.class).lazy();
+		final boolean isLazy = adiHelper.getAnnotation(element, Model.class).lazy();
 		
 		ModelMethod modelMethod = null;
 		
@@ -417,9 +417,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
 		final String fieldName = element.getSimpleName().toString();
-		final Model modelAnnotation = element.getAnnotation(Model.class);
+		final Model modelAnnotation = adiHelper.getAnnotation(element, Model.class);
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
-		final boolean isLazy = element.getAnnotation(Model.class).lazy();
+		final boolean isLazy = modelAnnotation.lazy();
 		
 		IJAssignmentTarget beanField = null;
 		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
@@ -629,11 +629,11 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
-		final Model modelAnnotation = element.getAnnotation(Model.class);		
+		final Model modelAnnotation = adiHelper.getAnnotation(element, Model.class);		
 		final String fieldName = element.getSimpleName().toString();
 
 		final boolean isStatic = element.getModifiers().contains(Modifier.STATIC);
-		final boolean isLazy = element.getAnnotation(Model.class).lazy();
+		final boolean isLazy = modelAnnotation.lazy();
 		JInvocation getter = invoke(getGetterMethod(element));
 		if (isStatic && isLazy) {
 			IJExpression context = holder().getContextRef();

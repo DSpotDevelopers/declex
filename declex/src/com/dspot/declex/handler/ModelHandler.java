@@ -90,7 +90,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		String enclosingClassName = element.getEnclosingElement().asType().toString(); 
 		if (enclosingClassName.equals(className) || enclosingClassName.endsWith("." + className)) {
 			
-			if (!element.getAnnotation(Model.class).lazy()) {
+			if (!adiHelper.getAnnotation(element, Model.class).lazy()) {
 				valid.addError( 
 						"You cannot inject a @Model from inside itself, this can cause an infinite loop. "
 						+ "It can be done only with lazy loads (lazy = true)"
@@ -105,7 +105,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				 valid.addError("Static @Models only permitted inside @UseModel annotated elements");
 			 }
 			 
-			 if (element.getAnnotation(Model.class).async()) {
+			 if (adiHelper.getAnnotation(element, Model.class).async()) {
 				 valid.addError("Asynchronous model injection not permitted in static @Models");
 			 }
 		}
@@ -117,14 +117,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				validatorHelper.enclosingElementHasEnhancedViewSupportAnnotation(element, valid);
 			}
 		}
-		
-		String[] fields = element.getAnnotation(Model.class).fields();
-		if (fields.length > 0) {
-			for (String field : fields) {
-				//TODO validate fields
-			}
-		}
-		
+				
 	}
 
 	@Override
@@ -164,7 +157,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			block = holder.getInitBodyInjectionBlock();
 			
 			//If this is a lazy loading model, create or change the getter method
-			if (element.getAnnotation(Model.class).lazy()) {
+			if (adiHelper.getAnnotation(element, Model.class).lazy()) {
 				
 				//In the init(), set the field to null
 				if (adiHelper.hasAnnotation(element.getEnclosingElement(), UseModel.class)) { 
@@ -188,7 +181,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		//If the element is static, then the declaration block is inside the getModel(s) of enclosing element
 		if (element.getModifiers().contains(Modifier.STATIC)) {
-			if (!element.getAnnotation(Model.class).lazy()) {
+			if (!adiHelper.getAnnotation(element, Model.class).lazy()) {
 				block = useModelHolder.getGetModelInitBlock();
 				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);
 				
@@ -290,7 +283,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
     				int position = (int) trees.getSourcePositions()
     										  .getStartPosition(treePath.getCompilationUnit(), annotationTree);
     				
-    				Model annotation = element.getAnnotation(Model.class);
+    				Model annotation = adiHelper.getAnnotation(element, Model.class);
 
     				//Get the internal calling method
     				JMethod getModelMethod = modelHolder.getLoadModelMethod(element);
@@ -340,7 +333,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 
 	private void generatePutModelCallInBlock(JBlock block, Element element, ModelHolder holder, boolean hasEvent) {
 		
-		final Model annotation = element.getAnnotation(Model.class);
+		final Model annotation = adiHelper.getAnnotation(element, Model.class);
 		final JMethod putModelMethod = holder.getPutModelMethod(element);
 
 		JBlock callBlock = new JBlock();

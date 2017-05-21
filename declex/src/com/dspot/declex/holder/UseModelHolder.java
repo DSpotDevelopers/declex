@@ -15,7 +15,10 @@
  */
 package com.dspot.declex.holder;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._new;
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.lit;
@@ -28,26 +31,28 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.annotation.Extension;
-import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.RunWith;
-import com.dspot.declex.annotation.ServerModel;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.util.TypeUtils;
@@ -57,7 +62,6 @@ import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFieldVar;
-import com.helger.jcodemodel.JForLoop;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
@@ -67,7 +71,9 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private JMethod writeObjectMethod;
 	private JMethod readObjectMethod;
 	
-	private Map<String, String> fields;
+	private Map<String, Element> fields;
+	private Map<Element, JMethod> getters;
+	private Map<Element, JMethod> setters;
 	
 	private JMethod getModelMethod;
 	private JBlock getModelInitBlock;
@@ -101,8 +107,12 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private ExecutableElement afterLoadMethod;
 	private ExecutableElement afterPutMethod;
 	
+	private ADIHelper adiHelper;
+	
 	public UseModelHolder(BaseGeneratedClassHolder holder) {
 		super(holder);
+		
+		this.adiHelper = new ADIHelper(environment());
 		
 		STRING = environment().getClasses().STRING;
 		MAP = environment().getClasses().MAP.narrow(String.class, Object.class);
@@ -169,9 +179,9 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		return readObjectMethod;
 	}
 	
-	public Map<String, String> getFields() {
+	public Map<String, Element> getFields() {
 		if (fields == null) {
-			getFieldsAndMethods(getAnnotatedElement());
+			getFieldsPlusGettersAndSetters();
 		}
 		return fields;
 	}
@@ -191,9 +201,9 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		readObjectMethod._throws(ClassNotFoundException.class);
 		JVar ois = readObjectMethod.param(ObjectInputStream.class, "ois");
 		
-		for (Entry<String, String> field : getFields().entrySet()) {
+		for (Entry<String, Element> field : getFields().entrySet()) {
 			final String fieldName = field.getKey();
-			final String fieldClass = field.getValue();
+			final String fieldClass = field.getValue().asType().toString();
 			
 			final JFieldRef fieldRef = ref(fieldName);
 			
@@ -222,34 +232,109 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readLong"));
 				} 
 			} else {
+				AbstractJClass fieldJClass = TypeUtils.classFromTypeString(fieldClass, environment());
 				writeObjectMethod.body().invoke(oos, "writeObject").arg(fieldRef);
-				readObjectMethod.body().assign(fieldRef, cast(getJClass(fieldClass), ois.invoke("readObject")));
+				readObjectMethod.body().assign(fieldRef, cast(fieldJClass, ois.invoke("readObject")));
 			}
 		}
 	}
 	
-	private void getFieldsAndMethods(TypeElement element) {
-		if (fields == null) {
-			fields = new HashMap<>();
-		}
+	private void getFieldsPlusGettersAndSetters() {
 		
+		fields = new HashMap<>();
+		getters = new HashMap<>();
+		setters = new HashMap<>();
+		
+		Map<String, List<ExecutableElement>> methodsToCheck = new HashMap<>();
+		getFieldsPlusGettersAndSetters(getAnnotatedElement(), methodsToCheck);
+		
+		for (String field : fields.keySet()) {
+			final Element fieldElement = fields.get(field);
+			
+			final String getterName = fieldToGetter(field);
+			final String setterName = fieldToSetter(field);
+			
+			if (methodsToCheck.containsKey(getterName)) {
+				for (ExecutableElement element : methodsToCheck.get(getterName)) {
+					if (element.getParameters().size() > 0) continue;
+					if (element.getReturnType().toString().equals("void")) continue;
+					
+					JMethod getterMethod = getGeneratedClass().method(
+							JMod.PUBLIC, 
+							TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment()), 
+							getterName
+						);
+					
+					getterMethod.body()._return(_this().ref(fieldElement.getSimpleName().toString()));
+					
+					getters.put(fieldElement, getterMethod);
+				}
+			}
+			
+			if (methodsToCheck.containsKey(setterName)) {
+				for (ExecutableElement element : methodsToCheck.get(setterName)) {
+					if (element.getParameters().size() != 1) continue;
+					if (!element.getReturnType().toString().equals("void")) continue;
+					
+					final String fieldName = fieldElement.getSimpleName().toString();
+					
+					VariableElement param = element.getParameters().get(0);
+					if (!param.asType().toString().equals(fieldName)) continue;
+					
+					final AbstractJClass fieldClass = TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment());
+					
+					JMethod setterMethod = getGeneratedClass().method(JMod.PUBLIC, fieldClass, setterName);
+					JVar setterParam = setterMethod.param(fieldClass, fieldName);
+					
+					setterMethod.body().assign(_this().ref(fieldName), setterParam);
+					
+					setters.put(fieldElement, setterMethod);
+				}
+			}
+		}
+	}
+	
+	private void getFieldsPlusGettersAndSetters(TypeElement element, Map<String, List<ExecutableElement>> methodsToCheck) {
+
 		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems) {
+		ELEMENTS: for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
-			final String elemType = elem.asType().toString();
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
+			if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 
-			//Omit specials and private fields
+			//Omit specials fields
 			if (elem.getAnnotation(RunWith.class) != null) continue;
-			if (elem.getAnnotation(ServerModel.class) != null) continue;
-			if (elem.getAnnotation(LocalDBModel.class) != null) continue;
-			if (elem.getAnnotation(UseModel.class) != null) continue;
+			if (adiHelper.hasAnnotation(elem, External.class)) continue;
 			
+			for (AnnotationMirror annotation : elem.getAnnotationMirrors()) {
+				if (environment().getSupportedAnnotationTypes()
+			            .contains(annotation.getAnnotationType().toString())) {
+					
+					try {
+						@SuppressWarnings("unchecked")
+						Class<Annotation> annotationClass = (Class<Annotation>) getClass().getClassLoader().loadClass(annotation.getAnnotationType().toString());
+						if (adiHelper.hasAnnotation(element, annotationClass)) continue ELEMENTS;
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+				}	
+			}
+						
 			if (elem.getKind() == ElementKind.FIELD) {
-				if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+				fields.put(elemName, elem);
+			}
+			
+			if (elem.getKind() == ElementKind.METHOD) {
+				ExecutableElement executableElement = (ExecutableElement) elem;
 				
-				fields.put(elemName, TypeUtils.typeFromTypeString(elemType, environment(), false));
+				List<ExecutableElement> methods = methodsToCheck.get(elemName);
+				if (methods == null) {
+					methods = new LinkedList<>();
+					methodsToCheck.put(elemName, methods);
+				}
+				
+				methods.add(executableElement);
 			}
 		}
 		
@@ -260,12 +345,12 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
-				getFieldsAndMethods(superElement);
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
+				getFieldsPlusGettersAndSetters(superElement, methodsToCheck);
 			}
-			
-			break;
 		}
+		
+		
 	}
 	
 	private void setExistenceStructure() {
@@ -428,11 +513,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private void setGetModel() {
 		getModelMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getGeneratedClass(), getModelName());
 		JVar context = getModelMethod.param(CONTEXT, "context");
-		
-		JVar args = getModelMethod.param(MAP, "args");
-		getModelMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
-		getModelMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
-		getModelMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		getModelMethod.param(MAP, "args");
 		
 		JVar useModel = getModelMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelInitBlock = getModelMethod.body().block();
@@ -448,37 +529,31 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	}
 	
 	private void setModelInit() {
-		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, modelInitName());
-		
-		JVar args = modelInitMethod.param(MAP, "args");
-		modelInitMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
-		modelInitMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
-		modelInitMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		modelInitMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, modelInitName());		
+		modelInitMethod.param(MAP, "args");
 	}
 	
 	private void setGetModelList() {
 		//getModelList method
 		getModelListMethod = getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, LIST.narrow(getGeneratedClass()), getModelListName());
-		JVar context = getModelListMethod.param(CONTEXT, "context");
-		
-		JVar args = getModelListMethod.param(MAP, "args");
-		JVar query = getModelListMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
-		getModelListMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
-		getModelListMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		getModelListMethod.param(CONTEXT, "context");		
+		getModelListMethod.param(MAP, "args");
 		
 		JVar useModel = getModelListMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
 		getModelListInitBlock = getModelListMethod.body().block();
 		
 		getModelListMethod.body().decl(LIST.narrow(getGeneratedClass()), "models");
 		
-		getModelListUseBlock = getModelListMethod.body().block();
+		getModelListUseBlock = getModelListMethod.body().blockVirtual();
 		JBlock ifUseModelBlock = getModelListUseBlock._if(useModel.invoke("contains").arg(dotclass(getJClass(UseModel.class))))._then();
 		
 		JVar result = ifUseModelBlock.decl(
 				getJClass("java.util.ArrayList").narrow(getGeneratedClass()), 
 				"result", 
 				_new(getJClass("java.util.ArrayList").narrow(getGeneratedClass())));
-
+		ifUseModelBlock._return(result);
+		
+		/*TODO
 		JBlock ifUseModelBlockWithQuery = ifUseModelBlock._if(query.invoke("equals").arg("").not())._then();
 		ifUseModelBlock._return(result);
 				
@@ -505,9 +580,9 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		subFor.body()._continue();
 		
 		ifUseModelBlockWithQueryForEach.directStatement("//TODO assign fields directly");
-	
+		*/	
 		
-		getModelListBlock = getModelListMethod.body().block();
+		getModelListBlock = getModelListMethod.body().blockVirtual();
 		getModelListMethod.body()._return(_new(getJClass("java.util.ArrayList").narrow(getGeneratedClass())));		
 	}
 	

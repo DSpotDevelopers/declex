@@ -47,13 +47,13 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.apache.commons.lang3.StringUtils;
 
-import com.dspot.declex.annotation.Extension;
 import com.dspot.declex.annotation.JsonModel;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.ServerModel;
 import com.dspot.declex.annotation.ServerRequest;
 import com.dspot.declex.annotation.ServerRequest.RequestMethod;
 import com.dspot.declex.annotation.ServerRequest.RequestType;
+import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.util.CastUtility;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.handler.base.BaseModelAndModelClassHandler;
@@ -111,7 +111,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		if (element.getKind().isField()) {
-			Model annotated = element.getAnnotation(Model.class);
+			Model annotated = adiHelper.getAnnotation(element, Model.class);
 			if (annotated == null) {
 		
 				if (element.getEnclosingElement().getAnnotation(ServerModel.class) == null) {
@@ -981,7 +981,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			TypeElement superElement = getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				getFieldsAndMethods(superElement, fields, methods);
 			}
 			

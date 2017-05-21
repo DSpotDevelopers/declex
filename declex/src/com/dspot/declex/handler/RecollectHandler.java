@@ -192,7 +192,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		recollectThisMethod.body().invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed"));
 		
-		final Model modelAnnotation = element.getAnnotation(Model.class);
+		final Model modelAnnotation = adiHelper.getAnnotation(element, Model.class);
 		if (modelAnnotation != null) {
 			
 			EComponentHolder beanHolder = holder;
@@ -441,7 +441,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		IJExpression fieldRef = ref(fieldName);
-		if (element.getAnnotation(Model.class) != null) {
+		if (adiHelper.getAnnotation(element, Model.class) != null) {
 			ModelHolder modelHolder = holder.holder().getPluginHolder(new ModelHolder(holder.holder()));
 			fieldRef = invoke(modelHolder.getGetterMethod(element));
 		}

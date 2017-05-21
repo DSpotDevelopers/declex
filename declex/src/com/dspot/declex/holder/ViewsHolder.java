@@ -39,6 +39,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.annotations.OptionsMenu;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.helper.ModelConstants;
@@ -48,10 +49,10 @@ import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.dspot.declex.annotation.Extension;
+import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.helper.ViewsHelper;
-import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.parser.LayoutsParser.LayoutObject;
+import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
@@ -85,12 +86,15 @@ public class ViewsHolder extends
 	private ICreateViewListener createViewListener;
 	
 	private ViewsHelper viewsHelper;
+	
+	private ADIHelper adiHelper;
 
 	public ViewsHolder(EComponentWithViewSupportHolder holder,
 			IdAnnotationHelper annotationHelper) {
 		super(holder);
 
 		this.annotationHelper = annotationHelper;
+		this.adiHelper = new ADIHelper(environment());
 		
 		this.menuParser = MenuParser.getInstance();
 		
@@ -402,7 +406,7 @@ public class ViewsHolder extends
 					.getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			if (superElement.getAnnotation(Extension.class) != null) {
+			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				findFieldsAndMethods(
 					type.toString(), fieldName, element,
 					fields, methods, getter, isList, layoutId
