@@ -111,7 +111,7 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				}
 
 				if (fields.metaData == null) {
-					IJExpression fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
+					IJExpression fieldsExp = FormatsUtils.expressionFromString(modelAnnotation.fields());
 					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				

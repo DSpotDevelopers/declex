@@ -17,7 +17,6 @@ package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr._new;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +55,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, UseModel.class);
 		} else {

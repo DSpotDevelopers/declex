@@ -100,7 +100,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, JsonModel.class);
 		} else {
@@ -186,6 +186,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		super.process(element, holder);
 		
+		createGetServerModelQueryDefault(element, holder);
+		
 		ServerModel serverModel = element.getAnnotation(ServerModel.class);
 		if (!serverModel.offline()) {
 			boolean loadExecuted = false;
@@ -231,6 +233,20 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 	}
 	
+	private void createGetServerModelQueryDefault(Element element, EComponentHolder holder) {
+		
+		JMethod getServerModelQueryDefault = 
+				holder.getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getClasses().STRING, "getServerModelQueryDefault");
+		
+		ServerModel annotation = element.getAnnotation(ServerModel.class);
+		if (!annotation.defaultQuery().equals("")) {
+			getServerModelQueryDefault.body()._return(FormatsUtils.expressionFromString(annotation.defaultQuery()));
+		} else {
+			getServerModelQueryDefault.body()._return(lit(""));
+		}
+		
+	}
+
 	private void placeReturnForMethods(ServerModel serverModel, JDefinedClass generatedClass) {
 		JMethod getRequestMethod = generatedClass.getMethod(
 				"getRequest", 
@@ -279,9 +295,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	}
 	
 	private void insertInPutModel(ExecutableElement serverModelPut, Element element, UseModelHolder holder) {
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
+		JFieldRef args = ref("args");
 		
 		//Write the putLocalDbModel in the generated putModels() method
 		JBlock block = holder.getPutModelInitBlock();
@@ -289,13 +303,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		JBlock putServerModel = new JBlock();
 		JBlock ifBlock = putServerModel._if(ref("result").ne(_null()))._then();
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
-		if (!annotation.defaultQuery().equals("")) {
-			ifBlock._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
-		ifBlock.assign(ref("result"), _this().invoke("putServerModel").arg(query).arg(orderBy).arg(fields));
+		ifBlock.assign(ref("result"), _this().invoke("putServerModel").arg(args));
 				
 		if (serverModelPut != null) {
 			ifBlock = ifBlock._if(ref("result").ne(_null()))._then();
@@ -321,26 +329,17 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	private void insertInSelectedGetModelList(ExecutableElement serverModelLoaded,
 			Element element, UseModelHolder holder) {
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
+		JFieldRef args = ref("args");
 		JFieldRef useModel = ref("useModel");
 		
-		//Write the getServerModels in the generated getModelList() method inside the UseModel clause
+		//Write the getServerModelList in the generated getModelList() method inside the UseModel clause
 		JBlock block = holder.getGetModelListUseBlock();
-		block = block._if(useModel.invoke("contains").arg(dotclass(getJClass(ServerModel.class))))._then();
-				
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
+		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(ServerModel.class))))._then();
+						
 		JFieldRef serverModels = ref("models");
 		block.assign(serverModels,
-				invoke("getServerModels").arg(context)
-				                         .arg(query).arg(orderBy).arg(fields)
+				invoke("getServerModelList").arg(context).arg(args)
 			);
 		if (serverModelLoaded != null) {
 			JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
@@ -366,24 +365,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	private void insertInGetModelList(ExecutableElement serverModelLoaded,
 			Element element, UseModelHolder holder) {
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
+		JFieldRef args = ref("args");
 		
-		//Write the getServerModels in the generated getModelList() method
+		//Write the getServerModelList in the generated getModelList() method
 		JBlock block = holder.getGetModelListBlock();
-		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
+				
 		JFieldRef serverModels = ref("models");
 		block.assign(serverModels, 
-				invoke("getServerModels").arg(context)
-				                         .arg(query).arg(orderBy).arg(fields)
+				invoke("getServerModelList").arg(context).arg(args)
 			);
 		JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
 		if (serverModelLoaded != null) {
@@ -409,26 +399,17 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	private void insertInSelectedGetModel(ExecutableElement serverModelLoaded,
 			Element element, UseModelHolder holder) {
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
+		JFieldRef args = ref("args");
 		JFieldRef useModel = ref("useModel");
 		
 		//Write the getServerModel in the generated getModel() method inside the UseModel clause
 		JBlock block = holder.getGetModelUseBlock();
-		block = block._if(useModel.invoke("contains").arg(dotclass(getJClass(ServerModel.class))))._then();
-		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
+		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(ServerModel.class))))._then();
+				
 		JFieldRef serverModel = ref("model");
 		block.assign(serverModel, 
-				invoke("getServerModel").arg(context)
-				                        .arg(query).arg(orderBy).arg(fields)
+				invoke("getServerModel").arg(context).arg(args)
 			);
 		JConditional cond = block._if(serverModel.ne(_null()));
 		cond._else()._return(_new(holder.getGeneratedClass()).arg(context));
@@ -457,26 +438,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 
 	private void insertInGetModel(ExecutableElement serverModelLoaded, Element element, UseModelHolder holder) {
 		
-		ServerModel annotation = element.getAnnotation(ServerModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
+		JFieldRef args = ref("args");
 		
 		//Write the getServerModel in the generated getModel() method
 		JBlock block = holder.getGetModelBlock();
-		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
+				
 		JFieldRef serverModel = ref("model");
 		block.assign(serverModel, 
-				invoke("getServerModel").arg(context)
-				                        .arg(query)
-				                        .arg(orderBy)
-				                        .arg(fields)
+				invoke("getServerModel").arg(context).arg(args)
 			);
 		JBlock notNull = block._if(serverModel.ne(_null()))._then();
 		if (serverModelLoaded != null) {
@@ -617,9 +587,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						JInvocation createExp = getJClass("okhttp3.RequestBody").staticInvoke("create")
 								.arg(getJClass("okhttp3.MediaType").staticInvoke("parse").arg("application/json"));
 						
-						if (request.fields().length > 0) {
+						if (!request.fields().isEmpty()) {
 							newBlock._if(fields.invoke("trim").invoke("equals").arg(""))
-							        ._then().assign(fields, lit(StringUtils.join(request.fields(), ", ")));						
+							        ._then().assign(fields, lit(request.fields()));						
 						}
 						
 						createExp = createExp.arg(inst.invoke("toJson").arg(fields));
@@ -643,9 +613,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				
 			case Form:
 				if (!isLoad) {
-					if (request.fields().length > 0) {
+					if (!request.fields().isEmpty()) {
 						newBlock._if(fields.invoke("trim").invoke("equals").arg(""))
-						        ._then().assign(fields, lit(StringUtils.join(request.fields(), ", ")));						
+						        ._then().assign(fields, lit(request.fields()));						
 					}
 					
 					JVar fieldsVar = newBlock.decl(getJClass(Map.class).narrow(String.class, String.class), "allFields", inst.invoke("getAllFields").arg(fields));
@@ -1034,7 +1004,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		}
 
 		@Override
-		public String[] fields() {
+		public String fields() {
 			return annotation.postFields();
 		}
 

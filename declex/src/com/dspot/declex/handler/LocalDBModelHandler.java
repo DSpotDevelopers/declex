@@ -21,9 +21,9 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +59,7 @@ import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JMod;
 
 public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	
@@ -71,7 +72,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, UseModel.class);
 		} else {
@@ -215,8 +216,9 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			dbModelPut = null;
 		}
 
-		
 		super.process(element, holder);
+		
+		createGetLocalDBModelQueryDefault(element, holder);
 		
 		//Set the table name
 		String tableName = element.getAnnotation(LocalDBModel.class).table();
@@ -244,28 +246,35 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		readObjectMethod.body().invoke(_this(), "setId")
 		                       .arg(cast(getJClass(Long.class), ref("ois").invoke("readObject")));
 	}
+	
+	private void createGetLocalDBModelQueryDefault(Element element, EComponentHolder holder) {
+		
+		JMethod getServerModelQueryDefault = 
+				holder.getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, getClasses().STRING, "getLocalDBModelQueryDefault");
+		
+		LocalDBModel annotation = element.getAnnotation(LocalDBModel.class);
+		if (!annotation.defaultQuery().equals("")) {
+			getServerModelQueryDefault.body()._return(FormatsUtils.expressionFromString(annotation.defaultQuery()));
+		} else {
+			getServerModelQueryDefault.body()._return(lit(""));
+		}
+		
+	}
 
 	private void insertInSelectedGetModelList(ExecutableElement dbModelLoaded, Element element,
 			UseModelHolder holder) {
 		
-		LocalDBModel annotation = element.getAnnotation(LocalDBModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
+		JFieldRef args = ref("args");
 		JFieldRef useModel = ref("useModel");
 		
 		//Write the getLocalDbModels in the generated getModelList() method inside the UseModel clause
 		JBlock block = holder.getGetModelListUseBlock();
-		block = block._if(useModel.invoke("contains").arg(dotclass(getJClass(LocalDBModel.class))))._then();
-		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
+		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(LocalDBModel.class))))._then();
 		
 		JFieldRef localDbModels = ref("models");
 		block.assign(localDbModels, 
-				invoke("getLocalDBModels").arg(context).arg(query).arg(orderBy)
+				invoke("getLocalDBModelList").arg(context).arg(args)
 			);
 		block._return(localDbModels);
 	}
@@ -273,22 +282,15 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	private void insertInGetModelList(ExecutableElement dbModelLoaded, Element element,
 			UseModelHolder holder) {
 		
-		LocalDBModel annotation = element.getAnnotation(LocalDBModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
+		JFieldRef args = ref("args");
 		
 		//Write the getLocalDbModels in the generated getModelList() method
 		JBlock block = holder.getGetModelListBlock();
 		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
 		JFieldRef localDbModels = ref("models");
 		block.assign(localDbModels, 
-				invoke("getLocalDBModels").arg(context).arg(query).arg(orderBy)
+				invoke("getLocalDBModelList").arg(context).arg(args)
 			);
 		block._if(localDbModels.ne(_null()).cand(localDbModels.invoke("isEmpty").not()))
 			 ._then()._return(localDbModels);
@@ -297,24 +299,17 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	private void insertInSelectedGetModel(ExecutableElement dbModelLoaded, Element element,
 			UseModelHolder holder) {
 
-		LocalDBModel annotation = element.getAnnotation(LocalDBModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
+		JFieldRef args = ref("args");
 		JFieldRef useModel = ref("useModel");
 
 		//Write the getLocalDbModel in the generated getModel() method inside the UseModel clause
 		JBlock block = holder.getGetModelUseBlock();
-		block = block._if(useModel.invoke("contains").arg(dotclass(getJClass(LocalDBModel.class))))._then();
-		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
+		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(LocalDBModel.class))))._then();
 		
 		JFieldRef localDbModel = ref("model");
 		block.assign(localDbModel, 
-				invoke("getLocalDBModel").arg(context).arg(query).arg(orderBy)
+				invoke("getLocalDBModel").arg(context).arg(args)
 			);
 		
 		JConditional cond = block._if(localDbModel.ne(_null()));
@@ -326,15 +321,14 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	private void insertInPutModel(ExecutableElement dbModelPut, Element element,
 			UseModelHolder holder) {
 		
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
+		JFieldRef args = ref("args");
 		
 		//Write the putLocalDbModel in the generated putModels() method
 		JBlock block = holder.getPutModelInitBlock();
 		
 		JBlock putLocalDBModel = new JBlock();
 		putLocalDBModel._if(ref("result").ne(_null()))._then()
-		               .assign(ref("result"), _this().invoke("putLocalDBModel").arg(query).arg(orderBy));
+		               .assign(ref("result"), _this().invoke("putLocalDBModel").arg(args));
 		
 		
 		SharedRecords.priorityAdd(
@@ -348,22 +342,15 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	private void insertInGetModel(ExecutableElement dbModelLoaded,
 			Element element, UseModelHolder holder) {
 		
-		LocalDBModel annotation = element.getAnnotation(LocalDBModel.class);
 		JFieldRef context = ref("context");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
+		JFieldRef args = ref("args");
 		
 		//Write the getLocalDbModel in the generated getModel() method
 		JBlock block = holder.getGetModelBlock();
 		
-		if (!annotation.defaultQuery().equals("")) {
-			block._if(query.invoke("equals").arg(""))._then()
-		     	 .assign(query, FormatsUtils.expressionFromString(annotation.defaultQuery()));	
-		}
-		
 		JFieldRef localDbModel = ref("model");
 		block.assign(localDbModel, 
-				invoke("getLocalDBModel").arg(context).arg(query).arg(orderBy)
+				invoke("getLocalDBModel").arg(context).arg(args)
 			);
 		block._if(localDbModel.ne(_null()))._then()._return(localDbModel);
 		

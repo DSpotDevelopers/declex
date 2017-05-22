@@ -21,7 +21,6 @@ import javax.lang.model.element.Element;
 
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.EFragment;
-import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.ExternalRecollect;
@@ -110,7 +109,7 @@ public class PutModelActionProcessor extends BaseActionProcessor {
 				}
 
 				if (fields.metaData == null) {
-					IJExpression fieldsExp = FormatsUtils.expressionFromString(StringUtils.join(modelAnnotation.fields(), ", "));
+					IJExpression fieldsExp = FormatsUtils.expressionFromString(modelAnnotation.fields());
 					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				

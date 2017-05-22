@@ -60,7 +60,7 @@ public @interface Model {
 	/**
 	 * The fields parameter of the fetch
 	 */
-	String[] fields() default {};
+	String fields() default "";
 	
 	/**
 	 * Determines if this model is going to be loaded asynchronously. By default is false.

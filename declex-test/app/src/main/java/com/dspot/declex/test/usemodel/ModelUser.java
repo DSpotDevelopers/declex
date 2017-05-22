@@ -18,8 +18,6 @@ package com.dspot.declex.test.usemodel;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
 
-import org.androidannotations.annotations.EBean;
-
 import java.util.List;
 
 @UseModel

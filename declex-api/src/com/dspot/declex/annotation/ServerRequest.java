@@ -24,7 +24,7 @@ public @interface ServerRequest {
 	String action();
 	
 	String[] headers() default {};
-	String[] fields() default {};
+	String fields() default "";
 	
 	String model() default "";
 	Class<?> modelClass() default Object.class;

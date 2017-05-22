@@ -68,7 +68,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		
 		//External in the super class will inject through ADI all the external methods
 		if (element.getKind().equals(ElementKind.CLASS)) {

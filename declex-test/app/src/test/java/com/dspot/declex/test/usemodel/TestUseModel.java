@@ -43,8 +43,8 @@ public class TestUseModel {
         assertFalse(user.exists());
 
         //Construct as a Model
-        //user = ModelUser_.getModel_(RuntimeEnvironment.application, null, null);
-        //assertFalse(user.exists()); //A model only using UseModel will be always created
+        user = ModelUser_.getModel_(RuntimeEnvironment.application, null, null);
+        assertFalse(user.exists()); //A model only using UseModel will be always created
     }
 
 }

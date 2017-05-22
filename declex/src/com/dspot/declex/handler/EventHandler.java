@@ -59,7 +59,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element instanceof ExecutableElement && adiHelper.getAnnotation(element, External.class) == null) {
 			dependencies.put(element.getEnclosingElement(), UseEventBus.class);
 		}

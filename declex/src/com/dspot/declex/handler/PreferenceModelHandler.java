@@ -38,7 +38,7 @@ public class PreferenceModelHandler extends BaseTemplateHandler<EComponentHolder
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, JsonModel.class);
 		} else {

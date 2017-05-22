@@ -298,10 +298,11 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 					{
 	    				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
 	    				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
-						final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
-						callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
-						callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
-						callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
+						final IJExpression fieldsExpr = FormatsUtils.expressionFromString(annotation.fields());
+						
+						if (!annotation.query().isEmpty()) callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
+						if (!annotation.orderBy().isEmpty()) callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
+						if (!annotation.fields().isEmpty()) callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
 					}
     				
     				IJExpression onFailed = _null();
@@ -346,7 +347,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		{
 			final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
 			final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
-			final IJExpression fieldsExpr = FormatsUtils.expressionFromString(StringUtils.join(annotation.fields(), ", "));
+			final IJExpression fieldsExpr = FormatsUtils.expressionFromString(annotation.fields());
 			callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
 			callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
 			callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));

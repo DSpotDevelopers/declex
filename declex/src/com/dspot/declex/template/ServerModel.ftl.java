@@ -64,7 +64,16 @@ public class User extends Model {
 	//============================================================
 
 	<#if !offline>
-	private static String requestToServer(String query, String orderBy, String fields, ${className} inst) {
+	private static String requestToServer(Map<String, Object> args, ${className} inst) {
+		
+		String query = getServerModelQueryDefault();
+		String orderBy = "";
+		String fields = "";
+		if (args != null) {
+			if (args.containsKey("query")) query = (String)args.get("query");
+			if (args.containsKey("orderBy")) orderBy = (String)args.get("orderBy");
+			if (args.containsKey("fields")) fields = (String)args.get("fields");
+		}
 		
 		Matcher matcher = Pattern.compile("@(\\w+)\\(([^)]+)\\)").matcher(query);
 		while (matcher.find()) {
@@ -81,6 +90,8 @@ public class User extends Model {
 			else
 				orderBy = orderBy.replace(matcher.group(0), "");
 		} 
+		
+		if (query.equals("server-ignore")) return this;
 		
 		Response response = null;
 		Request request = null;
@@ -151,8 +162,9 @@ public class User extends Model {
 		
 	}
 	
-	private static ${className} getServerModel(Context context, String query, String orderBy, String fields) {
-		String json = requestToServer(query, orderBy, fields, null);
+	private static ${className} getServerModel(Context context, Map<String, Object> args) {
+
+		String json = requestToServer(args, null);
 		if (json == null) return null;
 		
 		try {
@@ -178,17 +190,17 @@ public class User extends Model {
         	        
 	}
 	
-	private ${className} putServerModel(String query, String orderBy, String fields) {
-		if (query.equals("server-ignore")) return this;
+	private ${className} putServerModel(Map<String, Object> args) {
 		
-		String json = requestToServer(query, orderBy, fields, this);
+		String json = requestToServer(args, this);
 		if (json == null) return null;
 		
 		return this;
 	}
 	
-	private static java.util.List<${className}> getServerModels(Context context, String query, String orderBy, String fields) {
-		String json = requestToServer(query, orderBy, fields, null);
+	private static java.util.List<${className}> getServerModelList(Context context, Map<String, Object> args) {
+		
+		String json = requestToServer(args, null);
 		if (json == null) return new ArrayList<${className}>();
 		
 		try {

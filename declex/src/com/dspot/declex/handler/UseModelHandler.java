@@ -15,7 +15,6 @@
  */
 package com.dspot.declex.handler;
 
-import java.lang.annotation.Annotation;
 import java.util.Map;
 
 import javax.lang.model.element.Element;
@@ -43,7 +42,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			dependencies.put(element, EBean.class);
 		} else {
@@ -67,6 +66,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 		useModelHolder.getReadObjectMethod();
 	
 		useModelHolder.getExistsVar();
+		useModelHolder.getFields();
 		
 		//This avoids cross references if Cache Files is enabled
 		if (FilesCacheHelper.isCacheFilesEnabled()) {

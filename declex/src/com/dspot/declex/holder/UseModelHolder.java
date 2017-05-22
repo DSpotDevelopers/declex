@@ -62,6 +62,7 @@ import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JFieldVar;
+import com.helger.jcodemodel.JForEach;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
@@ -250,46 +251,55 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		
 		for (String field : fields.keySet()) {
 			final Element fieldElement = fields.get(field);
+			final String fieldName = fieldElement.getSimpleName().toString();
 			
 			final String getterName = fieldToGetter(field);
 			final String setterName = fieldToSetter(field);
 			
+			boolean createGetter = true;
+			boolean createSetter = true;
+			
 			if (methodsToCheck.containsKey(getterName)) {
+					
 				for (ExecutableElement element : methodsToCheck.get(getterName)) {
 					if (element.getParameters().size() > 0) continue;
 					if (element.getReturnType().toString().equals("void")) continue;
-					
-					JMethod getterMethod = getGeneratedClass().method(
-							JMod.PUBLIC, 
-							TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment()), 
-							getterName
-						);
-					
-					getterMethod.body()._return(_this().ref(fieldElement.getSimpleName().toString()));
-					
-					getters.put(fieldElement, getterMethod);
+					createGetter = false;
+					break;
 				}
+				
 			}
 			
 			if (methodsToCheck.containsKey(setterName)) {
+				
 				for (ExecutableElement element : methodsToCheck.get(setterName)) {
 					if (element.getParameters().size() != 1) continue;
-					if (!element.getReturnType().toString().equals("void")) continue;
-					
-					final String fieldName = fieldElement.getSimpleName().toString();
+					if (!element.getReturnType().toString().equals("void")) continue;					
 					
 					VariableElement param = element.getParameters().get(0);
 					if (!param.asType().toString().equals(fieldName)) continue;
 					
-					final AbstractJClass fieldClass = TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment());
-					
-					JMethod setterMethod = getGeneratedClass().method(JMod.PUBLIC, fieldClass, setterName);
-					JVar setterParam = setterMethod.param(fieldClass, fieldName);
-					
-					setterMethod.body().assign(_this().ref(fieldName), setterParam);
-					
-					setters.put(fieldElement, setterMethod);
+					createSetter = false;
+					break;
 				}
+			}
+			
+			if (createGetter) {
+				JMethod getterMethod = getGeneratedClass().method(
+						JMod.PUBLIC, 
+						TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment()), 
+						getterName
+					);
+				getterMethod.body()._return(_this().ref(fieldName));
+				getters.put(fieldElement, getterMethod);
+			}
+			
+			if (createSetter) {
+				final AbstractJClass fieldClass = TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment());
+				JMethod setterMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, setterName);
+				JVar setterParam = setterMethod.param(fieldClass, fieldName);
+				setterMethod.body().assign(_this().ref(fieldName), setterParam);				
+				setters.put(fieldElement, setterMethod);
 			}
 		}
 	}
@@ -515,14 +525,19 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		JVar context = getModelMethod.param(CONTEXT, "context");
 		getModelMethod.param(MAP, "args");
 		
-		JVar useModel = getModelMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
+		JVar useModels = getModelMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModels");
 		getModelInitBlock = getModelMethod.body().block();
 		
 		getModelMethod.body().decl(getGeneratedClass(), "model");
 		
-		getModelUseBlock = getModelMethod.body().block();
-		getModelUseBlock._if(useModel.invoke("contains").arg(dotclass(getJClass(UseModel.class))))._then()
-		             ._return(_new(getGeneratedClass()).arg(context));
+		JForEach forEach = getModelMethod.body()._if(useModels.neNull())._then()
+				.forEach(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard()), "useModel", useModels);
+		
+		JVar useModel = forEach.var();
+		getModelUseBlock = forEach.body();
+		
+		getModelUseBlock._if(useModel.invoke("equals").arg(dotclass(getJClass(UseModel.class))))._then()
+		                ._return(_new(getGeneratedClass()).arg(context));
 		
 		getModelBlock = getModelMethod.body().block();
 		getModelMethod.body()._return( _new(getGeneratedClass()).arg(context));	
@@ -539,13 +554,18 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		getModelListMethod.param(CONTEXT, "context");		
 		getModelListMethod.param(MAP, "args");
 		
-		JVar useModel = getModelListMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModel");
+		JVar useModels = getModelListMethod.param(LIST.narrow(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard())), "useModels");
 		getModelListInitBlock = getModelListMethod.body().block();
 		
 		getModelListMethod.body().decl(LIST.narrow(getGeneratedClass()), "models");
 		
-		getModelListUseBlock = getModelListMethod.body().blockVirtual();
-		JBlock ifUseModelBlock = getModelListUseBlock._if(useModel.invoke("contains").arg(dotclass(getJClass(UseModel.class))))._then();
+		JForEach forEach = getModelListMethod.body()._if(useModels.neNull())._then()
+				.forEach(getJClass(Class.class).narrow(getCodeModel().ref(Annotation.class).wildcard()), "useModel", useModels);
+		
+		JVar useModel = forEach.var();
+		getModelListUseBlock = forEach.body();
+		
+		JBlock ifUseModelBlock = getModelListUseBlock._if(useModel.invoke("equals").arg(dotclass(getJClass(UseModel.class))))._then();
 		
 		JVar result = ifUseModelBlock.decl(
 				getJClass("java.util.ArrayList").narrow(getGeneratedClass()), 
@@ -588,11 +608,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setPutModel() {
 		putModelMethod = getGeneratedClass().method(JMod.PUBLIC, OBJECT, putModelName());
-		
-		JVar args = putModelMethod.param(MAP, "args");
-		putModelMethod.body().decl(STRING, "query", cast(STRING, args.invoke("get").arg("query")));
-		putModelMethod.body().decl(STRING, "orderBy", cast(STRING, args.invoke("get").arg("orderBy")));
-		putModelMethod.body().decl(STRING, "fields", cast(STRING, args.invoke("get").arg("fields")));
+		putModelMethod.param(MAP, "args");
 
 		JBlock putModelMethodBody = putModelMethod.body(); 
 		JVar result = putModelMethodBody.decl(OBJECT, "result", _new(OBJECT));

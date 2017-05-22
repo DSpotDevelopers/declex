@@ -45,7 +45,7 @@ public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassH
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		dependencies.put(element, EApplication.class);
 	}
 	

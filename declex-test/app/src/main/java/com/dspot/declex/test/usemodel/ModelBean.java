@@ -40,8 +40,8 @@ public class ModelBean {
     @Model(handleExceptions = false)
     ModelUser wihtoutExceptionUser;
 
-//    @UseModel
-//    ModelUser forcedUseModelUser;
+    @UseModel
+    ModelUser forcedUseModelUser;
 
     @Model
     ModelUser_ enhancedUser;
@@ -52,6 +52,6 @@ public class ModelBean {
     @Model
     List<ModelUser_> enhancedUserList;
 
-//    @UseModel
-//    List<ModelUser> forcedUseModelUserList;
+    @UseModel
+    List<ModelUser> forcedUseModelUserList;
 }

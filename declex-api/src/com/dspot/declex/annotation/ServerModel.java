@@ -34,7 +34,7 @@ public @interface ServerModel {
 	String[] postHeaders() default {};
 	
 	RequestType postType() default RequestType.Default;
-	String[] postFields() default {};
+	String postFields() default "";
 	
 	String model() default "";
 	Class<?> modelClass() default Object.class;

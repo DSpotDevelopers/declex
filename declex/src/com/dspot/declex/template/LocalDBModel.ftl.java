@@ -36,7 +36,14 @@ public class User extends Model {
 	//						@LocalDBModel
 	//============================================================
 	
-	private static ${className} getLocalDBModel(Context context, String query, String orderBy) {
+	private static ${className} getLocalDBModel(Context context,  Map<String, Object> args) {
+		
+		String query = getLocalDBModelQueryDefault();
+		String orderBy = "";
+		if (args != null) {
+			if (args.containsKey("query")) query = (String)args.get("query");
+			if (args.containsKey("orderBy")) orderBy = (String)args.get("orderBy");
+		}
 		
 		Matcher matcher = Pattern.compile("@(\\w+)\\(([^)]+)\\)").matcher(query);
 		while (matcher.find()) {
@@ -95,7 +102,13 @@ public class User extends Model {
         return null;
 	}
 	
-	private ${className} putLocalDBModel(String query, String orderBy) {
+	private ${className} putLocalDBModel(Map<String, Object> args) {
+		
+		String query = getLocalDBModelQueryDefault();
+		if (args != null) {
+			if (args.containsKey("query")) query = (String) args.get("query");
+		}
+		
 		if (query.equals("db-ignore")) return this;
 		
 		if (query.toLowerCase().trim().equals("delete")) {
@@ -104,7 +117,7 @@ public class User extends Model {
 		}
 		
 		if (query.toLowerCase().trim().startsWith("delete ")) {
-			getLocalDBModel(context_, query, orderBy);
+			getLocalDBModel(context_, args);
 			return this;
 		}
 		
@@ -127,7 +140,15 @@ public class User extends Model {
         return this;
 	}
 	
-	private static java.util.List<${className}> getLocalDBModels(Context context, String query, String orderBy) {
+	private static java.util.List<${className}> getLocalDBModelList(Context context,  Map<String, Object> args) {
+		
+		String query = getLocalDBModelQueryDefault();
+		String orderBy = "";
+		if (args != null) {
+			if (args.containsKey("query")) query = (String) args.get("query");
+			if (args.containsKey("orderBy")) orderBy = (String) args.get("orderBy");
+		}
+		
 		if (query.toLowerCase().trim().startsWith("select ")) {
 			java.util.List<${className}> models = SQLiteUtils.rawQuery(${className}.class, query, null);
 			return models;

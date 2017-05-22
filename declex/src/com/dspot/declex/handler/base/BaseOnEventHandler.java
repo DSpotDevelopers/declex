@@ -15,7 +15,6 @@
  */
 package com.dspot.declex.handler.base;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,7 +40,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	}
 	
 	@Override
-	public void getDependencies(Element element, Map<Element, Class<? extends Annotation>> dependencies) {
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		dependencies.put(element.getEnclosingElement(), UseEventBus.class);
 	}
 
