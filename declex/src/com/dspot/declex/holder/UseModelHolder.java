@@ -444,6 +444,13 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		return getModelInitBlockOnFailed;
 	}
 	
+	public JMethod getGetModelMethod() {
+		if (getModelMethod == null) {
+			setGetModel();
+		}
+		return getModelMethod;
+	}
+	
 	public JBlock getGetModelUseBlock() {
 		if (getModelUseBlock == null) {
 			setGetModel();

@@ -15,6 +15,10 @@
  */
 package com.dspot.declex.handler;
 
+import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.ref;
+
 import java.util.Map;
 
 import javax.lang.model.element.Element;
@@ -24,7 +28,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
@@ -32,8 +36,9 @@ import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
+import com.helger.jcodemodel.JMethod;
 
-public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHolder> {
+public class UseModelHandler extends BaseAnnotationHandler<EBeanHolder> {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(UseModelHandler.class);
 	
@@ -55,7 +60,7 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 	}
 	
 	@Override
-	public void process(Element element, BaseGeneratedClassHolder holder) {
+	public void process(Element element, EBeanHolder holder) {
 		
 		if (element.getKind().isField()) return;
 		
@@ -74,6 +79,14 @@ public class UseModelHandler extends BaseAnnotationHandler<BaseGeneratedClassHol
 			useModelHolder.getLoadModelMethod();
 			useModelHolder.getModelInitMethod();
 		}
+		
+		//Get Instance will invoke getModel_
+		JMethod factoryMethod = holder.getFactoryMethod();
+		codeModelHelper.removeBody(factoryMethod);
+		factoryMethod.body()._return(
+			invoke(useModelHolder.getGetModelMethod()).arg(ref("context")).arg(_null()).arg(_null())
+		);
+		
 	}
 	
 }

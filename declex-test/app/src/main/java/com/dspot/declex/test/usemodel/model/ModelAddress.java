@@ -13,30 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel;
+package com.dspot.declex.test.usemodel.model;
 
-import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
 
-import java.util.List;
-
 @UseModel
-public class ModelUser {
+public class ModelAddress {
 
-    @Model
-    static ModelStatic modelStatic;
-
-    String name;
-    String email;
+    String street;
+    int number;
     int age;
-
-    String propertyToSet;
-    String propertyToGet;
-    String propertyToSetInSubclass;
-    String propertyToGetInSubclass;
-
-    ModelAddress_ address;
-
-    List<ModelUser> contacts;
 
 }

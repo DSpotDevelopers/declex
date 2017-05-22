@@ -13,15 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel;
+package com.dspot.declex.test.usemodel.model;
 
 import com.dspot.declex.annotation.UseModel;
 
 @UseModel
-public class ModelAddress {
+public class ModelClient extends ModelUser {
 
-    String street;
-    int number;
-    int age;
+    String business_name;
+    String business_email;
+
+    ModelAddress_ business_address;
+
+    public String getPropertyToGetInSubclass() {
+        return propertyToGetInSubclass;
+    }
+
+    public void setPropertyToSetInSubclass(String propertyToSetInSubclass) {
+        this.propertyToSetInSubclass = propertyToSetInSubclass;
+    }
 
 }

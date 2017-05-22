@@ -16,24 +16,36 @@
 package com.dspot.declex.test.action;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.modules.junit4.rule.PowerMockRule;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.verifyStatic;
+import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.inOrder;
 
-@RunWith(PowerMockRunner.class)
+@RunWith(RobolectricTestRunner.class)
+@Config(
+    manifest = "app/src/main/AndroidManifest.xml",
+    sdk = 25
+)
+@PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
 @PrepareForTest({ActionMainActivityActionHolder_.class, ActionMainFragmentActionHolder_.class})
 public class TestActionBean {
+
+    @Rule
+    public PowerMockRule rule = new PowerMockRule();
 
     private ActionBean_ bean;
 
@@ -53,8 +65,10 @@ public class TestActionBean {
         mockStatic(ActionMainFragmentActionHolder_.class);
         when(ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application)).thenReturn(holder);
 
-        //Function under test
-        bean.callMainFragment();
+        {
+            //Function under test
+            bean.callMainFragment();
+        }
 
         verifyStatic();
         ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);

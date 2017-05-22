@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel;
+package com.dspot.declex.test.usemodel.model;
 
 import com.dspot.declex.annotation.UseModel;
 
 @UseModel
-public class ModelClient extends ModelUser {
+public class ModelStatic {
 
-    String business_name;
-    String business_email;
-
-    ModelAddress_ bussiness_address;
+    String staticField1;
+    String staticField2;
 
 }

@@ -17,13 +17,19 @@ package com.dspot.declex.test.usemodel;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.test.usemodel.model.ModelUser;
+import com.dspot.declex.test.usemodel.model.ModelUser_;
 
+import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EBean;
 
 import java.util.List;
 
 @EBean
 public class ModelBean {
+
+    @Bean
+    ModelUser beanUser;
 
     @Model
     ModelUser user;
