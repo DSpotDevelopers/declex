@@ -91,7 +91,7 @@ public class User extends Model {
 				orderBy = orderBy.replace(matcher.group(0), "");
 		} 
 		
-		if (query.equals("server-ignore")) return this;
+		if (query.equals("server-ignore")) return "";
 		
 		Response response = null;
 		Request request = null;

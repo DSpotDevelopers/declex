@@ -18,6 +18,7 @@ package com.dspot.declex.handler;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.invoke;
@@ -45,7 +46,6 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
-import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.annotation.JsonModel;
 import com.dspot.declex.annotation.Model;
@@ -311,9 +311,22 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			JInvocation invocation = ifBlock.invoke(serverModelPut.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelPut.getParameters();
-			for (VariableElement param : parameters) {
+			PARAMS: for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
 				final String paramType = param.asType().toString();
+				
+				String[] specials = {"query", "orderBy", "fields"};
+				for (String special : specials) {
+					if (paramName.equals(special)) {
+						invocation.arg(JExpr.cond(
+							args.neNull().cand(args.invoke("containsKey").arg(special)), 
+							cast(getClasses().STRING, args.invoke("get").arg(special)),
+							lit("")
+						));
+						continue PARAMS;
+					}					
+				}
+				
 				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
 		}
@@ -346,13 +359,25 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			JInvocation invocation = notNull.invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
-			for (VariableElement param : parameters) {
+			PARAMS: for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
 				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("model")) {
 					invocation.arg(_null());
 					continue;
+				}
+				
+				String[] specials = {"query", "orderBy", "fields"};
+				for (String special : specials) {
+					if (paramName.equals(special)) {
+						invocation.arg(JExpr.cond(
+							args.neNull().cand(args.invoke("containsKey").arg(special)), 
+							cast(getClasses().STRING, args.invoke("get").arg(special)),
+							lit("")
+						));
+						continue PARAMS;
+					}					
 				}
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
@@ -380,13 +405,25 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			JInvocation invocation = notNull.invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
-			for (VariableElement param : parameters) {
+			PARAMS: for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
 				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("model")) {
 					invocation.arg(_null());
 					continue;
+				}
+				
+				String[] specials = {"query", "orderBy", "fields"};
+				for (String special : specials) {
+					if (paramName.equals(special)) {
+						invocation.arg(JExpr.cond(
+							args.neNull().cand(args.invoke("containsKey").arg(special)), 
+							cast(getClasses().STRING, args.invoke("get").arg(special)),
+							lit("")
+						));
+						continue PARAMS;
+					}					
 				}
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
@@ -418,13 +455,25 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			JInvocation invocation = notNull.invoke(serverModel, serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
-			for (VariableElement param : parameters) {
+			PARAMS: for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
 				final String paramType = param.asType().toString();
 				
 				if (paramName.equals("models")) {
 					invocation.arg(_null());
 					continue;
+				}
+				
+				String[] specials = {"query", "orderBy", "fields"};
+				for (String special : specials) {
+					if (paramName.equals(special)) {
+						invocation.arg(JExpr.cond(
+							args.neNull().cand(args.invoke("containsKey").arg(special)), 
+							cast(getClasses().STRING, args.invoke("get").arg(special)),
+							lit("")
+						));
+						continue PARAMS;
+					}					
 				}
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
@@ -449,11 +498,12 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				invoke("getServerModel").arg(context).arg(args)
 			);
 		JBlock notNull = block._if(serverModel.ne(_null()))._then();
+		
 		if (serverModelLoaded != null) {
 			JInvocation invocation = notNull.invoke(serverModel, serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
-			for (VariableElement param : parameters) {
+			PARAMS: for (VariableElement param : parameters) {
 				final String paramName = param.getSimpleName().toString();
 				final String paramType = param.asType().toString();
 				
@@ -462,9 +512,22 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					continue;
 				}
 				
+				String[] specials = {"query", "orderBy", "fields"};
+				for (String special : specials) {
+					if (paramName.equals(special)) {
+						invocation.arg(JExpr.cond(
+							args.neNull().cand(args.invoke("containsKey").arg(special)), 
+							cast(getClasses().STRING, args.invoke("get").arg(special)),
+							lit("")
+						));
+						continue PARAMS;
+					}					
+				}
+				
 				ParamUtils.injectParam(paramName, paramType, invocation);
 			}			
 		}
+		
 		notNull._return(serverModel);
 	}
 	

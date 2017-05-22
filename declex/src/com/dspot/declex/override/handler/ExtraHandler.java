@@ -29,10 +29,10 @@ import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
 
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.ActivityActionHolder;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.dspot.declex.wrapper.DeclexAPTCodeModelHelper;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;

@@ -43,7 +43,6 @@ import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.generate.DeclexCodeModelGenerator;
 import com.dspot.declex.helper.ActionHelper;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
@@ -53,6 +52,7 @@ import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;
+import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
 
 public class DeclexProcessor extends org.androidannotations.internal.AndroidAnnotationProcessor {
 	

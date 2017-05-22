@@ -254,9 +254,11 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			final String fieldName = fieldElement.getSimpleName().toString();
 			
 			final String getterName = fieldToGetter(field);
+			final String getterIsName = "is" + fieldToGetter(field).substring(3);
 			final String setterName = fieldToSetter(field);
 			
 			boolean createGetter = true;
+			boolean createIsGetter = fieldElement.asType().toString().equals("boolean");
 			boolean createSetter = true;
 			
 			if (methodsToCheck.containsKey(getterName)) {
@@ -265,6 +267,17 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 					if (element.getParameters().size() > 0) continue;
 					if (element.getReturnType().toString().equals("void")) continue;
 					createGetter = false;
+					break;
+				}
+				
+			}
+			
+			if (createIsGetter && methodsToCheck.containsKey(getterIsName)) {
+				
+				for (ExecutableElement element : methodsToCheck.get(getterIsName)) {
+					if (element.getParameters().size() > 0) continue;
+					if (element.getReturnType().toString().equals("void")) continue;
+					createIsGetter = false;
 					break;
 				}
 				
@@ -291,7 +304,17 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 						getterName
 					);
 				getterMethod.body()._return(_this().ref(fieldName));
-				getters.put(fieldElement, getterMethod);
+				getters.put(fieldElement, getterMethod);				
+			}
+			
+			if (createIsGetter) {
+				JBlock getterBody = getGeneratedClass().method(
+						JMod.PUBLIC, 
+						getCodeModel().BOOLEAN, 
+						getterIsName
+					).body();
+				
+				getterBody._return(_this().ref(fieldName));
 			}
 			
 			if (createSetter) {

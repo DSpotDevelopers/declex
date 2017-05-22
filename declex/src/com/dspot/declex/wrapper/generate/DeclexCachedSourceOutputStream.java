@@ -1,4 +1,4 @@
-package com.dspot.declex.generate;
+package com.dspot.declex.wrapper.generate;
 
 import java.io.File;
 import java.io.IOException;

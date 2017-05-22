@@ -74,7 +74,7 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 		
 		List<Class<? extends Annotation>> annotations = Arrays.asList(UseModel.class, LocalDBModel.class, ServerModel.class);
 		for (Class<? extends Annotation> annotation : annotations) {
-			if (element.getAnnotation(annotation) != null) return;
+			if (adiHelper.hasAnnotation(element, annotation)) return;
 		}
 		
 		List<? extends VariableElement> parameters = afterPutMethod.getParameters();
@@ -85,7 +85,7 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 		
 		for (VariableElement param : parameters) {
 			final String paramName = param.getSimpleName().toString();
-			final String paramType = param.asType().toString();
+			final String paramType = param.asType().toString();			
 			ParamUtils.injectParam(paramName, paramType, invocation);
 		}
 		
