@@ -35,7 +35,6 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
-import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.annotation.ExternalPopulate;
 import com.dspot.declex.annotation.ExternalRecollect;
@@ -172,6 +171,8 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				if (!hasExternal) {
 					block = modelHolder.getGetterBody(element)
 							            ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
+				} else {
+					block = null;
 				}
 				
 			} else {
@@ -196,7 +197,9 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			}
 			
 		} else {
-			 generateGetModelCallInBlock(block, checkNull, element, modelHolder);
+			if (block != null) {
+				generateGetModelCallInBlock(block, checkNull, element, modelHolder);
+			}
 		}
 		
 		PutOnEvent putOnEvent = element.getAnnotation(PutOnEvent.class);
@@ -348,9 +351,9 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 			final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
 			final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
 			final IJExpression fieldsExpr = FormatsUtils.expressionFromString(annotation.fields());
-			callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
-			callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
-			callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
+			if (!annotation.query().isEmpty()) callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
+			if (!annotation.orderBy().isEmpty()) callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
+			if (!annotation.fields().isEmpty()) callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
 		}
 		
 		if (hasEvent) {

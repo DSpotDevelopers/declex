@@ -211,9 +211,11 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			
 			JFieldRef args = ref("args");
 
-			JBlock ifRecollect = putModelMethodBlock._if(args.invoke("containsKey").arg("recollect").not()
-					                .cor(cast(getJClass(Boolean.class), args.invoke("get").arg("recollect")))
-					            )._then();
+			JConditional ifRecollectConditional = putModelMethodBlock._if(args.invoke("containsKey").arg("recollect").not()
+	                .cor(cast(getJClass(Boolean.class), args.invoke("get").arg("recollect")))
+	            );
+			JBlock ifRecollect = ifRecollectConditional._then();
+			ifRecollectConditional._else().invoke(ref("putModelRunnable"), "run");
 			
 			if (hasExternalRecollect) {
 				JFieldRef listenerField = ref(

@@ -18,6 +18,7 @@ package com.dspot.declex.override.handler;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.io.StringWriter;
@@ -94,7 +95,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 				
 				if (elem.getSimpleName().toString().equals(referecedId)) {
 					
-					Populate populator = elem.getAnnotation(Populate.class);
+					Populate populator = adiHelper.getAnnotation(elem, Populate.class);
 					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
 						
 						String className = elem.asType().toString();
@@ -115,16 +116,18 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						
 						//Get the model
-						JFieldRef position = ref("position");
-						IJExpression modelAssigner = ref(fieldName).invoke("get").arg(position);
+						final JFieldRef position = ref("position");
+						final String fieldGetter = fieldToGetter(fieldName);
+						
+						IJExpression modelAssigner = invoke(fieldGetter).invoke("get").arg(position);
 						AbstractJClass Model = getJClass(className);
-						if (castNeeded) modelAssigner = cast(Model, ref(fieldName).invoke("get").arg(position));
+						if (castNeeded) modelAssigner = cast(Model, invoke(fieldGetter).invoke("get").arg(position));
 						declForListener.put(Model, modelAssigner);
 					}
 					
 					break;
-				} else 	if (referecedId.startsWith(elem.getSimpleName().toString()) && 
-						    elem.getAnnotation(Populate.class)!=null) {
+				} else if (referecedId.startsWith(elem.getSimpleName().toString()) && 
+						adiHelper.hasAnnotation(elem, Populate.class)) {
 					
 					String className = elem.asType().toString();
 					String fieldName = elem.getSimpleName().toString();
@@ -200,7 +203,8 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						}
 					} 
 					
-					IJExpression assignRef = ref(fieldName);
+					final String fieldGetter = fieldToGetter(fieldName);
+					IJExpression assignRef = invoke(fieldGetter);
 					
 					String[] methodSplit = composedField.split("\\.");
 					for (int i = 0; i < methodSplit.length; i++) {

@@ -85,8 +85,13 @@ public class LayoutsParser {
 						
 						layoutObjects = parseLayout(file, idHelper, layoutId);
 						
-						layoutMaps.put(layoutName, layoutObjects);
-						break;
+						if (layoutMaps.containsKey(layoutName)) {
+							//Merge layouts
+							layoutMaps.get(layoutName).putAll(layoutObjects);
+						} else {						
+							layoutMaps.put(layoutName, layoutObjects);
+						}
+						
 					}
 				}
 			}

@@ -30,11 +30,11 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
-import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.ModelConstants;
@@ -86,7 +86,6 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 					if (!elem.getModifiers().contains(Modifier.PUBLIC)) continue;
 
 					if (elem.getAnnotation(AfterInject.class) != null) continue;
-					if (elem.getAnnotation(AfterViews.class) != null) continue;
 					if (elem.getAnnotation(ExternalPopulate.class) != null) continue;
 					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
 					
@@ -175,7 +174,36 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 			String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
 			
 			if (element instanceof ExecutableElement) {
-				final JMethod method = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, false, false);
+				
+				ExecutableElement executableElement = (ExecutableElement) element;
+				
+				//Check if the method exists in the super class, in this case super should be called
+				boolean placeOverrideAndCallSuper = false;
+				List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
+				ELEMENTS: for (Element elem : elems) {
+					if (elem instanceof ExecutableElement) {
+						ExecutableElement executableElem = (ExecutableElement) elem;
+						
+						if (elem.getSimpleName().toString().equals(element.getSimpleName().toString())
+							&& executableElem.getParameters().size() == executableElement.getParameters().size()) {
+							
+							for (int i = 0; i < executableElem.getParameters().size(); i++) {
+								VariableElement paramElem = executableElem.getParameters().get(i);
+								VariableElement paramElement = executableElement.getParameters().get(i);
+								
+								if (!paramElem.asType().toString().equals(paramElement.asType().toString())) {
+									continue ELEMENTS;
+								}
+							}
+							
+							placeOverrideAndCallSuper = true;
+							break;
+							
+						}
+					}
+				}
+				
+				final JMethod method = codeModelHelper.overrideAnnotatedMethod(executableElement, holder, false, placeOverrideAndCallSuper);								
 				final JInvocation invocation = invoke(ref(referenceName), method);
 						
 				if (method.type().fullName().toString().equals("void")) {

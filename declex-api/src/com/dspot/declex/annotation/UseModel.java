@@ -20,6 +20,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.dspot.declex.annotation.modifier.ModelParams;
+
 /**
  * This annotation is used to prepare a Model for injection. 
  * 
@@ -27,6 +29,7 @@ import java.lang.annotation.Target;
  * <b>Read more in the documentation <a href="https://github.com/smaugho/declex/wiki/Models">Models</a></b>
  *
  */
+@ModelParams(value = {})
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.FIELD})
 public @interface UseModel {

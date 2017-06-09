@@ -20,6 +20,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.dspot.declex.annotation.modifier.ModelParams;
+
+@ModelParams(value = {"fields"})
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface JsonModel {

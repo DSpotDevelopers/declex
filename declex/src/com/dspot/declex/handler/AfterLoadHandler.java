@@ -15,10 +15,17 @@
  */
 package com.dspot.declex.handler;
 
+import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.cond;
+import static com.helger.jcodemodel.JExpr.lit;
+import static com.helger.jcodemodel.JExpr.ref;
+
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -30,11 +37,14 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EBeanHolder;
 
 import com.dspot.declex.annotation.AfterLoad;
+import com.dspot.declex.annotation.JsonModel;
 import com.dspot.declex.annotation.LocalDBModel;
 import com.dspot.declex.annotation.ServerModel;
 import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.annotation.modifier.ModelParams;
 import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.util.ParamUtils;
+import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 
 public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
@@ -67,9 +77,17 @@ public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
 		final UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
 		useModelHolder.setAfterLoadMethod(afterLoadMethod);
 		
-		List<Class<? extends Annotation>> annotations = Arrays.asList(UseModel.class, LocalDBModel.class, ServerModel.class);
+		List<Class<? extends Annotation>> annotations = Arrays.asList(UseModel.class, JsonModel.class, LocalDBModel.class, ServerModel.class);
 		for (Class<? extends Annotation> annotation : annotations) {
 			if (element.getAnnotation(annotation) != null) return;
+		}
+		
+		Set<String> modelParams = new HashSet<>();
+		for (Class<? extends Annotation> annotation : annotations) {
+			ModelParams modelParamsAnnotation = annotation.getDeclaredAnnotation(ModelParams.class);
+			for (String value : modelParamsAnnotation.value()) {
+				modelParams.add(value);
+			}
 		}
 		
 		List<? extends VariableElement> parameters = afterLoadMethod.getParameters();
@@ -77,9 +95,20 @@ public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
 		JInvocation invocation = useModelHolder.getModelInitMethod().body()
 				                    .invoke(afterLoadMethod.getSimpleName().toString());
 		
+		JFieldRef args = ref("args");
 		for (VariableElement param : parameters) {
 			final String paramName = param.getSimpleName().toString();
 			final String paramType = param.asType().toString();
+			
+			if (modelParams.contains(paramName) && String.class.getCanonicalName().equals(paramType)) {
+				invocation.arg(cond(
+					args.eqNull().cor(args.invoke("containsKey").arg(paramName).not()), 
+					lit(""), 
+					cast(getClasses().STRING, args.invoke("get").arg(paramName))
+				));
+				continue;
+			}
+			
 			ParamUtils.injectParam(paramName, paramType, invocation);
 		}
 	}

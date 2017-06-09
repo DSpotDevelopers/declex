@@ -21,7 +21,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import com.dspot.declex.annotation.ServerRequest.RequestType;
+import com.dspot.declex.annotation.modifier.ModelParams;
 
+@ModelParams(value = {"query", "orderBy", "fields"})
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD})
 public @interface ServerModel {

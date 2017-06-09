@@ -29,6 +29,7 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
@@ -38,7 +39,7 @@ import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
 import com.helger.jcodemodel.JMethod;
 
-public class UseModelHandler extends BaseAnnotationHandler<EBeanHolder> {
+public class UseModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(UseModelHandler.class);
 	
@@ -60,7 +61,7 @@ public class UseModelHandler extends BaseAnnotationHandler<EBeanHolder> {
 	}
 	
 	@Override
-	public void process(Element element, EBeanHolder holder) {
+	public void process(Element element, EComponentHolder holder) {
 		
 		if (element.getKind().isField()) return;
 		
@@ -81,7 +82,7 @@ public class UseModelHandler extends BaseAnnotationHandler<EBeanHolder> {
 		}
 		
 		//Get Instance will invoke getModel_
-		JMethod factoryMethod = holder.getFactoryMethod();
+		JMethod factoryMethod = ((EBeanHolder)holder).getFactoryMethod();
 		codeModelHelper.removeBody(factoryMethod);
 		factoryMethod.body()._return(
 			invoke(useModelHolder.getGetModelMethod()).arg(ref("context")).arg(_null()).arg(_null())

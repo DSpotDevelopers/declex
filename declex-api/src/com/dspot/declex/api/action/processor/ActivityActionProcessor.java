@@ -24,13 +24,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.EFragment;
-
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
 
@@ -52,12 +50,11 @@ public class ActivityActionProcessor extends BaseActionProcessor {
 	public void process(ActionInfo actionInfo) {
 		super.process(actionInfo);
 				
-		if (getAnnotatedElement().getAnnotation(EActivity.class) != null
-			|| getAnnotatedElement().getAnnotation(EFragment.class) != null) {
-			addPostInitBlock(getAction().invoke("setBuilder").arg(getGeneratedClass().staticRef("this")));
-		} else {
-			addPostInitBlock(getAction().invoke("setBuilder").arg((IJExpression)getMethodInHolder("getContextRef")));
+		IJExpression context = (IJExpression)getMethodInHolder("getContextRef");
+		if (context == JExpr._this()) {
+			context = getGeneratedClass().staticRef("this");
 		}
+		addPostInitBlock(getAction().invoke("setBuilder").arg(context));
 			
 		for (ActionMethod withResult : actionInfo.methods.get("withResult")) {
 			if (withResult.metaData != null) {
