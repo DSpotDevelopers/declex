@@ -585,7 +585,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, assignField));
 			}
 			
-			JConditional ifCond = assign._if(getter.eq(_null()));
+			JConditional ifCond = assign._if(modelAnnotation.lazy()? ref(fieldName).eq(_null()) : getter.eq(_null()));
 			ifCond._then().add(setter.arg(_new(getJClass(LinkedList.class))));
 			
 			JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(getter);

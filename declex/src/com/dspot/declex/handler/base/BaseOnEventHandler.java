@@ -26,17 +26,20 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.annotation.UseEventBus;
+import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.TypeUtils;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
 	private Map<Element, String> inlineEvents = new HashMap<>();
+	
+	protected EventsHelper eventsHelper;
 
 	public BaseOnEventHandler(Class<?> targetClass,
 			AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
+		eventsHelper = EventsHelper.getInstance(environment);
 	}
 	
 	@Override
@@ -64,7 +67,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		}
 		
 		inlineEvents.put(element, classField);
-		EventUtils.registerEvent(classField, getEnvironment());
+		eventsHelper.registerEvent(classField);
 	}
 
 	@Override
@@ -74,7 +77,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}
-		EventUtils.createNewEvent(classField, element, getEnvironment());
+		eventsHelper.createEvent(classField, element);
 	}
 	
 }

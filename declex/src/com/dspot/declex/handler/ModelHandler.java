@@ -45,12 +45,12 @@ import com.dspot.declex.annotation.PutOnEvent;
 import com.dspot.declex.annotation.UpdateOnEvent;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ModelHolder;
 import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.holder.view_listener.ClickHolder;
-import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
@@ -72,8 +72,11 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 	private static final Logger LOGGER = LoggerFactory.getLogger(ModelHandler.class);
 	
+	private EventsHelper eventsHelper;
+	
 	public ModelHandler(AndroidAnnotationsEnvironment environment) {
 		super(Model.class, environment);		
+		eventsHelper = EventsHelper.getInstance(environment);
 	}
 
 	@Override
@@ -151,7 +154,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				return;
 			}
 			
-			block = EventUtils.getEventMethod(eventClass, element.getEnclosingElement(), viewsHolder, getEnvironment()).body();
+			block = eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
 		} else {
 			block = holder.getInitBodyInjectionBlock();
 			
@@ -170,7 +173,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 								
 				if (!hasExternal) {
 					block = modelHolder.getGetterBody(element)
-							            ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
+							           ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
 				} else {
 					block = null;
 				}
@@ -212,9 +215,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				return;
 			}
 			
-			JMethod putOnUpdateMethod = EventUtils.getEventMethod(eventClass, element.getEnclosingElement(), viewsHolder, getEnvironment());
-			block = putOnUpdateMethod.body();
-			
+			block = eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
 			generatePutModelCallInBlock(block, element, modelHolder, true);
 		}
 		
@@ -255,9 +256,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				return;
 			}
 			
-			JMethod eventOnUpdateMethod = EventUtils.getEventMethod(eventClass, element.getEnclosingElement(), viewsHolder, getEnvironment());
-			block = eventOnUpdateMethod.body();
-			
+			block = eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
 			generateGetModelCallInBlock(block, false, element, modelHolder);				
 		}
 	}

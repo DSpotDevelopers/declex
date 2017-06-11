@@ -46,11 +46,11 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.RunWith;
+import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.holder.view_listener.IStatementCreator;
 import com.dspot.declex.holder.view_listener.ViewListenerHolder;
-import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
@@ -69,8 +69,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	
 	private String referecedId;
 	
+	protected EventsHelper eventsHelper;
+	
 	public BaseEventHandler(Class<?> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
+		eventsHelper = EventsHelper.getInstance(environment);
 	}
 
 	@Override
@@ -92,11 +95,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
 			
 			if (eventClassName != null) {
-				JMethod method = EventUtils.getEventMethod(eventClassName, element.getEnclosingElement(), viewsHolder, getEnvironment());
+				JBlock eventBlock = eventsHelper.addEventListener(eventClassName, element.getEnclosingElement(), viewsHolder);
 				
 				IJStatement statement = getStatement(getJClass(eventClassName), element, viewsHolder, holder);
 				if (statement != null) {
-					method.body().add(statement);
+					eventBlock.add(statement);
 				}
 				
 				return null;

@@ -64,6 +64,7 @@ import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.holder.ModelHolder;
 import com.dspot.declex.holder.ViewsHolder;
@@ -72,7 +73,6 @@ import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.dspot.declex.parser.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
@@ -105,10 +105,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	
 	private static int uniquePriorityCounter = 1000;
 	
+	private EventsHelper eventsHelper;
+	
 	public PopulateHandler(AndroidAnnotationsEnvironment environment, List<JClassPlugin> adapterPlugins) {
 		super(Populate.class, environment);
 		
 		this.adapterPlugins = adapterPlugins;
+		
+		eventsHelper = EventsHelper.getInstance(environment);
 	}
 	
 	@Override
@@ -324,7 +328,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
 		
 		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
-		JMethod loadOnEventMethod = null;
+		JBlock loadOnEventBlock = null;
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
 		if (loadOnEvent != null) {
 			String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
@@ -335,7 +339,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				return null;
 			}
 
-			loadOnEventMethod = EventUtils.getEventMethod(eventClass, element.getEnclosingElement(), viewsHolder, getEnvironment());
+			loadOnEventBlock = eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
 		}
 		
 		//Create the populate method
@@ -419,7 +423,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 		}
 		
-		return new OnEventMethods(loadOnEventMethod, populateFieldMethod, viewsHolder.holder());
+		return new OnEventMethods(loadOnEventBlock, populateFieldMethod, viewsHolder.holder());
 	}
 	
 	private void processMethod(Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods, ClassInformation classInformation, int layoutId) {
@@ -639,14 +643,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 			
 		
-		if (onEventMethods != null && onEventMethods.loadOnEventMethod != null) {
+		if (onEventMethods != null && onEventMethods.loadOnEventBlock != null) {
 			if (foundAdapterDeclaration && annotation.custom()) {
-				onEventMethods.loadOnEventMethod.body().assign(adapter, _new(AdapterClass).arg(assignRef));			
-				onEventMethods.loadOnEventMethod.body().invoke(view, "setAdapter").arg(adapter);
+				onEventMethods.loadOnEventBlock.assign(adapter, _new(AdapterClass).arg(assignRef));			
+				onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapter);
 				return;
 			}
 			
-			onEventMethods.loadOnEventMethod.body().invoke(view, "setAdapter").arg(adapter);
+			onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapter);
 		}
 		
 		//AdapterView
@@ -1020,13 +1024,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	}
 	
 	public static class OnEventMethods {
-		JMethod loadOnEventMethod;
+		JBlock loadOnEventBlock;
 		JMethod populateFieldMethod;
 		JBlock populateFieldMethodBody;
 		
-		public OnEventMethods(JMethod loadOnEventMethod, JMethod populateFieldMethod, GeneratedClassHolder holder) {
+		public OnEventMethods(JBlock loadOnEventBlock, JMethod populateFieldMethod, GeneratedClassHolder holder) {
 			super();
-			this.loadOnEventMethod = loadOnEventMethod;
+			this.loadOnEventBlock = loadOnEventBlock;
 			this.populateFieldMethod = populateFieldMethod;
 			
 			if (populateFieldMethod != null) {

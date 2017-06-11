@@ -17,9 +17,9 @@ package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -43,19 +43,23 @@ import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.UseEventBus;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.EventUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 
 public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {	
 	
+	private EventsHelper eventsHelper;
+	
 	public EventHandler(AndroidAnnotationsEnvironment environment) {
 		super(Event.class, environment);
+		eventsHelper = EventsHelper.getInstance(environment);
 	}
 	
 	@Override
@@ -113,7 +117,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				}	
 			}			
 			
-			EventUtils.registerEvent(className, fields, getEnvironment());
+			eventsHelper.registerEvent(className, fields);
 			
 			return;
 		}
@@ -135,7 +139,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			}
 		}
 		
-		EventUtils.registerEvent(className, fields, getEnvironment());
+		eventsHelper.registerEvent(className, fields);
 	}
 
 	@Override
@@ -147,8 +151,43 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	               element.asType().toString();
         if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
         
-        AbstractJClass EventClass = EventUtils.createNewEvent(className, element, getEnvironment());
-		Map<String, String> eventFields = EventUtils.eventsFields.get(EventClass.fullName());
+        AbstractJClass EventClass = eventsHelper.createEvent(className, element, true);
+        
+        //Get all the fields configured by this Event
+        Event eventAnnotation = element.getAnnotation(Event.class);
+        final Map<String, String> eventFields = new HashMap<>();
+        if (element instanceof ExecutableElement) {
+        	
+        	List<? extends VariableElement> parameters = ((ExecutableElement)element).getParameters();				
+			if (parameters.size() != 0) {
+				for (VariableElement param : parameters) {
+					final String paramName = param.getSimpleName().toString();
+					final String paramType = param.asType().toString();
+					
+					if (paramType.equals(className) 
+						|| paramType.equals(TypeUtils.getGeneratedClassName(className, getEnvironment()))) continue;
+					if (!paramType.contains(".") && className.endsWith("." + paramType)) continue;
+					
+					eventFields.put(paramName, paramType);
+				}	
+			}
+			
+        } else {
+        	
+        	for (String field : eventAnnotation.value()) {
+    			Matcher matcher = Pattern.compile("\\s*(\\w+)\\s*:\\s*([A-Za-z_][A-Za-z0-9_.]+)").matcher(field);
+    			if (matcher.find()) {
+    				String clazz = matcher.group(2); 
+    				
+    				if (clazz.indexOf('.')==-1 && Character.isUpperCase(clazz.charAt(0))) {
+    					clazz = "java.lang." + clazz;
+    				}
+    				
+    				eventFields.put(matcher.group(1), clazz);
+    			}
+    		}
+        	
+        }
 		
 		if (element instanceof ExecutableElement) {
 			final ViewsHolder viewsHolder;
@@ -172,6 +211,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					if (paramType.equals(EventClass.fullName() + ModelConstants.generationSuffix()) 
 						|| paramType.equals(EventClass.fullName())) {
 						eventFields.remove(paramName);
+						eventsHelper.removeParameterReference(EventClass.fullName(), paramName);
 					}
 					
 					if (!TypeUtils.isSubtype(paramType, CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
@@ -180,35 +220,52 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					
 					if (viewsHolder != null && viewsHolder.layoutContainsId(paramName)) {
 						eventFields.remove(paramName);
+						eventsHelper.removeParameterReference(EventClass.fullName(), paramName);
 					}
 				}	
 			}	
 			
 			ExecutableElement executableElement = (ExecutableElement) element;
-			EventUtils.getEventMethod(EventClass.fullName(), executableElement, holder, viewsHolder, getEnvironment());		
+			eventsHelper.addEventListener(EventClass.fullName(), executableElement, holder, viewsHolder);		
 		}
 				
 		//Create the fields for the event, if it is created here
 		if (EventClass instanceof JDefinedClass) {
 			
-			JMethod initMethod = null;
+			List<AbstractJType> paramsList = new LinkedList<>();			
 			for (Entry<String, String> field : eventFields.entrySet()) {
+				AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
+				paramsList.add(fieldClass);
+			}
+			AbstractJType[] paramsArray = new AbstractJType[paramsList.size()];
+			for (int i = 0; i < paramsList.size(); i++) {
+				paramsArray[i] = paramsList.get(i);
+			}
+			
+			JMethod initMethod = ((JDefinedClass) EventClass).getMethod("init", paramsArray);
+			if (initMethod == null) {
+				for (Entry<String, String> field : eventFields.entrySet()) {
 				
-				if (initMethod == null) {
-					initMethod = ((JDefinedClass) EventClass).method(
-							JMod.NONE, getEnvironment().getCodeModel().VOID, "init"
-						);
-				}
-				
-				final String fieldName = field.getKey();
-				final AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
-				
-				((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);
-				initMethod.param(fieldClass, fieldName);
-				
-				initMethod.body().invoke("init");
-				initMethod.body().invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName));
-			}			
+					final String fieldName = field.getKey();
+					final AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
+					
+					try {						
+						((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);
+					} catch (Exception e){}
+					
+					if (initMethod == null) {
+						initMethod = ((JDefinedClass) EventClass).method(
+								JMod.NONE, getEnvironment().getCodeModel().VOID, "init"
+							);
+						initMethod.body().invoke("init");
+					}
+
+					initMethod.param(fieldClass, fieldName);
+					initMethod.body().invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName));
+						
+					
+				}							
+			}
 		}
 		
 	}

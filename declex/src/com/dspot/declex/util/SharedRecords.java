@@ -53,11 +53,16 @@ public class SharedRecords {
 		db_models = null;
 	}
 	
-	public static void priorityAdd(JBlock method, IJStatement code, int priority) {
-		Map<Integer, IJStatement> statements = priorityMethods.get(method);
+	public static void priorityAdd(JBlock block, IJStatement code, int priority) {
+		
+		if (block == null) {
+			throw new IllegalArgumentException("\"block\" cannot be null");
+		}
+		
+		Map<Integer, IJStatement> statements = priorityMethods.get(block);
 		if (statements == null) {
 			statements = new TreeMap<>();
-			priorityMethods.put(method, statements);
+			priorityMethods.put(block, statements);
 		}
 		
 		statements.put(priority, code);

@@ -20,10 +20,13 @@ package com.dspot.declex.eventbus;
 
 import org.greenrobot.eventbus.EventBus;
 
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
+
 public class Event  {
 </@class_head>
 <@class_fields>
-	private Object[] values;
+	private Runnable nextListener;
+	private OnFailedRunnable failedListener; 
 </@class_fields>
 
 
@@ -32,24 +35,22 @@ public class Event  {
 	//============================================================
 
 	public ${className}() {
-		values = new Object[]{};
+	}
+		
+	public Runnable getNextListener() {
+		return nextListener;
 	}
 	
-	public ${className}(Object ... values) {
-		this.values = values;
+	public void setNextListener(Runnable nextListener) {
+		this.nextListener = nextListener;
 	}
 	
-	public Object[] getValues() {
-		return values;
+	public OnFailedRunnable getFailedListener() {
+		return failedListener;
 	}
 	
-	public ${className} setValues(Object ... values) {
-		this.values = values;
-		return this;
-	}
-	
-	public static void post(Object ... values) {
-		EventBus.getDefault().post(new ${className}(values));
+	public void setFailedListener(OnFailedRunnable failedListener) {
+		this.failedListener = failedListener;
 	}
 	
 	public static void post() {

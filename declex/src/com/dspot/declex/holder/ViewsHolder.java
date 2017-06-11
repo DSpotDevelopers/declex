@@ -574,7 +574,7 @@ public class ViewsHolder extends
                     			        + id.substring(0, 1).toUpperCase() + id.substring(1);
 
 
-			if (elem.getKind() == ElementKind.FIELD) {
+			if (elem.getKind() == ElementKind.FIELD && !elem.getModifiers().contains(Modifier.TRANSIENT)) {
 
 				// If the class element is not a primitive, then call the method
 				// in that element combinations (recursive DFS)
@@ -633,7 +633,7 @@ public class ViewsHolder extends
 				}
 			}
 
-			if (elem.getKind() == ElementKind.METHOD) {
+			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
 				
 				ExecutableElement exeElem = (ExecutableElement) elem;
 				
