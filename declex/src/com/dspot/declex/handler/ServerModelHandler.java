@@ -643,6 +643,10 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		switch (requestType) {
 			case Default: break;
+			
+			case Empty:
+				break;
+			
 			case Json: 
 				if (!requestMethod.equals(RequestMethod.Get)) {
 					

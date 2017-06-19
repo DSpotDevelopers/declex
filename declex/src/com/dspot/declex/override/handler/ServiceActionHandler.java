@@ -15,47 +15,27 @@
  */
 package com.dspot.declex.override.handler;
 
-import static com.helger.jcodemodel.JExpr._this;
-import static com.helger.jcodemodel.JExpr.ref;
-
 import java.lang.reflect.Field;
 
 import javax.lang.model.element.Element;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.APTCodeModelHelper;
-import org.androidannotations.holder.EActivityHolder;
+import org.androidannotations.holder.EIntentServiceHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
 
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
-import com.dspot.declex.override.holder.ActivityActionHolder;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.JDefinedClass;
-import com.helger.jcodemodel.JMethod;
-import com.helger.jcodemodel.JMod;
-import com.helger.jcodemodel.JVar;
 
-public class ExtraHandler extends org.androidannotations.internal.core.handler.ExtraHandler {
+public class ServiceActionHandler extends org.androidannotations.internal.core.handler.ServiceActionHandler {
 
-	public ExtraHandler(AndroidAnnotationsEnvironment environment) {
+	public ServiceActionHandler(AndroidAnnotationsEnvironment environment) {
 		super(environment);
-		
 		codeModelHelper = new DeclexAPTCodeModelHelper(getEnvironment());
-	}
-
-	@Override
-	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasEActivity(element, valid);
-
-		validatorHelper.isNotPrivate(element, valid);
 	}
 	
 	@Override
-	public void process(Element element, EActivityHolder holder) {
+	public void process(Element element, EIntentServiceHolder holder) throws Exception {
 		try {
 			
 			if (holder instanceof HasIntentBuilder) {
@@ -75,21 +55,7 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 				
 		super.process(element, holder);
 		
-		ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
-		JDefinedClass ActivityAction = actionHolder.getActivityAction();
-		
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
-		final String className = classInformation.originalClassName;
-		final String fieldName = element.getSimpleName().toString();
-		
-		AbstractJClass clazz = getJClass(className);
-		if (classInformation.isList) {
-			clazz = getClasses().LIST.narrow(clazz);
-		}
-		
-		JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
-		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
-		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
-		fieldMethod.body()._return(_this());
 	}
+
+	
 }

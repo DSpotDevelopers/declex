@@ -33,5 +33,5 @@ public @interface ServerRequest {
 	String mockResult() default "";
 	
 	public enum RequestMethod {Default, Delete, Get, Head, Post, Put, Patch}
-	public enum RequestType {Default, Json, Form}
+	public enum RequestType {Default, Json, Form, Empty}
 }

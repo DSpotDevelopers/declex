@@ -764,7 +764,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				);
 			}
 			
-			if (insideAction || delegatingMethodResultValueVar == null) {
+			if (insideAction || delegatingMethodResultValueVar == null || sharedVariablesHolder != null) {
 				statements.add(
 					new StringExpressionStatement("return;")
 				);
@@ -783,7 +783,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (!block.isEmpty()) continue;
 				
 				JBlock finishBlock = block._if(delegatingMethodFinishedVar)._then();
-				if (delegatingMethodResultValueVar != null && i == 0) {
+				if (delegatingMethodResultValueVar != null && i == 0 && sharedVariablesHolder == null) {
 					finishBlock._return(delegatingMethodResultValueVar);
 				} else {
 					finishBlock._return();

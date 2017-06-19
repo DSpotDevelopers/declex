@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.adapter;
+package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr._super;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.List;
@@ -38,8 +39,8 @@ import org.androidannotations.logger.LoggerFactory;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
 import com.dspot.declex.annotation.AdapterClass;
 import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JDefinedClass;
@@ -48,6 +49,7 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JVar;
 
 public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder> implements JClassPlugin {
 	
@@ -55,6 +57,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 	
 	public AdapterClassHandler(AndroidAnnotationsEnvironment environment) {
 		super(AdapterClass.class, environment);
+		codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 
 	@Override
@@ -63,11 +66,6 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		if (classField == null) {
 			valid.addError("The provided class isn't a valid class");
 		}
-		
-		boolean isList = TypeUtils.isSubtype(element, "java.util.Collection", getProcessingEnvironment());		
-		if (!isList) {
-			valid.addError("This annotation shoud be used only on @Populate for an AdapterView");
-		} 
 		
 		AbstractJClass baseClass = getBaseAdapter(element);
 		if (baseClass != null && adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
@@ -110,17 +108,29 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 				List<? extends VariableElement> params = executableElement.getParameters();
 				
 				if (elemName.equals("getModels") && params.size() == 0 && elem.getModifiers().contains(Modifier.ABSTRACT)) {
+
 					if (TypeUtils.isSubtype(executableElement.getReturnType(), CanonicalNameConstants.LIST, getProcessingEnvironment())) {
-						ClassInformation info = TypeUtils.getClassInformation(element, getEnvironment());
 						
 						JMethod getModelsMethod = AdapterClass.method(
 								JMod.PUBLIC, 
-								getClasses().LIST.narrow(getJClass(info.originalClassName)), 
+								codeModelHelper.typeMirrorToJClass(executableElement.getReturnType()),
 								"getModels"
 							);
 						getModelsMethod.annotate(Override.class);
 						getModelsMethod.body()._return(ref("models"));
 					}
+				}
+				
+				if (elemName.equals("getItemViewType") && params.size() == 1 && !params.get(0).asType().toString().equals("int")) {
+					JMethod getModelsMethod = AdapterClass.method(
+							JMod.PUBLIC, 
+							getCodeModel().INT,
+							"getItemViewType"
+						);
+					getModelsMethod.annotate(Override.class);
+					JVar position = getModelsMethod.param(getCodeModel().INT, "position");
+					
+					getModelsMethod.body()._return(_super().invoke("getItemViewType").arg(ref("models").invoke("get").arg(position)));
 				}
 				
 				if (elemName.equals("inflate")) {

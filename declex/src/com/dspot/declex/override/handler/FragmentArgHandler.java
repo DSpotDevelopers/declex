@@ -28,6 +28,7 @@ import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.FragmentActionHolder;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
@@ -58,8 +59,13 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		final String className = classInformation.originalClassName;
 		final String fieldName = element.getSimpleName().toString();
 		
+		AbstractJClass clazz = getJClass(className);
+		if (classInformation.isList) {
+			clazz = getClasses().LIST.narrow(clazz);
+		}
+		
 		JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, fieldName);
-		JVar fieldMethodParam = fieldMethod.param(getJClass(className), fieldName);
+		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
 		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
 		fieldMethod.body()._return(_this());
 	}

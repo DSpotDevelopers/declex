@@ -119,7 +119,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	public void validate(Element element, ElementValidation valid) {
 				
 		final String elementName = element.getSimpleName().toString();
-				
+		
 		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			
@@ -938,7 +938,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			return;
 		}		
 		
-		if (TypeUtils.isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())) {
+		if (TypeUtils.isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())
+			|| TypeUtils.isSubtype(viewClass, "android.support.v7.widget.RecyclerView", getProcessingEnvironment())) {
 			
 			String className = info.type.toString();
 			boolean isList = TypeUtils.isSubtype(className, "java.util.Collection", getProcessingEnvironment());		

@@ -133,10 +133,15 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String className = classInformation.originalClassName;
 		final String fieldName = element.getSimpleName().toString();
 		
+		AbstractJClass clazz = env.getJClass(className);
+		if (classInformation.isList) {
+			clazz = env.getClasses().LIST.narrow(clazz);
+		}
+		
 		actionInfo.addMethod(
 				fieldName, 
 				actionName, 
-				Arrays.asList(new ActionMethodParam(fieldName, env.getJClass(className)))
+				Arrays.asList(new ActionMethodParam(fieldName, clazz))
 			);
 	}
 	

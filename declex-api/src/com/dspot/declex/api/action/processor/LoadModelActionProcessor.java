@@ -18,10 +18,10 @@ package com.dspot.declex.api.action.processor;
 import static com.helger.jcodemodel.JExpr.invoke;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Modifier;
 
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.EFragment;
-import org.apache.commons.lang3.StringUtils;
 
 import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.ExternalPopulate;
@@ -115,10 +115,14 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				
-				JInvocation invoke = invoke(getModelMethod)
-										.arg(getAction().invoke("getArgs"))
-						                .arg(getAction().invoke("getDone"))
-						                .arg(getAction().invoke("getFailed"));
+				JInvocation invoke = invoke(getModelMethod);
+				if (field.getModifiers().contains(Modifier.STATIC)) {
+					IJExpression context = (IJExpression)getMethodInHolder("getContextRef");
+					invoke.arg(context);
+				}
+				invoke = invoke.arg(getAction().invoke("getArgs"))
+						       .arg(getAction().invoke("getDone"))
+						       .arg(getAction().invoke("getFailed"));
 				
 				addPostBuildBlock(invoke);					
 			}

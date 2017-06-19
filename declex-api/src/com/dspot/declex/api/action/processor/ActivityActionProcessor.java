@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.processor;
 
 import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -24,11 +25,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.androidannotations.annotations.EFragment;
+
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
-import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
 
@@ -51,7 +53,10 @@ public class ActivityActionProcessor extends BaseActionProcessor {
 		super.process(actionInfo);
 				
 		IJExpression context = (IJExpression)getMethodInHolder("getContextRef");
-		if (context == JExpr._this()) {
+		if (getAnnotatedElement().getAnnotation(EFragment.class) != null) {
+			context = _this();
+		}
+		if (context == _this()) {
 			context = getGeneratedClass().staticRef("this");
 		}
 		addPostInitBlock(getAction().invoke("setBuilder").arg(context));

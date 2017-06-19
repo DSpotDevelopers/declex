@@ -80,7 +80,6 @@ import org.androidannotations.internal.core.handler.RootContextHandler;
 import org.androidannotations.internal.core.handler.SeekBarProgressChangeHandler;
 import org.androidannotations.internal.core.handler.SeekBarTouchStartHandler;
 import org.androidannotations.internal.core.handler.SeekBarTouchStopHandler;
-import org.androidannotations.internal.core.handler.ServiceActionHandler;
 import org.androidannotations.internal.core.handler.SharedPrefHandler;
 import org.androidannotations.internal.core.handler.SupposeBackgroundHandler;
 import org.androidannotations.internal.core.handler.SupposeThreadHandler;
@@ -99,9 +98,9 @@ import org.androidannotations.internal.core.model.AndroidRes;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.adapter.AdapterClassHandler;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
 import com.dspot.declex.handler.ActionForHandler;
+import com.dspot.declex.handler.AdapterClassHandler;
 import com.dspot.declex.handler.AfterLoadHandler;
 import com.dspot.declex.handler.AfterPutHandler;
 import com.dspot.declex.handler.EventHandler;
@@ -139,6 +138,7 @@ import com.dspot.declex.override.handler.FragmentArgHandler;
 import com.dspot.declex.override.handler.ItemClickHandler;
 import com.dspot.declex.override.handler.ItemLongClickHandler;
 import com.dspot.declex.override.handler.LongClickHandler;
+import com.dspot.declex.override.handler.ServiceActionHandler;
 import com.dspot.declex.util.SharedRecords;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {

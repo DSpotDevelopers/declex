@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -155,7 +156,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         
         //Get all the fields configured by this Event
         Event eventAnnotation = element.getAnnotation(Event.class);
-        final Map<String, String> eventFields = new HashMap<>();
+        final Map<String, String> eventFields = new LinkedHashMap<>();
         if (element instanceof ExecutableElement) {
         	
         	List<? extends VariableElement> parameters = ((ExecutableElement)element).getParameters();				
