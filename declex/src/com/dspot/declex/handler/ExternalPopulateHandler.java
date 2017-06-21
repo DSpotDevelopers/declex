@@ -23,7 +23,6 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -102,7 +101,7 @@ public class ExternalPopulateHandler extends ExternalHandler {
 					
 					JMethod getter = holder.getGeneratedClass().method(
 							JMod.PUBLIC, 
-							getJClass(element.asType().toString()), 
+							codeModelHelper.typeMirrorToJClass(element.asType()), 
 							fieldGetter
 						);
 					
@@ -125,40 +124,18 @@ public class ExternalPopulateHandler extends ExternalHandler {
 			
 			createListenerStructure(elementName, holder);
 			
+			if (!adiHelper.hasAnnotation(element, Model.class)) {
+				if (!(element instanceof ExecutableElement)) {
+					createGetter(elementName, element, holder);
+				}
+			}
+			
 			//Create "populate this" listener structure
 			if (!holder.getGeneratedClass().containsField("populateThis")) {
 				createListenerStructure("this", holder);
 			}
 		}
-		
-		
-	}
-	
-	private boolean hasCoincidingInfoHolder(Element element, ViewsHolder viewsHolder) {
-		
-		final String fieldName = element.getSimpleName().toString();
-		
-		final Map<String, IdInfoHolder> allFields = new HashMap<String, IdInfoHolder>();
-		final Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
-		viewsHolder.findFieldsAndMethods(
-				viewsHolder.holder().getAnnotatedElement().asType().toString(), 
-				null, element, allFields, allMethods, true);
-		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 			
-			final IdInfoHolder info = entry.getValue();
-			
-			if (info.getterOrSetter != null && fieldName.length() > info.getterOrSetter.length() 
-				&& fieldName.substring(0, fieldName.length() - info.getterOrSetter.length()).equals(info.idName)) {
-				return true;
-			}
-			
-			if (info.getterOrSetter == null && fieldName.equals(info.idName)) {
-				return true;
-			}
-			
-		}
-		
-		return false;
 	}
 	
 	private void createInvokeListenerStructure(String elementName, Element element, EComponentHolder holder) {	
@@ -195,6 +172,16 @@ public class ExternalPopulateHandler extends ExternalHandler {
 				ref(referenceElementName), populateListenerName
 			).arg(_new(listener));
 		}
+	}
+	
+	private void createGetter(String elementName, Element element, EComponentHolder holder) {
+		final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
+		JMethod getter = holder.getGeneratedClass().method(
+				JMod.PUBLIC, 
+				codeModelHelper.typeMirrorToJClass(element.asType()), 
+				fieldGetter
+			);
+		getter.body()._return(ref(elementName));
 	}
 
 	private void createListenerStructure(String elementName, EComponentHolder holder) {

@@ -23,11 +23,13 @@ import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,6 +68,7 @@ import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.helper.ViewsHelper;
+import com.dspot.declex.helper.ViewsPropertiesReaderHelper;
 import com.dspot.declex.holder.ModelHolder;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.IWriteInBloc;
@@ -106,6 +109,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	private static int uniquePriorityCounter = 1000;
 	
 	private EventsHelper eventsHelper;
+	private ViewsPropertiesReaderHelper propertiesHelper;
 	
 	public PopulateHandler(AndroidAnnotationsEnvironment environment, List<JClassPlugin> adapterPlugins) {
 		super(Populate.class, environment);
@@ -113,6 +117,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		this.adapterPlugins = adapterPlugins;
 		
 		eventsHelper = EventsHelper.getInstance(environment);
+		propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment);
 	}
 	
 	@Override
@@ -275,9 +280,17 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 				processModel(className, element, viewsHolder, onEventMethods);
 				
-			}		
+			}	
 			
-			createViewsForPopulatorMethod(element.getSimpleName().toString(), element, viewsHolder);
+			if (!adiHelper.getAnnotation(element, Populate.class).independent()) {
+				SharedRecords.priorityAdd(
+						viewsHolder.holder().getOnViewChangedBody(), 
+						JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+						uniquePriorityCounter
+					);
+			}
+			
+			createViewsForPopulateMethod(element.getSimpleName().toString(), element, viewsHolder);
 			
 			if (index >= values.length) break;
 			layoutId = values[index];
@@ -368,7 +381,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			     .invoke(afterPopulate, "run");
 			SharedRecords.priorityAdd(populateThisMethod.body(), block, uniquePriorityCounter);
 		}
-		populateThisMethod.body().invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
+		
+		if (!adiHelper.getAnnotation(element, Populate.class).independent()) {
+			populateThisMethod.body().invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));			
+		}
 		
 		Model model = adiHelper.getAnnotation(element, Model.class); 
 		if (model != null) {			
@@ -447,13 +463,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				JFieldRef view = viewsHolder.createAndAssignView(fieldInfo.idName);
 				
 				JBlock block = onEventMethods.populateFieldMethodBody.block();
-				putAssignInBlock(fieldInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);	
-				
-				SharedRecords.priorityAdd(
-						viewsHolder.holder().getOnViewChangedBody(), 
-						JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
-						uniquePriorityCounter
-					);
+				putAssignInBlock(fieldInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);
 				
 				return;
 			}
@@ -470,13 +480,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				JFieldRef view = viewsHolder.createAndAssignView(methodInfo.idName);
 				
 				JBlock block = onEventMethods.populateFieldMethodBody.block();
-				putAssignInBlock(methodInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);	
-				
-				SharedRecords.priorityAdd(
-						viewsHolder.holder().getOnViewChangedBody(), 
-						JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
-						uniquePriorityCounter
-					);
+				putAssignInBlock(methodInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);
 				
 				return;
 			}
@@ -508,6 +512,21 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			}
 		}
 		
+		final String annotatedElementClass = viewsHolder.holder().getAnnotatedElement().asType().toString();
+		
+		final Map<String, TypeMirror> getters = new HashMap<>();
+		final Map<String, Set<TypeMirror>> setters = new HashMap<>();
+		propertiesHelper.readGettersAndSetters(annotatedElementClass, getters, setters);
+		
+		final String property = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+		if (setters.containsKey(property)) {
+			for (TypeMirror propertyType : setters.get(property)) {
+				if (TypeUtils.isSubtype(element.asType(), propertyType, getProcessingEnvironment())) {
+					return new IdInfoHolder(null, element, element.asType(), annotatedElementClass, new ArrayList<String>(0), property);
+				}							
+			}
+		}
+		
 		return null;
 	}
 	
@@ -528,14 +547,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 		//Create getter
 		final String fieldGetter = FormatsUtils.fieldToGetter(fieldName);
-		if (!(element instanceof ExecutableElement)) {
-			JMethod getter = holder.getGeneratedClass().method(
-				JMod.PUBLIC, 
-				getJClass(element.asType().toString()), 
-				fieldGetter
-			);
-			getter.body()._return(ref(fieldName));
-		}
 
 		//Not coinciding field found
 		if (info == null) return false;	
@@ -548,15 +559,9 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		if (adiHelper.getAnnotation(element, Populate.class).debug())
 			LOGGER.warn("\nField: " + fieldName, element, adiHelper.getAnnotation(element, Populate.class));
 		
-		JFieldRef view = viewsHolder.createAndAssignView(info.idName);
+		IJExpression view = info.idName != null? viewsHolder.createAndAssignView(info.idName) : _this();
 		JBlock block = onEventMethods.populateFieldMethodBody.block();
-		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods);	
-		
-		SharedRecords.priorityAdd(
-				viewsHolder.holder().getOnViewChangedBody(), 
-				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
-				uniquePriorityCounter
-			);
+		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods);
 		
 		return true;
 	}
@@ -578,14 +583,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 					element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
 					onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);			
 		}
-		
-		
-		
-		SharedRecords.priorityAdd(
-				viewsHolder.holder().getOnViewChangedBody(), 
-				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
-				uniquePriorityCounter
-			);
 	}
 	
 	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, JBlock block, 
@@ -832,13 +829,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		onEventMethods.populateFieldMethodBody.add(checkForNull);
 	}
 	
-	private void putAssignInBlock(IdInfoHolder info, JBlock block, JFieldRef view, 
+	private void putAssignInBlock(IdInfoHolder info, JBlock block, IJExpression view, 
 			IJExpression assignRef, Element element, 
 			ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
 		this.putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods, null);
 	}
 	
-	public void putAssignInBlock(IdInfoHolder info, JBlock block, JFieldRef view, 
+	public void putAssignInBlock(IdInfoHolder info, JBlock block, IJExpression view, 
 			IJExpression assignRef, Element element, 
 			ViewsHolder viewsHolder, OnEventMethods onEventMethods,
 			String layoutItemId) {
@@ -846,9 +843,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		String idName = info.idName;
 		TypeMirror type = info.type;
 		String viewClass = info.viewClass;		
-		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(idName, layoutItemId);
+		org.w3c.dom.Element node = idName != null? viewsHolder.getDomElementFromId(idName, layoutItemId) : null;
 		
-		block = block._if(view.ne(_null()))._then();
+		if (!view.equals(_this())) {
+			block = block._if(view.ne(_null()))._then();
+		}
 		
 		//If the method is declared with VOID, the first parameter is assumed to be the View component.
 		if (type.getKind().equals(TypeKind.VOID)) {
@@ -918,7 +917,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				PicassoBuilder = PicassoBuilder.arg(origAssignRef);
 			}
 			
-			if (node.hasAttribute("android:src")) {
+			if (node != null && node.hasAttribute("android:src")) {
 				String src = node.getAttribute("android:src");
 				String srcId = src.substring(src.lastIndexOf('/')+1);
 				PicassoBuilder = PicassoBuilder.invoke("placeholder")
@@ -964,7 +963,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		block.invoke("assignField").arg(view).arg(assignRef);
 	}
 
-	private void createViewsForPopulatorMethod(String viewName, Element element, ViewsHolder viewsHolder) {
+	private void createViewsForPopulateMethod(String viewName, Element element, ViewsHolder viewsHolder) {
 		Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 		if (methods == null) return;
 		

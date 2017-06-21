@@ -120,7 +120,6 @@ import com.dspot.declex.handler.RecollectHandler;
 import com.dspot.declex.handler.RunWithHandler;
 import com.dspot.declex.handler.ServerModelHandler;
 import com.dspot.declex.handler.UpdateOnEventHandler;
-import com.dspot.declex.handler.UseEventBusHandler;
 import com.dspot.declex.handler.UseEventsHandler;
 import com.dspot.declex.handler.UseLocalDBHandler;
 import com.dspot.declex.handler.UseModelHandler;
@@ -215,7 +214,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new UseLocalDBHandler(androidAnnotationEnv));
 		
 		annotationHandlers.add(new LocalDBTransactionHandler(androidAnnotationEnv));
-		annotationHandlers.add(new UseEventBusHandler(androidAnnotationEnv));
 
 		//Main Injection Handlers
 		annotationHandlers.add(new PrefHandler(androidAnnotationEnv));

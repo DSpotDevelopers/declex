@@ -25,10 +25,11 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.UseEventBus;
+import com.dspot.declex.annotation.External;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.element.VirtualElement;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
@@ -41,19 +42,9 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		super(targetClass, environment);
 		eventsHelper = EventsHelper.getInstance(environment);
 	}
-	
-	@Override
-	public void getDependencies(Element element, Map<Element, Object> dependencies) {
-		dependencies.put(element.getEnclosingElement(), UseEventBus.class);
-	}
 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		
-		UseEventBus annotation = adiHelper.getAnnotation(element.getEnclosingElement(), UseEventBus.class);
-		if (annotation == null) {
-			valid.addError("The enclosing element should include the @UseEventBus annotation");
-		}
 		
 		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
 		
@@ -73,6 +64,15 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
+		
+		if (adiHelper.hasAnnotation(element, External.class)) {
+			if (element instanceof VirtualElement) {
+				eventsHelper.registerAsEventListener(holder);
+			}
+		} else {
+			eventsHelper.registerAsEventListener(holder);
+		}
+		
 		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;

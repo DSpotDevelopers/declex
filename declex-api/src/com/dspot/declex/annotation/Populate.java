@@ -25,9 +25,14 @@ import java.lang.annotation.Target;
 public @interface Populate {
 	
 	/**
-	 * A List of Layouts to be inflated by the populator
+	 * A List of Layouts to be inflated by the populate
 	 */
 	int[] value() default 0;
+	
+	/**
+	 * If set, the populate will be not included in $Populate(this)
+	 */
+	boolean independent() default false;
 	
 	/**
 	 * The custom value is used to indicate in the case of a List<Model> that a 

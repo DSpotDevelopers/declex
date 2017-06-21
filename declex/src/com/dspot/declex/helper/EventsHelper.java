@@ -41,6 +41,15 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EActivityHolder;
+import org.androidannotations.holder.EApplicationHolder;
+import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EFragmentHolder;
+import org.androidannotations.holder.EProviderHolder;
+import org.androidannotations.holder.EReceiverHolder;
+import org.androidannotations.holder.EServiceHolder;
+import org.androidannotations.holder.EViewHolder;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.UseEvents;
@@ -58,6 +67,7 @@ import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
@@ -69,6 +79,7 @@ import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
 public class EventsHelper {
@@ -125,6 +136,64 @@ public class EventsHelper {
 			);
 		
 		actionInfo.addMethod(EXECUTE_NAME, env.getCodeModel().VOID.fullName());
+	}
+	
+	public void registerAsEventListener(EComponentHolder holder) {
+		AbstractJClass EventBus = environment.getJClass("org.greenrobot.eventbus.EventBus");
+		
+		JMethod registerMethod = holder.getGeneratedClass().getMethod("registerWithEventBus_", new AbstractJType[]{});
+		if (registerMethod == null) {
+			registerMethod = holder.getGeneratedClass().method(JMod.PRIVATE, environment.getCodeModel().VOID, "registerWithEventBus_");
+			JTryBlock tryBlock = registerMethod.body()._try();
+			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("register").arg(_this()));
+			tryBlock._catch(environment.getClasses().THROWABLE);
+			
+			if (holder instanceof EActivityHolder) {
+        		((EActivityHolder) holder).getOnResumeAfterSuperBlock().invoke(registerMethod);
+        	} else if (holder instanceof EFragmentHolder) {
+        		((EFragmentHolder) holder).getOnResumeAfterSuperBlock().invoke(registerMethod);
+        	} else if (holder instanceof EBeanHolder) {
+        		holder.getInitBody().invoke(registerMethod);
+        	} else if (holder instanceof EApplicationHolder) {
+        		holder.getInitBody().invoke(registerMethod);
+        	} else if (holder instanceof EServiceHolder) {
+        		((EServiceHolder) holder).getOnCreateAfterSuperBlock().invoke(registerMethod);
+        	} else if (holder instanceof EProviderHolder) {
+        		((EProviderHolder) holder).getOnCreateBody().invoke(registerMethod);
+        	} else if (holder instanceof EReceiverHolder) {
+        		//Not supported
+        	} else if (holder instanceof EViewHolder) {
+        		((EViewHolder) holder).getOnAttachAfterSuperBlock().invoke(registerMethod);
+        	} 
+			
+		}
+		
+		JMethod unregisterMethod = holder.getGeneratedClass().getMethod("unregisterWithEventBus_", new AbstractJType[]{});
+		if (unregisterMethod == null) {
+			unregisterMethod = holder.getGeneratedClass().method(JMod.PRIVATE, environment.getCodeModel().VOID, "unregisterWithEventBus_");
+			JTryBlock tryBlock = unregisterMethod.body()._try();
+			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("unregister").arg(_this()));
+			tryBlock._catch(environment.getClasses().THROWABLE);
+			
+			if (holder instanceof EActivityHolder) {
+        		((EActivityHolder) holder).getOnPauseBeforeSuperBlock().invoke(unregisterMethod);
+        	} else if (holder instanceof EFragmentHolder) {
+        		((EFragmentHolder) holder).getOnPauseBeforeSuperBlock().invoke(unregisterMethod);
+        	} else if (holder instanceof EBeanHolder) {
+        		//Not supported
+        	} else if (holder instanceof EApplicationHolder) {
+        		//Not supported
+        	} else if (holder instanceof EServiceHolder) {
+        		((EServiceHolder) holder).getOnDestroyBeforeSuperBlock().invoke(unregisterMethod);
+        	} else if (holder instanceof EProviderHolder) {
+        		//Not supported
+        	} else if (holder instanceof EReceiverHolder) {
+        		//Not supported
+        	} else if (holder instanceof EViewHolder) {
+        		((EViewHolder) holder).getOnDetachBeforeSuperBlock().invoke(unregisterMethod);
+        	} 
+		}
+		
 	}
 	
 	public void registerEvent(String className) {

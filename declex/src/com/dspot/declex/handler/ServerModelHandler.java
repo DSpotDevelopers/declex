@@ -645,6 +645,19 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			case Default: break;
 			
 			case Empty:
+				
+				if (!requestMethod.equals(RequestMethod.Get)) {
+					if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
+						newBlock.invoke(requestBuilder, method);
+					} else {
+						newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+								                                    .staticInvoke("create")
+								                                    .arg(_null())
+								                                    .arg(direct("new byte[0]"))
+								                                    );
+					}
+				}
+				
 				break;
 			
 			case Json: 
@@ -791,7 +804,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
 				thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
 				
-				newBlock._if(elem.invoke("isJsonObject").not())._then()._return(_null());
+				newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
+				        ._then()._return(_null());
 
 				newBlock.staticInvoke(getJClass(CastUtility.class), "copy")
 		        .arg(
@@ -848,7 +862,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					
 				} else {
 					
-					newBlock._if(elem.invoke("isJsonObject").not())._then()._return(_null());
+					newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
+					        ._then()._return(_null());
 					thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
 					thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
 

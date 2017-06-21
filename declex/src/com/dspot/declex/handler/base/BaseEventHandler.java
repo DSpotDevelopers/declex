@@ -275,7 +275,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 
     					List<? extends VariableElement> parameters = executableElement.getParameters();
     					for (VariableElement param : parameters) {
-    						method.param(getJClass(param.asType().toString()), param.getSimpleName().toString());
+    						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
     					}
     					
         				return true;
@@ -315,7 +315,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 					
 					JInvocation superInvoke = invoke(_super(), elementName);
 					for (VariableElement param : parameters) {
-						method.param(getJClass(param.asType().toString()), param.getSimpleName().toString());
+						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
 						superInvoke = superInvoke.arg(ref(param.getSimpleName().toString()));
 					}
 

@@ -239,7 +239,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			
 			try {
 				JDefinedClass ActionGate = getCodeModel()._class(JMod.PUBLIC, actionGateClassName);
-				ActionGate._extends(getJClass(element.asType().toString()));
+				ActionGate._extends(codeModelHelper.typeMirrorToJClass(element.asType()));
 				filesCacheHelper.addGeneratedClass(actionGateClassName, element);
 				
 				if (javaDoc != null) {

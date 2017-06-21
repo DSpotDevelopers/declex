@@ -23,7 +23,6 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +46,10 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.FoundViewHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
-import org.apache.commons.lang3.tuple.Pair;
 
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.helper.ViewsHelper;
+import com.dspot.declex.helper.ViewsPropertiesReaderHelper;
 import com.dspot.declex.parser.LayoutsParser.LayoutObject;
 import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
@@ -67,9 +66,6 @@ import com.helger.jcodemodel.JVar;
 
 public class ViewsHolder extends
 		PluginClassHolder<EComponentWithViewSupportHolder> {
-
-	//<Class Id, <Getter<Name, Classes>, Setter<Name, Classes>>>
-	private static Map<String, Pair<Map<String, TypeMirror>, Map<String, Set<TypeMirror>>>> gettersAndSettersPerClass = new HashMap<>();
 	
 	// <Layout Id, <View Id, View Information>>
 	private Map<String, Map<String, LayoutObject>> layoutObjects = new HashMap<>();
@@ -86,8 +82,8 @@ public class ViewsHolder extends
 	private ICreateViewListener createViewListener;
 	
 	private ViewsHelper viewsHelper;
-	
 	private ADIHelper adiHelper;
+	private ViewsPropertiesReaderHelper propertiesHelper;
 
 	public ViewsHolder(EComponentWithViewSupportHolder holder,
 			IdAnnotationHelper annotationHelper) {
@@ -95,6 +91,7 @@ public class ViewsHolder extends
 
 		this.annotationHelper = annotationHelper;
 		this.adiHelper = new ADIHelper(environment());
+		this.propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment());
 		
 		this.menuParser = MenuParser.getInstance();
 		
@@ -472,86 +469,7 @@ public class ViewsHolder extends
 				originalId, layoutObjects.get(originalId).className, getter
 			);
 		}
-	}
-	
-	private void readGettersAndSetters(String fromClass, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
-		
-		Pair<Map<String, TypeMirror>, Map<String, Set<TypeMirror>>> gettersAndSetters = gettersAndSettersPerClass.get(fromClass);
-		if (gettersAndSetters != null) {
-			getters.putAll(gettersAndSetters.getKey());
-			setters.putAll(gettersAndSetters.getValue());
-			return;
-		} else {
-			gettersAndSetters = Pair.of(getters, setters);
-			gettersAndSettersPerClass.put(fromClass, gettersAndSetters);
-		}
-		
-		if (fromClass.contains("<")) fromClass = fromClass.substring(0, fromClass.indexOf('<'));
-		
-		Element classElement = processingEnv().getElementUtils().getTypeElement(fromClass);
-		readGettersAndSetters(classElement, getters, setters);
-		
-		List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(classElement.asType());
-		
-		for (TypeMirror type : superTypes) {
-			String typeName = type.toString();
-			if (typeName.contains("<")) typeName = typeName.substring(0, typeName.indexOf('<'));
-				
-			TypeElement superElement = processingEnv().getElementUtils().getTypeElement(typeName);
-			if (superElement == null) continue;
-			
-			readGettersAndSetters(superElement, getters, setters);
-			
-			Map<String, TypeMirror> superGetters = new HashMap<>();
-			Map<String, Set<TypeMirror>> superSetters = new HashMap<>();
-			readGettersAndSetters(type.toString(), superGetters, superSetters);
-			
-			getters.putAll(superGetters);
-			setters.putAll(superSetters);
-		}
-	}
-	
-	private void readGettersAndSetters(Element element, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
-		List<? extends Element> elems = element.getEnclosedElements();
-		
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
-
-				final String elemNameStart = elem.getSimpleName().toString().substring(0, 4);
-				
-				if (elemNameStart.matches("set[A-Z]")) {
-				
-					ExecutableElement executableElem = (ExecutableElement) elem;
-					if (executableElem.getReturnType().toString().equals("void")
-						&& executableElem.getParameters().size() == 1) {
-						
-						final String property = elem.getSimpleName().toString().substring(3);
-						Set<TypeMirror> types = setters.get(property);
-						if (types == null) {
-							types = new HashSet<>();
-							setters.put(property, types);
-						}
-						
-						types.add(executableElem.getParameters().get(0).asType());
-					}
-					
-				}
-				
-				if (elemNameStart.matches("get[A-Z]")) {
-					
-					ExecutableElement executableElem = (ExecutableElement) elem;
-					if (!executableElem.getReturnType().toString().equals("void")
-						&& executableElem.getParameters().size() == 0) {
-						
-						final String property = elem.getSimpleName().toString().substring(3);
-						
-						getters.put(property, executableElem.getReturnType());
-					}
-					
-				}
-			}
-		}
-	}
+	}	
 	
 	private void deepFieldsAndMethodsSearch(
 			final String id, final String prevField,
@@ -609,7 +527,7 @@ public class ViewsHolder extends
 				} else if (elemName.startsWith(id)) {
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
-					readGettersAndSetters(layoutElementIdClass, getters, setters);
+					propertiesHelper.readGettersAndSetters(layoutElementIdClass, getters, setters);
 					
 					final String property = elemName.substring(id.length());
 					
@@ -665,7 +583,7 @@ public class ViewsHolder extends
 					} else { //elemName.startsWith(id)
 						final Map<String, TypeMirror> getters = new HashMap<>();
 						final Map<String, Set<TypeMirror>> setters = new HashMap<>();
-						readGettersAndSetters(layoutElementIdClass, getters, setters);
+						propertiesHelper.readGettersAndSetters(layoutElementIdClass, getters, setters);
 						
 						final String property = elemName.startsWith(idForMethod)?
 														elemName.substring(idForMethod.length())
@@ -730,7 +648,7 @@ public class ViewsHolder extends
 			this(idName, element, type, className, extraParams, null);
 		}
 		
-		private IdInfoHolder(String idName, Element element, TypeMirror type,
+		public IdInfoHolder(String idName, Element element, TypeMirror type,
 				String className, List<String> extraParams, String getterOrSetter) {
 			super();
 			this.element = element;

@@ -232,7 +232,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		
 		JBlock body = getGsonBuilderMethod.body();
 		
-		AbstractJClass Model = getJClass(holder.getAnnotatedElement().asType().toString());
+		AbstractJClass Model = codeModelHelper.typeMirrorToJClass(holder.getAnnotatedElement().asType());
 		if (createGetGsonBuilderMethod){
 			IJExpression createBuilder = _new(GsonBuilder)
 					.invoke("addSerializationExclusionStrategy")

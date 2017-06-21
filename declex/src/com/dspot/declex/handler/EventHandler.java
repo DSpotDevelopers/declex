@@ -22,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,12 +41,12 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.UseEventBus;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JDefinedClass;
@@ -61,13 +60,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	public EventHandler(AndroidAnnotationsEnvironment environment) {
 		super(Event.class, environment);
 		eventsHelper = EventsHelper.getInstance(environment);
-	}
-	
-	@Override
-	public void getDependencies(Element element, Map<Element, Object> dependencies) {
-		if (element instanceof ExecutableElement && !adiHelper.hasAnnotation(element, External.class)) {
-			dependencies.put(element.getEnclosingElement(), UseEventBus.class);
-		}
 	}
 	
 	@Override
@@ -92,11 +84,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			
 			if (methodName.length() <= 2) {
 				valid.addError("You should provide a name in your event, Ex: \"onMyEvent\"");				
-			}
-
-			UseEventBus annotation = adiHelper.getAnnotation(element.getEnclosingElement(), UseEventBus.class);
-			if (annotation == null) {
-				valid.addError("The enclosing class should be annotated with @UseEventBus");
 			}
 
 			if (!valid.isValid()) return;
@@ -146,6 +133,14 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
+		
+		if (adiHelper.hasAnnotation(element, External.class)) {
+			if (element instanceof VirtualElement) {
+				eventsHelper.registerAsEventListener(holder);
+			}
+		} else {
+			eventsHelper.registerAsEventListener(holder);
+		}
 		
 		String className = element instanceof ExecutableElement ? 
 		           element.getSimpleName().toString().substring(2) : 
