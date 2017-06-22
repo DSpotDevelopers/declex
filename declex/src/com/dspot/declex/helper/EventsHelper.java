@@ -345,7 +345,6 @@ public class EventsHelper {
 			
 			JConditional ifFailed = executeMethod.body()._if(failed.ne(_null()));
 			ifFailed._then().add(event.invoke("setFailedListener").arg(_new(failedListenerRunnable)));
-			executeMethod.body().add(event.invoke("postEvent"));
 		}
 		
 		executeMethod.body().add(event.invoke("postEvent"));

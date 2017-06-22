@@ -23,10 +23,8 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.lang.model.element.Element;
@@ -43,8 +41,6 @@ import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.PopulateModelListener;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.holder.ViewsHolder;
-import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.IJExpression;

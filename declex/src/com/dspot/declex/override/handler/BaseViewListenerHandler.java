@@ -18,7 +18,6 @@ package com.dspot.declex.override.handler;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
-import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.io.StringWriter;
@@ -99,29 +98,23 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
 						
 						String className = elem.asType().toString();
-						String fieldName = elem.getSimpleName().toString();
 						
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
 							className = matcher.group(1);
 						}
 						
-						boolean castNeeded = false;
 						if (!className.endsWith(ModelConstants.generationSuffix())) {
 							if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 								className = TypeUtils.getGeneratedClassName(className, getEnvironment());
-								castNeeded = true;
 							}
 						}
 						className = TypeUtils.typeFromTypeString(className, getEnvironment());
 						
 						//Get the model
 						final JFieldRef position = ref("position");
-						final String fieldGetter = fieldToGetter(fieldName);
-						
-						IJExpression modelAssigner = invoke(fieldGetter).invoke("get").arg(position);
-						AbstractJClass Model = getJClass(className);
-						if (castNeeded) modelAssigner = cast(Model, invoke(fieldGetter).invoke("get").arg(position));
+						final AbstractJClass Model = getJClass(className);
+						IJExpression modelAssigner = cast(Model, ref("parent").invoke("getItemAtPosition").arg(position));
 						declForListener.put(Model, modelAssigner);
 					}
 					
@@ -203,21 +196,10 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						}
 					} 
 					
-					final String fieldGetter = fieldToGetter(fieldName);
-					IJExpression assignRef = invoke(fieldGetter);
-					
-					String[] methodSplit = composedField.split("\\.");
-					for (int i = 0; i < methodSplit.length; i++) {
-						String methodPart = methodSplit[i];
-						if (!methodPart.equals("")) {
-							assignRef = assignRef.invoke(methodPart);		
-						}			
-					}
-					
 					//Get the model
-					JFieldRef position = ref("position");
-					IJExpression modelAssigner = assignRef.invoke("get").arg(position);
-					AbstractJClass Model = getJClass(className);
+					final JFieldRef position = ref("position");
+					final AbstractJClass Model = getJClass(className);
+					IJExpression modelAssigner = cast(Model, ref("parent").invoke("getItemAtPosition").arg(position));
 					declForListener.put(Model, modelAssigner);
 				}
 

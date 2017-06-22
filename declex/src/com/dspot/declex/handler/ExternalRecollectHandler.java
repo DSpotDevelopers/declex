@@ -19,7 +19,6 @@ import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;

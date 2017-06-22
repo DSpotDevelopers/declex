@@ -23,8 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -33,6 +31,7 @@ import javax.lang.model.type.TypeKind;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
@@ -63,12 +62,23 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	}
 	
 	@Override
+	public void getDependencies(Element element, Map<Element, Object> dependencies) {
+		if (element.getKind().isClass()) {
+			dependencies.put(element, EBean.class);
+		}
+	}
+	
+	@Override
 	protected void validate(Element element, ElementValidation valid) {
 		
 	    String className = element instanceof ExecutableElement ? 
 		           element.getSimpleName().toString().substring(2) : 
 	               element.asType().toString();
-        if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	        
+        if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
+
+        while (className.endsWith(ModelConstants.generationSuffix())) {
+        	className = className.substring(0, className.length()-1);
+        }
      
 		if (element instanceof ExecutableElement) {
 			ExecutableElement executableElement = (ExecutableElement) element;
@@ -109,25 +119,23 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			
 			return;
 		}
-		
-		className = DeclexConstant.EVENT_PATH + className;
-		Event eventAnnotation = element.getAnnotation(Event.class);
-		final Map<String, String> fields = new HashMap<>();
-		
-		for (String field : eventAnnotation.value()) {
-			Matcher matcher = Pattern.compile("\\s*(\\w+)\\s*:\\s*([A-Za-z_][A-Za-z0-9_.]+)").matcher(field);
-			if (matcher.find()) {
-				String clazz = matcher.group(2); 
-				
-				if (clazz.indexOf('.')==-1 && Character.isUpperCase(clazz.charAt(0))) {
-					clazz = "java.lang." + clazz;
-				}
-				
-				fields.put(matcher.group(1), clazz);
+
+		if (element.getKind().isClass()) {
+			className = DeclexConstant.EVENT_PATH + className;
+			final Map<String, String> fields = new HashMap<>();
+			List<? extends Element> elems = element.getEnclosedElements();
+			for (Element elem : elems) {
+				 if (elem.getKind().isField()) {
+					final String paramName = elem.getSimpleName().toString();
+					final String paramType = elem.asType().toString();
+									
+					fields.put(paramName, paramType);        				 
+				 }
 			}
+			
+			eventsHelper.registerEvent(className, fields);
+			
 		}
-		
-		eventsHelper.registerEvent(className, fields);
 	}
 
 	@Override
@@ -147,10 +155,13 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	               element.asType().toString();
         if (className.contains(".")) className = className.substring(className.lastIndexOf('.')+1);	
         
+        while (className.endsWith(ModelConstants.generationSuffix())) {
+        	className = className.substring(0, className.length()-1);
+        }
+        
         AbstractJClass EventClass = eventsHelper.createEvent(className, element, true);
         
         //Get all the fields configured by this Event
-        Event eventAnnotation = element.getAnnotation(Event.class);
         final Map<String, String> eventFields = new LinkedHashMap<>();
         if (element instanceof ExecutableElement) {
         	
@@ -170,18 +181,18 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			
         } else {
         	
-        	for (String field : eventAnnotation.value()) {
-    			Matcher matcher = Pattern.compile("\\s*(\\w+)\\s*:\\s*([A-Za-z_][A-Za-z0-9_.]+)").matcher(field);
-    			if (matcher.find()) {
-    				String clazz = matcher.group(2); 
-    				
-    				if (clazz.indexOf('.')==-1 && Character.isUpperCase(clazz.charAt(0))) {
-    					clazz = "java.lang." + clazz;
-    				}
-    				
-    				eventFields.put(matcher.group(1), clazz);
-    			}
-    		}
+        	if (element.getKind().isClass()) {
+        		
+        		 List<? extends Element> elems = element.getEnclosedElements();
+        		 for (Element elem : elems) {
+        			 if (elem.getKind().isField()) {
+     					final String paramName = elem.getSimpleName().toString();
+    					final String paramType = elem.asType().toString();
+    					
+    					eventFields.put(paramName, paramType);        				 
+        			 }
+        		 }
+        	}
         	
         }
 		
@@ -258,8 +269,6 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 
 					initMethod.param(fieldClass, fieldName);
 					initMethod.body().invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName));
-						
-					
 				}							
 			}
 		}

@@ -31,8 +31,6 @@ import org.androidannotations.internal.core.helper.IntentBuilder;
 
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.ActivityActionHolder;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
@@ -78,14 +76,8 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
 		JDefinedClass ActivityAction = actionHolder.getActivityAction();
 		
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
-		final String className = classInformation.originalClassName;
-		final String fieldName = element.getSimpleName().toString();
-		
-		AbstractJClass clazz = getJClass(className);
-		if (classInformation.isList) {
-			clazz = getClasses().LIST.narrow(clazz);
-		}
+		final String fieldName = element.getSimpleName().toString();		
+		final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
 		
 		JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
 		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);

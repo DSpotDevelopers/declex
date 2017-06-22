@@ -26,8 +26,6 @@ import org.androidannotations.holder.EFragmentHolder;
 
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.FragmentActionHolder;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
@@ -53,16 +51,10 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		super.process(element, holder);
 		
 		FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
-		JDefinedClass FragmentAction = actionHolder.getFragmentAction();
+		JDefinedClass FragmentAction = actionHolder.getFragmentAction();	
 		
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
-		final String className = classInformation.originalClassName;
-		final String fieldName = element.getSimpleName().toString();
-		
-		AbstractJClass clazz = getJClass(className);
-		if (classInformation.isList) {
-			clazz = getClasses().LIST.narrow(clazz);
-		}
+		final String fieldName = element.getSimpleName().toString();	
+		final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
 		
 		JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, fieldName);
 		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);

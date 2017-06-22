@@ -388,7 +388,6 @@ public class TypeUtils {
 		}
 		String className = elementTypeMirror.toString();
 		
-		//Detect when the method is a List, in order to generate all the Adapters structures
 		final boolean isList = TypeUtils.isSubtype(elementTypeMirror, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
 		if (isList) {
 			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
