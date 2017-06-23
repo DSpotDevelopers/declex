@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -195,6 +196,7 @@ public class ViewsHolder extends
 
 	public JInvocation checkFieldNameInInvocation(String fieldName, String fieldType, JInvocation invocation) {
 		for (String layoutId : layoutObjects.keySet()) {
+			
 			if (this.layoutContainsId(fieldName, layoutId)) {
 				
 				final String savedDefLayoutId = defLayoutId;
@@ -206,6 +208,38 @@ public class ViewsHolder extends
 				
 				return invocation.arg(view);
 			}	
+			
+			for (Entry<String, LayoutObject> entry : layoutObjects.get(layoutId).entrySet()) {
+				
+				final String viewId = entry.getKey();
+				final LayoutObject layoutObject = entry.getValue();
+				
+				if (fieldName.startsWith(viewId)) {
+					
+					final Map<String, TypeMirror> getters = new HashMap<>();
+					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
+					propertiesHelper.readGettersAndSetters(layoutObject.className, getters, setters);
+					
+					final String property = fieldName.substring(viewId.length());
+					
+					if (getters.containsKey(property)) {
+						if (TypeUtils.isSubtype(fieldType, getters.get(property).toString(), processingEnv())) {
+							
+							final String savedDefLayoutId = defLayoutId;
+							defLayoutId = layoutId;
+							
+							JFieldRef view = this.createAndAssignView(viewId);
+						
+							defLayoutId = savedDefLayoutId;
+							
+							return invocation.arg(view.invoke("get" + property));
+							
+						}
+					}
+				}
+				
+			}
+			
 		}
 		
 		return ParamUtils.injectParam(fieldName, fieldType, invocation);	

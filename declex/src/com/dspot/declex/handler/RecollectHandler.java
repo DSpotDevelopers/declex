@@ -46,7 +46,6 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
-import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.annotation.ExternalRecollect;
 import com.dspot.declex.annotation.Model;
@@ -54,11 +53,9 @@ import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.exception.ValidationException;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
-import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.holder.ModelHolder;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
-import com.dspot.declex.parser.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
@@ -98,10 +95,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
 		validatorHelper.isNotPrivate(element, valid);
 		
-		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
-		
 		//Validate special methods
-		boolean specialAssignField = false;
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.METHOD) {
@@ -125,31 +119,9 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						}
 					}
 					
-					specialAssignField = true;
-					
 					break;
 				}
 				
-			}
-		}
-		
-		//Check if the field is a primitive or a String
-		if (element.asType().getKind().isPrimitive() || 
-			element.asType().toString().equals(String.class.getCanonicalName())) {
-			
-			if (!viewsHelper.getLayoutObjects().containsKey(elementName)) {
-				valid.addError("The element with Id \"" + elementName + "\" cannot be found in the Layout ");
-			} else if (!specialAssignField) {
-				LayoutObject layoutObject = viewsHelper.getLayoutObjects().get(elementName);
-				String className = layoutObject.className;
-				
-				if (!specialAssignField) {
-					if (!TypeUtils.isSubtype(className, "android.widget.TextView", getProcessingEnvironment()) &&
-						!TypeUtils.isSubtype(className, "android.widget.ImageView", getProcessingEnvironment())) {
-						valid.addError("You should provide an assignField method for the class \"" + className + 
-								"\" used on the field " + elementName);
-					}
-				}
 			}
 		}
 				
@@ -175,22 +147,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		JVar afterRecollect = recollectModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
 		JVar onFailed = recollectModelMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
 		
-		//Create the "populate this" method
-		JMethod recollectThisMethod = viewsHolder.getGeneratedClass().getMethod(
-				"_recollect_this",
-				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
-			);
-		if (recollectThisMethod == null) {
-			recollectThisMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_recollect_this");
-			JVar afterRecollectParam = recollectThisMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
-			recollectThisMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
-			
-			JBlock block = new JBlock();
-			block._if(afterRecollectParam.neNull())._then()
-			     .invoke(afterRecollectParam, "run");
-			SharedRecords.priorityAdd(recollectThisMethod.body(), block, 10);
-		}
-		recollectThisMethod.body().invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed"));
+		createRecollectThis(recollectModelMethod, viewsHolder);
 		
 		final Model modelAnnotation = adiHelper.getAnnotation(element, Model.class);
 		if (modelAnnotation != null) {
@@ -237,8 +194,8 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		JBlock recollectBlock;
 		JAnonymousClass ValidatorListenerClass = null;
-		Recollect recollector = element.getAnnotation(Recollect.class);
-		if (recollector.validate()) {
+		Recollect recollectAnnotation = element.getAnnotation(Recollect.class);
+		if (recollectAnnotation.validate()) {
 			AbstractJClass Validator = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator");
 			AbstractJClass ValidatorListener = getEnvironment().getJClass("com.mobsandgeeks.saripaar.Validator.ValidationListener");
 			AbstractJClass ValidatorError = getEnvironment().getJClass("com.mobsandgeeks.saripaar.ValidationError");
@@ -260,7 +217,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			JVar message = forEach.decl(getClasses().STRING, "message", error.invoke("getCollatedErrorMessage").arg(context));
 			forEach.assign(messages, message.plus(message).plus(" "));
 			
-			if (recollector.validateAutoMessage()) {
+			if (recollectAnnotation.validateAutoMessage()) {
 				JVar view = forEach.decl(getClasses().VIEW, "view", error.invoke("getView"));
 				
 				AbstractJClass EditText = getJClass("android.widget.EditText");
@@ -314,25 +271,6 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 		recollectBlock = tryBlock.body();
 		
-		//Check if the field is a primitive or a String
-		if (element.asType().getKind().isPrimitive() || 
-			element.asType().toString().equals(String.class.getCanonicalName())) {
-			
-			if (annotationHelper.containsField(fieldName, Res.ID)) {
-				if (element.getAnnotation(Recollect.class).debug())
-					LOGGER.warn("\nField: " + fieldName, element, element.getAnnotation(Recollect.class));
-								
-				JFieldRef view = viewsHolder.createAndAssignView(fieldName);
-				assignValueToField(ref(fieldName), element.asType(), view, recollectBlock);
-				
-				checkValidatorClass(element, element, fieldName, view, ValidatorListenerClass, viewsHolder);
-			}
-			
-			recollectBlock.invoke(afterRecollect, "run");
-			
-			return;
-		} 
-		
 		//Find all the fields and methods that are presented in the layouts
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
@@ -381,6 +319,25 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		recollectBlock.invoke(afterRecollect, "run");
+	}
+	
+	private void createRecollectThis(JMethod recollectModelMethod, ViewsHolder viewsHolder) {
+		//Create the "populate this" method
+		JMethod recollectThisMethod = viewsHolder.getGeneratedClass().getMethod(
+				"_recollect_this",
+				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
+			);
+		if (recollectThisMethod == null) {
+			recollectThisMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_recollect_this");
+			JVar afterRecollectParam = recollectThisMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterRecollect");
+			recollectThisMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
+			
+			JBlock block = new JBlock();
+			block._if(afterRecollectParam.neNull())._then()
+			     .invoke(afterRecollectParam, "run");
+			SharedRecords.priorityAdd(recollectThisMethod.body(), block, 10);
+		}
+		recollectThisMethod.body().invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed"));
 	}
 	
 	private void assignValueToField(JFieldRef field, TypeMirror typeMirror, JFieldRef view, JBlock body) {
