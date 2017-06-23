@@ -82,9 +82,10 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 				if (elem.getModifiers().contains(Modifier.ABSTRACT)) continue;
 				if (elem.getAnnotation(NonExternal.class) != null) continue;
 								
-				if (elem instanceof ExecutableElement) {
+				if (elem.getKind() == ElementKind.METHOD) {
+				
 					if (!elem.getModifiers().contains(Modifier.PUBLIC)) continue;
-
+					
 					if (elem.getAnnotation(AfterInject.class) != null) continue;
 					if (elem.getAnnotation(ExternalPopulate.class) != null) continue;
 					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
@@ -99,22 +100,52 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 						continue;
 					}
 					
-					List<? extends AnnotationMirror> annotations = elem.getAnnotationMirrors();
-					for (AnnotationMirror annotation : annotations) {
-						if (getEnvironment().getSupportedAnnotationTypes()
-								            .contains(annotation.getAnnotationType().toString()))
-						{
-							dependencies.put(elem, External.class);
-							break;
+					boolean externalMethod = adiHelper.hasAnnotation(elem, External.class);
+					if (!externalMethod) {
+						List<? extends AnnotationMirror> annotations = elem.getAnnotationMirrors();
+						for (AnnotationMirror annotation : annotations) {
+							if (getEnvironment().getSupportedAnnotationTypes()
+									            .contains(annotation.getAnnotationType().toString()))
+							{
+								dependencies.put(elem, External.class);
+								externalMethod = true;
+								break;
+							}
 						}
 					}
-				} else {
-					if (elem.getAnnotation(Populate.class) != null) {
-						dependencies.put(elem, ExternalPopulate.class);
-					}				
-					if (elem.getAnnotation(Recollect.class) != null) {
-						dependencies.put(elem, ExternalRecollect.class);
+					
+					if (externalMethod) {
+						List<? extends Element> params = ((ExecutableElement)elem).getParameters();
+						for (Element param : params) {
+							
+							if (param.getKind() == ElementKind.PARAMETER) {
+								
+								List<? extends AnnotationMirror> annotations = param.getAnnotationMirrors();
+								
+								for (AnnotationMirror annotation : annotations) {
+									if (getEnvironment().getSupportedAnnotationTypes()
+											            .contains(annotation.getAnnotationType().toString()))
+									{
+										dependencies.put(param, External.class);
+										break;
+									}
+								}
+								
+							}
+						}
 					}
+					
+				} else {
+					
+					if (elem.getKind().isField()) {
+						if (elem.getAnnotation(Populate.class) != null) {
+							dependencies.put(elem, ExternalPopulate.class);
+						}				
+						if (elem.getAnnotation(Recollect.class) != null) {
+							dependencies.put(elem, ExternalRecollect.class);
+						}
+					} 
+					
 				}
 			}
 		}
@@ -123,47 +154,49 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 	@Override
 	public void validate(final Element element, final ElementValidation valid) {
 		
-		if (element.getAnnotation(AfterInject.class) != null) {
-			valid.addError("You cannot use @External in an @AfterInject method");
-			return;
-		}
-		
-		if (element.getModifiers().contains(Modifier.STATIC)) {
-			valid.addError("You cannot use @External in a static element");
-			return;
-		}
-		
-		if ((element instanceof ExecutableElement) && !element.getModifiers().contains(Modifier.PUBLIC)) {
-			valid.addError("You can use @External only on public methods");
-			return;
-		}
+		if (element.getKind() == ElementKind.METHOD) {
+			if (element.getAnnotation(AfterInject.class) != null) {
+				valid.addError("You cannot use @External in an @AfterInject method");
+				return;
+			}
+			
+			if (element.getModifiers().contains(Modifier.STATIC)) {
+				valid.addError("You cannot use @External in a static element");
+				return;
+			}
+			
+			if ((element instanceof ExecutableElement) && !element.getModifiers().contains(Modifier.PUBLIC)) {
+				valid.addError("You can use @External only on public methods");
+				return;
+			}
 
-		//TODO
-		//Now the rootElement generated class depends on this element
-		final Element rootElement = TypeUtils.getRootElement(element);
-		final String generatedRootElementClass = TypeUtils.getGeneratedClassName(rootElement, getEnvironment());
-		
-		System.out.println("XX: " + generatedRootElementClass);
-		if (filesCacheHelper.hasCachedFile(generatedRootElementClass)) {
+			//TODO
+			//Now the rootElement generated class depends on this element
+			final Element rootElement = TypeUtils.getRootElement(element);
+			final String generatedRootElementClass = TypeUtils.getGeneratedClassName(rootElement, getEnvironment());
 			
-			FileDetails details = filesCacheHelper.getFileDetails(generatedRootElementClass);
-			System.out.println("XY: " + details);
-			
-			FileDependency dependency = filesCacheHelper.getFileDependency(((VirtualElement)element).getElement().getEnclosingElement().asType().toString());
-			
-			if (!details.dependencies.contains(dependency)) {		
-				System.out.println("XZ: " + dependency);
+			System.out.println("XX: " + generatedRootElementClass);
+			if (filesCacheHelper.hasCachedFile(generatedRootElementClass)) {
 				
-				details.invalidate();
-				valid.addError("Please rebuild the project to update the cache");
-			}			
+				FileDetails details = filesCacheHelper.getFileDetails(generatedRootElementClass);
+				System.out.println("XY: " + details);
+				
+				FileDependency dependency = filesCacheHelper.getFileDependency(((VirtualElement)element).getElement().getEnclosingElement().asType().toString());
+				
+				if (!details.dependencies.contains(dependency)) {		
+					System.out.println("XZ: " + dependency);
+					
+					details.invalidate();
+					valid.addError("Please rebuild the project to update the cache");
+				}			
+			}
+			
+			filesCacheHelper.addGeneratedClass(
+					generatedRootElementClass, 
+					((VirtualElement)element).getElement().getEnclosingElement()
+				);
+	
 		}
-		
-		filesCacheHelper.addGeneratedClass(
-				generatedRootElementClass, 
-				((VirtualElement)element).getElement().getEnclosingElement()
-			);
-
 	}
 	
 	@Override
@@ -171,11 +204,10 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		if (element instanceof VirtualElement) {
 			
-			String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
-			
 			if (element instanceof ExecutableElement) {
-				
-				ExecutableElement executableElement = (ExecutableElement) element;
+			
+				final String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
+				final ExecutableElement executableElement = (ExecutableElement) element;
 				
 				//Check if the method exists in the super class, in this case super should be called
 				boolean placeOverrideAndCallSuper = false;

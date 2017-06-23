@@ -56,6 +56,7 @@ import com.dspot.declex.annotation.Model;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.dspot.declex.wrapper.element.VirtualElement;
@@ -114,7 +115,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		THREAD = environment().getClasses().THREAD;
 		VOID = getCodeModel().VOID;
 		
-		codeModelHelper = new APTCodeModelHelper(environment());
+		codeModelHelper = new DeclexAPTCodeModelHelper(environment());
 		adiHelper = new ADIHelper(environment());
 	}
 	
@@ -173,7 +174,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 					getCodeModel().VOID,
 					FormatsUtils.fieldToSetter(elementName)
 				);
-			JVar param = setter.param(elementModelClass(element), elementName);
+			JVar param = setter.param(codeModelHelper.typeMirrorToJClass(element.asType()), elementName);
 					
 			final Element referenceElement = ((VirtualElement) element).getReference();
 			final String referenceElementName = referenceElement.getSimpleName().toString();
@@ -211,7 +212,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				
 		JMethod setter = holder.getGeneratedClass().getMethod(
 				FormatsUtils.fieldToSetter(elementName),
-				new AbstractJType[]{elementModelClass(element)}
+				new AbstractJType[]{codeModelHelper.typeMirrorToJClass(element.asType())}
 			);
 		if (setter == null) {		
 			
@@ -225,7 +226,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 					getCodeModel().VOID,
 					FormatsUtils.fieldToSetter(elementName)
 				);
-			setter.param(elementModelClass(element), elementName);
+			setter.param(codeModelHelper.typeMirrorToJClass(element.asType()), elementName);
 		}
 		
 		//Remove previous method body
@@ -266,7 +267,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			JMethod getter = holder.getGeneratedClass().method(
 					JMod.PUBLIC,
-					elementModelClass(element),
+					codeModelHelper.typeMirrorToJClass(element.asType()),
 					FormatsUtils.fieldToGetter(elementName)
 				);
 					
@@ -318,7 +319,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			getter = holder.getGeneratedClass().method(
 					mods,
-					elementModelClass(element),
+					codeModelHelper.typeMirrorToJClass(element.asType()),
 					FormatsUtils.fieldToGetter(elementName)
 				);
 			
@@ -344,21 +345,6 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		getterModelMethods.put(element, modelMethod);
 		
 		return modelMethod;
-	}
-	
-	private AbstractJClass elementModelClass(Element element) {
-		String elemType = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
-		AbstractJClass elemClass = getJClass(elemType);
-		
-		Matcher matcher = Pattern.compile("<([A-Za-z_][A-Za-z0-9_.]+)>$").matcher(elemType);
-		if (matcher.find()) {
-			String innerElem = matcher.group(1);
-			
-			elemClass = getJClass(elemType.substring(0, elemType.length() - matcher.group(0).length()));
-			elemClass = elemClass.narrow(getJClass(innerElem));
-		}
-		
-		return elemClass;
 	}
 	
 	private UseModelHolder useModelHolderForElement(Element element) {
@@ -461,11 +447,16 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		} 
 				
 		//Check if this is a list @Model
-		boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment().getProcessingEnvironment());		
+		final boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment().getProcessingEnvironment());
+		String listClassName = null;
 		if (isList) {
-			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
+			Matcher matcher = Pattern.compile("([a-zA-Z_][a-zA-Z_0-9.]+)<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 			if (matcher.find()) {
-				className = matcher.group(1);
+				listClassName = matcher.group(1);
+				if (listClassName.equals(List.class.getCanonicalName())) {
+					listClassName = null;
+				}
+				className = matcher.group(2);
 			}
 			
 			beanField = ref(fieldName + "Local");
@@ -585,8 +576,10 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, assignField));
 			}
 			
+			AbstractJClass listClass = getJClass(listClassName==null? LinkedList.class.getCanonicalName() : listClassName); 
+			
 			JConditional ifCond = assign._if(modelAnnotation.lazy()? ref(fieldName).eq(_null()) : getter.eq(_null()));
-			ifCond._then().add(setter.arg(_new(getJClass(LinkedList.class))));
+			ifCond._then().add(setter.arg(_new(listClass)));
 			
 			JSynchronizedBlock syncBlock = tryBlock.body().synchronizedBlock(getter);
 			syncBlock.body().add(getter.invoke("clear"));

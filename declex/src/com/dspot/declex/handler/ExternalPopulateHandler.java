@@ -82,7 +82,7 @@ public class ExternalPopulateHandler extends ExternalHandler {
 			if (element instanceof ExecutableElement) {
 				super.process(element, holder);
 			} else {
-				
+
 				if (!adiHelper.hasAnnotation(element, Model.class)) {
 					final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
 						

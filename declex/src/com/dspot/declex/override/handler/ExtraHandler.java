@@ -23,7 +23,6 @@ import java.lang.reflect.Field;
 import javax.lang.model.element.Element;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
@@ -43,13 +42,6 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		super(environment);
 		
 		codeModelHelper = new DeclexAPTCodeModelHelper(getEnvironment());
-	}
-
-	@Override
-	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasEActivity(element, valid);
-
-		validatorHelper.isNotPrivate(element, valid);
 	}
 	
 	@Override

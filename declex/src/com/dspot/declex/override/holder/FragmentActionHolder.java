@@ -22,20 +22,19 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static org.androidannotations.helper.ModelConstants.generationSuffix;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.RootContext;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EFragmentHolder;
 import org.androidannotations.plugin.PluginClassHolder;
@@ -46,10 +45,10 @@ import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JConditional;
@@ -84,11 +83,10 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private JFieldVar transactionMethodField;
 	
 	public FragmentActionHolder(EFragmentHolder holder) {
-		super(holder);
+		super(holder);		
 	}
 	
-	public static void createInformationForActionHolder(Element element,
-			AndroidAnnotationsEnvironment env) {
+	public static void createInformationForActionHolder(Element element, AndroidAnnotationsEnvironment env) {
 		
 		final String clsName = element.asType().toString();
 		final int index = clsName.lastIndexOf('.');
@@ -140,21 +138,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		actionInfo.addMethod(BUILDER_NAME, actionName + ".FragmentBuilder" + generationSuffix());
 		
-		addFragmentArgFieldsInformation(actionInfo, element, env);
-	}
-
-	private static void addFragmentArgFieldsInformation(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
-		List<Element> fragmentArgFields = new LinkedList<>();
-		findFragmentArgFields(element, fragmentArgFields, env.getProcessingEnvironment());
-		
-		for (Element fragmentArgField : fragmentArgFields) {
-			addFieldInformationToActionHolder(actionInfo, fragmentArgField, env);
-		}
 	}
 	
-	private static void addFieldInformationToActionHolder(
-			ActionInfo actionInfo, Element element,
-			AndroidAnnotationsEnvironment env) {
+	public static void addFragmentArg(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
+		
+		APTCodeModelHelper codeModelHelper = new DeclexAPTCodeModelHelper(env);
 		
 		final String clsName = element.getEnclosingElement().asType().toString();
 		final int index = clsName.lastIndexOf('.');
@@ -162,41 +150,27 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, env);
-		final String className = classInformation.originalClassName;
 		final String fieldName = element.getSimpleName().toString();
-		
-		AbstractJClass clazz = env.getJClass(className);
-		if (classInformation.isList) {
-			clazz = env.getClasses().LIST.narrow(clazz);
-		}
-		
-		actionInfo.addMethod(
-				fieldName, 
-				actionName, 
-				Arrays.asList(new ActionMethodParam(fieldName, clazz))
-			);
-	}
-	
-	private static void findFragmentArgFields(Element element, List<Element> fragmentArgFields, ProcessingEnvironment env) {
-		
-		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.FIELD) {
-				if (elem.getAnnotation(FragmentArg.class) != null) {
-					fragmentArgFields.add(elem);
-				}
-			}
-		}
-		
-		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
-		for (TypeMirror type : superTypes) {
-			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
-			if (superElement == null) continue;
-			
-			findFragmentArgFields(superElement, fragmentArgFields, env);
-		}
+		if (element.getKind().isField()) {
+			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
+			actionInfo.addMethod(
+					fieldName, 
+					actionName, 
+					Arrays.asList(new ActionMethodParam(fieldName, clazz))
+				);
 
+		} else if (element.getKind() == ElementKind.METHOD) {
+			List<? extends VariableElement> elementParams = ((ExecutableElement)element).getParameters();
+			List<ActionMethodParam> params = new ArrayList<>(elementParams.size());
+			
+			for (VariableElement param : elementParams) {
+				final String paramName = param.getSimpleName().toString();
+				final AbstractJClass paramClass = codeModelHelper.typeMirrorToJClass(param.asType());
+				params.add(new ActionMethodParam(paramName, paramClass));
+			}
+			
+			actionInfo.addMethod(fieldName, actionName, params);
+		}
 	}
 	
 	public JDefinedClass getFragmentAction() {

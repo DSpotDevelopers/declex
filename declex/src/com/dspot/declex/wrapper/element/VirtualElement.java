@@ -25,6 +25,12 @@ public class VirtualElement implements Element {
 	protected Element element;
 	private Element enclosingElement;
 	
+	/**
+	 * Used in the process of linking Virtual Elements
+	 */
+	private boolean temporal;
+	
+	//<Enclosing Element, List<Virtual Enclosed Elements>>
 	private static Map<Element, List<Element>> mapVirtualEnclosedElements = new HashMap<>();
 	
 	public static List<Element> getVirtualEnclosedElements(Element enclosingElement) {
@@ -36,6 +42,7 @@ public class VirtualElement implements Element {
 	}
 	
 	public static VirtualElement from(Element element) {
+		
 		if (element instanceof ExecutableElement) {
 			return new VirtualExecutableElement((ExecutableElement) element);
 		}
@@ -49,6 +56,14 @@ public class VirtualElement implements Element {
 	
 	VirtualElement(Element element) {
 		this.element = element;
+	}
+	
+	public void setTemporal() {
+		this.temporal = true;
+	}
+	
+	public boolean isTemporal() {
+		return this.temporal;
 	}
 	
 	public Element getReference() {
@@ -96,13 +111,15 @@ public class VirtualElement implements Element {
 	
 	public void setEnclosingElement(Element enclosingElement) {
 		
-		List<Element> enclosedElements = mapVirtualEnclosedElements.get(enclosingElement);
-		if (enclosedElements == null) {
-			enclosedElements = new LinkedList<>();
-			mapVirtualEnclosedElements.put(enclosingElement, enclosedElements);
+		if (!isTemporal()) {
+			List<Element> enclosedElements = mapVirtualEnclosedElements.get(enclosingElement);
+			if (enclosedElements == null) {
+				enclosedElements = new LinkedList<>();
+				mapVirtualEnclosedElements.put(enclosingElement, enclosedElements);
+			}
+			
+			enclosedElements.add(this);
 		}
-		
-		enclosedElements.add(this);
 		
 		this.enclosingElement = enclosingElement;
 	}
