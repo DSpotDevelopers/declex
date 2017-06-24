@@ -15,10 +15,7 @@
  */
 package com.dspot.declex.handler;
 
-import static com.helger.jcodemodel.JExpr.FALSE;
-import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.annotation.Annotation;
@@ -37,7 +34,6 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.annotation.External;
@@ -51,6 +47,8 @@ import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
+import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
@@ -91,8 +89,10 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
 					
 					if (elem.getAnnotation(Populate.class) != null) {
-						dependencies.put(elem, ExternalPopulate.class);
-						continue;
+						if (!existsPopulateFieldWithElementName(elem)) {
+							dependencies.put(elem, ExternalPopulate.class);
+							continue;
+						}						
 					}
 					
 					if (elem.getAnnotation(Recollect.class) != null) {
@@ -149,6 +149,31 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 				}
 			}
 		}
+	}
+	
+	private boolean existsPopulateFieldWithElementName(Element element) {
+		
+		final String elementName = element.getSimpleName().toString();
+		String elementNameAsMethod = elementName;
+		if (element.getSimpleName().toString().substring(0, 4).matches("get[A-Z]")) {
+			elementNameAsMethod = elementName.substring(3, 4).toLowerCase() + elementName.substring(4);
+		}
+		
+		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
+		for (Element elem : elems) {
+			if (elem.getKind() == ElementKind.FIELD
+				&& adiHelper.getAnnotation(elem, Populate.class) != null)
+			{
+				if (elem.getSimpleName().toString().equals(elementName)) {
+					return true;
+				}
+				if (elem.getSimpleName().toString().equals(elementNameAsMethod)) {
+					return true;
+				}
+			}
+		}
+	
+		return false;
 	}
 	
 	@Override
@@ -238,16 +263,11 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 				final JMethod method = codeModelHelper.overrideAnnotatedMethod(executableElement, holder, false, placeOverrideAndCallSuper);								
 				final JInvocation invocation = invoke(ref(referenceName), method);
 						
-				if (method.type().fullName().toString().equals("void")) {
+				if (method.type().fullName().equals("void")) {
 					method.body()._if(ref(referenceName).neNull())._then().add(invocation);
 				} else {
-					method.body()._if(ref(referenceName).neNull())._then()._return(invocation);
-					
-					if (method.type().fullName().equals("boolean")) method.body()._return(FALSE);
-					else if (method.type().fullName().contains(".") 
-							|| method.type().fullName().endsWith(ModelConstants.generationSuffix())) 
-					        {method.body()._return(_null());} 
-					else method.body()._return(lit(0));
+					method.body()._if(ref(referenceName).neNull())._then()._return(invocation);					
+					method.body()._return(getDefault(method.type().fullName()));
 				}
 						
 						                              ;
@@ -259,6 +279,30 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 		}
 		
 		
+	}
+	
+	private IJExpression getDefault(String type) {
+		switch (type) {
+		case "int":
+			return JExpr.lit(0);
+		case "float":
+			return JExpr.lit(0f);
+		case "double":
+			return JExpr.lit(0d);
+		case "long":
+			return JExpr.lit(0L);
+		case "short":
+			return JExpr.lit((short) 0);
+		case "char":
+			return JExpr.lit((char) 0);
+		case "byte":
+			return JExpr.lit((byte) 0);
+		case "boolean":
+			return JExpr.lit(false);
+
+		default:
+			return JExpr._null();
+		}
 	}
 
 }

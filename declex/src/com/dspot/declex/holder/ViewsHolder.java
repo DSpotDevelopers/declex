@@ -15,8 +15,10 @@
  */
 package com.dspot.declex.holder;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.cond;
 import static com.helger.jcodemodel.JExpr.direct;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -49,6 +51,8 @@ import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.api.injection.NotFoundProperty;
+import com.dspot.declex.api.injection.Property;
 import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.helper.ViewsPropertiesReaderHelper;
 import com.dspot.declex.parser.LayoutsParser.LayoutObject;
@@ -59,9 +63,12 @@ import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
+import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
@@ -195,6 +202,7 @@ public class ViewsHolder extends
 	}
 
 	public JInvocation checkFieldNameInInvocation(String fieldName, String fieldType, JInvocation invocation) {
+		
 		for (String layoutId : layoutObjects.keySet()) {
 			
 			if (this.layoutContainsId(fieldName, layoutId)) {
@@ -222,8 +230,35 @@ public class ViewsHolder extends
 					
 					final String property = fieldName.substring(viewId.length());
 					
-					if (getters.containsKey(property)) {
-						if (TypeUtils.isSubtype(fieldType, getters.get(property).toString(), processingEnv())) {
+					boolean isProperty = false;
+					String fieldTypeToMatch = fieldType;
+					if (TypeUtils.isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
+						
+						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(fieldTypeToMatch);
+						if (matcher.find()) {
+							fieldTypeToMatch = matcher.group(1);
+							isProperty = true;
+						}
+					}
+
+					if (getters.containsKey(property) || (isProperty && setters.containsKey(property))) {
+												
+						boolean hasGetter = getters.containsKey(property) && 
+											(TypeUtils.isSubtype(getters.get(property).toString(), fieldTypeToMatch, processingEnv())
+											|| TypeUtils.isSubtype(getters.get(property).toString(), wrapperToPrimitive(fieldTypeToMatch), processingEnv()));
+											
+						boolean hasGetterAsString = getters.containsKey(property) && fieldTypeToMatch.equals(String.class.getCanonicalName());
+						
+						boolean hasSetter = false;
+						if (isProperty) {
+							for (TypeMirror setter : setters.get(property)) {
+								hasSetter = TypeUtils.isSubtype(fieldTypeToMatch, setter.toString(), processingEnv())
+										|| TypeUtils.isSubtype(wrapperToPrimitive(fieldTypeToMatch), setter.toString(), processingEnv());
+								if (hasSetter) break;
+							}
+						}
+						
+						if (hasGetter || hasGetterAsString || (hasSetter && isProperty)) {
 							
 							final String savedDefLayoutId = defLayoutId;
 							defLayoutId = layoutId;
@@ -232,6 +267,41 @@ public class ViewsHolder extends
 						
 							defLayoutId = savedDefLayoutId;
 							
+							if (isProperty) {
+								AbstractJClass fieldClass = getJClass(fieldTypeToMatch);
+								
+								JAnonymousClass anonymousProperty = getCodeModel().anonymousClass(
+										getJClass(Property.class).narrow(fieldClass));
+								
+								JMethod getMethod = anonymousProperty.method(JMod.PUBLIC, fieldClass, "get");
+								getMethod.annotate(Override.class);								
+								if (hasGetter) {
+									getMethod.body()._return(view.invoke("get" + property));
+								} else if (hasGetterAsString) {
+									if (getters.get(property).getKind().isPrimitive()) {
+										getMethod.body()._return(
+												getJClass(String.class).staticInvoke("valueOf").arg(view.invoke("get" + property)));
+									} else {
+										getMethod.body()._return(cond(
+												view.invoke("get" + property).eq(_null()),
+												_null(),
+												view.invoke("get" + property).invoke("toString")));
+									}
+								} else {
+									getMethod.body()._return(getDefault(fieldTypeToMatch));
+								}
+								
+								JMethod setMethod = anonymousProperty.method(JMod.PUBLIC, getCodeModel().VOID, "set");								
+								setMethod.annotate(Override.class);								
+								JVar value = setMethod.param(fieldClass, "value");
+								if (hasSetter) {
+									setMethod.body().invoke(view, "set" + property).arg(value);
+								}
+								
+								return invocation.arg(_new(anonymousProperty));
+								
+							}
+							
 							return invocation.arg(view.invoke("get" + property));
 							
 						}
@@ -239,8 +309,19 @@ public class ViewsHolder extends
 				}
 				
 			}
-			
+						
 		}
+		
+		//Not found properties
+		if (TypeUtils.isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
+			
+			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(fieldType);
+			if (matcher.find()) {
+				AbstractJClass fieldClass = getJClass(matcher.group(1));
+				return invocation.arg(_new(getJClass(NotFoundProperty.class).narrow(fieldClass)));
+			}
+		}
+
 		
 		return ParamUtils.injectParam(fieldName, fieldType, invocation);	
 	}
@@ -512,7 +593,7 @@ public class ViewsHolder extends
 			final String layoutElementId, final String layoutElementIdClass, final boolean getter) {
 		
 		if (id == null || id.isEmpty()) return;
-
+		
 		final String normalizedId = id.substring(0, 1).toLowerCase() + id.substring(1);
 
 		List<? extends Element> elems = testElement.getEnclosedElements();
@@ -567,7 +648,8 @@ public class ViewsHolder extends
 					
 					if (getter && setters.containsKey(property)) {
 						for (TypeMirror propertyType : setters.get(property)) {
-							if (TypeUtils.isSubtype(elem.asType(), propertyType, processingEnv())) {
+							if (TypeUtils.isSubtype(elem.asType(), propertyType, processingEnv())
+								|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 								fields.put(
 									completeElemName, 
 									new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
@@ -575,7 +657,8 @@ public class ViewsHolder extends
 							}							
 						}
 					} else if (!getter && getters.containsKey(property)) {
-						if (TypeUtils.isSubtype(elem.asType(), getters.get(property), processingEnv())) {
+						if (TypeUtils.isSubtype(elem.asType(), getters.get(property), processingEnv())
+							|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 							fields.put(
 								completeElemName, 
 								new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
@@ -591,15 +674,14 @@ public class ViewsHolder extends
 				
 				if (id.equals(elemName) || normalizedId.equals(elemName) || elemName.startsWith(id)
 					|| idForMethod.equals(elemName) || elemName.startsWith(idForMethod)) {
+					
 					// Only setter methods
 					if (exeElem.getParameters().size() < (getter ? 0 : 1))
 						continue;
-
+					
 					List<String> extraParams = new LinkedList<String>();
-					for (int i = (getter ? 0 : 1); i < exeElem.getParameters()
-							.size(); i++) {
-						extraParams.add(exeElem.getParameters().get(i)
-								.getSimpleName().toString());
+					for (int i = (getter ? 0 : 1); i < exeElem.getParameters().size(); i++) {
+						extraParams.add(exeElem.getParameters().get(i).getSimpleName().toString());
 					}
 
 					TypeMirror paramType = null;
@@ -624,7 +706,8 @@ public class ViewsHolder extends
 														: elemName.substring(id.length());
 						if (getter && setters.containsKey(property)) {
 							for (TypeMirror propertyType : setters.get(property)) {
-								if (TypeUtils.isSubtype(paramType, propertyType, processingEnv())) {
+								if (TypeUtils.isSubtype(paramType, propertyType, processingEnv())
+									|| TypeUtils.isSubtype(wrapperToPrimitive(paramType.toString()), getters.get(property).toString(), processingEnv())) {
 									methods.put(
 										completeElemName, 
 										new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
@@ -632,7 +715,8 @@ public class ViewsHolder extends
 								}
 							}
 						} else if (!getter && getters.containsKey(property)) {
-							if (TypeUtils.isSubtype(paramType, getters.get(property), processingEnv())) {
+							if (TypeUtils.isSubtype(paramType, getters.get(property), processingEnv())
+								|| TypeUtils.isSubtype(wrapperToPrimitive(paramType.toString()), getters.get(property).toString(), processingEnv())) {
 								methods.put(
 									completeElemName, 
 									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
@@ -663,6 +747,42 @@ public class ViewsHolder extends
 					}
 				}
 			}
+		}
+	}
+	
+	private String wrapperToPrimitive(String wrapper) {
+		if (wrapper.equals(Boolean.class.getCanonicalName())) return "boolean";
+		if (wrapper.equals(Integer.class.getCanonicalName())) return "int";
+		if (wrapper.equals(Short.class.getCanonicalName())) return "short";
+		if (wrapper.equals(Long.class.getCanonicalName())) return "long";
+		if (wrapper.equals(Character.class.getCanonicalName())) return "char";
+		if (wrapper.equals(Byte.class.getCanonicalName())) return "byte";
+		if (wrapper.equals(Float.class.getCanonicalName())) return "float";
+		if (wrapper.equals(Double.class.getCanonicalName())) return "double";
+		return wrapper;
+	}
+	
+	private IJExpression getDefault(String type) {
+		switch (type) {
+		case "int":
+			return JExpr.lit(0);
+		case "float":
+			return JExpr.lit(0f);
+		case "double":
+			return JExpr.lit(0d);
+		case "long":
+			return JExpr.lit(0L);
+		case "short":
+			return JExpr.lit((short) 0);
+		case "char":
+			return JExpr.lit((char) 0);
+		case "byte":
+			return JExpr.lit((byte) 0);
+		case "boolean":
+			return JExpr.lit(false);
+
+		default:
+			return JExpr._null();
 		}
 	}
 

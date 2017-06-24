@@ -319,7 +319,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems) {
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
+		
+		for (Element elem : allElems) {
 			if (elem.getKind() == ElementKind.FIELD
 				&& adiHelper.getAnnotation(elem, Populate.class) != null)
 			{
@@ -457,8 +460,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			final String infoNameForMethod = "get" + fieldInfo.idName.substring(0, 1).toUpperCase()
 					                               + fieldInfo.idName.substring(1);
 			
-			if ((methodName.startsWith(fieldInfo.idName) || methodName.startsWith(infoNameForMethod)) 
-				&& fieldInfo.getterOrSetter != null && methodName.endsWith(fieldInfo.getterOrSetter)) {
+			final boolean startsWithInfo = methodName.startsWith(fieldInfo.idName) || methodName.startsWith(infoNameForMethod);
+			final boolean endsWithGetterOrSetter = fieldInfo.getterOrSetter != null && methodName.endsWith(fieldInfo.getterOrSetter);
+
+			if (startsWithInfo && endsWithGetterOrSetter) {
 				
 				JFieldRef view = viewsHolder.createAndAssignView(fieldInfo.idName);
 				
@@ -468,14 +473,17 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				return;
 			}
 		}
+		
 		for (Entry<String, IdInfoHolder> entry : allMethods.entrySet()) {
 			final IdInfoHolder methodInfo = entry.getValue();
 			final String infoNameForMethod = "get" + methodInfo.idName.substring(0, 1).toUpperCase()
                                                    + methodInfo.idName.substring(1);
+
+			final boolean startsWithInfo = methodName.startsWith(methodInfo.idName) || methodName.startsWith(infoNameForMethod);
+			final boolean endsWithGetterOrSetter = methodInfo.getterOrSetter != null && methodName.endsWith(methodInfo.getterOrSetter);
 			
-			if ((methodName.startsWith(methodInfo.idName) || methodName.startsWith(infoNameForMethod)) 
-				&& methodInfo.getterOrSetter != null && methodName.endsWith(methodInfo.getterOrSetter)) {
-				
+			if ((startsWithInfo && endsWithGetterOrSetter) 
+				|| (methodName.equals(infoNameForMethod) || methodName.equals(methodInfo.idName))) {
 				
 				JFieldRef view = viewsHolder.createAndAssignView(methodInfo.idName);
 				
@@ -712,7 +720,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		if (adiHelper.getAnnotation(element, Populate.class).debug())
 			LOGGER.warn("\nClass: " + className + "\nFields: " + fields + "\nMethods: " + methods, element, adiHelper.getAnnotation(element, Populate.class));
 		
-		/*See how to integrate Plugins to the @Populates and @Recollects
+		/*TODO See how to integrate Plugins to the @Populates and @Recollects
 		String mapField = null;
 		UseMap useMap = element.getEnclosingElement().getAnnotation(UseMap.class);
 		if (useMap != null) {

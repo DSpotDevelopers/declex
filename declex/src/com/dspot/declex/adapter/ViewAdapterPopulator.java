@@ -245,8 +245,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 		
 		//Get the model
 		JVar model = methodBody.decl(JMod.FINAL, Model, "model");
-		
-		//Synchronize reading the models 
+				
 		IJExpression modelAssigner = models.invoke("get").arg(position);
 		if (castNeeded) modelAssigner = cast(Model, models.invoke("get").arg(position));
 		methodBody.assign(model, modelAssigner);

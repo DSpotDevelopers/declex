@@ -35,6 +35,7 @@ import com.dspot.declex.annotation.ExternalRecollect;
 import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.RecollectModelListener;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.JAnonymousClass;
