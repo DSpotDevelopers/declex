@@ -39,6 +39,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
@@ -58,6 +59,7 @@ import com.dspot.declex.api.util.CastUtility;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.handler.base.BaseModelAndModelClassHandler;
 import com.dspot.declex.holder.UseModelHolder;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
@@ -80,8 +82,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	private String client;
 	
 	public ServerModelHandler(AndroidAnnotationsEnvironment environment) {
-		super(ServerModel.class, environment, 
-				"com/dspot/declex/template/", "ServerModel.ftl.java");
+		super(ServerModel.class, environment, "com/dspot/declex/template/", "ServerModel.ftl.java");
+		codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 	
 	@Override
@@ -557,15 +559,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			);
 		}
 				
-		JFieldRef json = ref("json");
-		JFieldRef query = ref("query");
-		JFieldRef orderBy = ref("orderBy");
-		JFieldRef fields = ref("fields");
-		JFieldRef inst = ref("inst");
+		final JFieldRef json = ref("json");
+		final JFieldRef query = ref("query");
+		final JFieldRef orderBy = ref("orderBy");
+		final JFieldRef fields = ref("fields");
+		final JFieldRef inst = ref("inst");
 		
-		Map<String, String> clsMethods = new HashMap<>();
-		Map<String, String> clsFields = new HashMap<>();
-		getFieldsAndMethods((TypeElement) element, clsFields, clsMethods);
+		final Map<String, TypeMirror> methodsType = new HashMap<>();
+		final Map<String, TypeMirror> fieldsType = new HashMap<>();
+		getFieldsAndMethods((TypeElement) element, fieldsType, methodsType);
 		
 		JBlock newBlock = getRequestMethod.body().block();		
 		IJExpression check = orderBy.invoke("equals").arg(request.name())
@@ -581,7 +583,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		while (formatSyntaxMatcher.find()) {
 			String match = formatSyntaxMatcher.group(0);
 			
-			for (String clsField : clsFields.keySet()) {
+			for (String clsField : fieldsType.keySet()) {
 				match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 			}
 			
@@ -614,7 +616,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				while (formatSyntaxMatcher.find()) {
 					String match = formatSyntaxMatcher.group(0);
 					
-					for (String clsField : clsFields.keySet()) {
+					for (String clsField : fieldsType.keySet()) {
 						match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 					}
 					
@@ -769,191 +771,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		}
 		
 		newBlock._return(requestBuilder.invoke("build"));
-		
-		
-		JMethod processResponseMethod = holder.getGeneratedClass().getMethod(
-				"processResponse", 
-				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
-			);
-		if (processResponseMethod == null) {
-			processResponseMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getClasses().STRING, "processResponse");
-			processResponseMethod.param(getClasses().STRING, "json");
-			processResponseMethod.param(getClasses().STRING, "query");
-			processResponseMethod.param(getClasses().STRING, "orderBy");
-			processResponseMethod.param(getClasses().STRING, "fields");
-			processResponseMethod.param(holder.getGeneratedClass(), "inst");
-			
-			newBlock = processResponseMethod.body();
-		}
 
-		if (!request.model().equals("") && !(request.model().equals("this") && isLoad)) {
-			newBlock = processResponseMethod.body().block();
-			check = orderBy.invoke("equals").arg(request.name())
-										    .cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
-			newBlock = newBlock._if(check)._then();
-			
-			JVar elem = newBlock.decl(
-					getJClass("com.google.gson.JsonElement"), 
-					"elem",
-					_new(getJClass("com.google.gson.JsonParser")).invoke("parse").arg(json)
-				);
-			JConditional ifConditional = newBlock._if(elem.invoke("isJsonArray"));
-			JBlock thenBlock = ifConditional._then();						
-
-			if (request.model().equals("this")) {
-				thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
-				thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
-				
-				newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
-				        ._then()._return(_null());
-
-				newBlock.staticInvoke(getJClass(CastUtility.class), "copy")
-		        .arg(
-	        		invoke("getGson")
-	        		.invoke("fromJson")
-	        		.arg(ref("elem"))
-	        		.arg(JExpr.dotclass(holder.getGeneratedClass()))
-				).arg(inst);
-				
-			} else {
-				
-				String clsName = clsFields.get(request.model());	
-				boolean isMethod = false;
-				
-				if (clsName == null) {
-					clsName = clsMethods.get(request.model());
-					isMethod = true;
-				}
-				
-				final boolean modelIsList = TypeUtils.isSubtype(clsName, CanonicalNameConstants.LIST, getProcessingEnvironment()); 
-				if (modelIsList) {
-					
-					JVar gson = thenBlock.decl(
-							getJClass("com.google.gson.Gson"), 
-							"gson",
-							_new(getJClass("com.google.gson.GsonBuilder"))
-							       .invoke("excludeFieldsWithModifiers")
-							       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
-							       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
-							       .invoke("create")
-					       );
-					
-					String dclr = "java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<" 
-					               + clsName + ">(){}.getType();";
-					
-					thenBlock.directStatement(dclr);
-					
-					if (isMethod) {
-						thenBlock.invoke(inst, request.model())
-								 .arg(gson.invoke("fromJson")
-								          .arg(ref("elem")).arg(ref("listType"))
-							     );
-					} else {
-						thenBlock.assign(
-								inst.ref(request.model()), 
-								gson.invoke("fromJson")
-								     .arg(ref("elem")).arg(ref("listType"))
-							);						
-					}
-					
-					ifConditional._else()._return(_null());
-					
-					if (isLoad) newBlock._return(_null());
-					
-				} else {
-					
-					newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
-					        ._then()._return(_null());
-					thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
-					thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
-
-					String originalClass = clsName;
-					if (clsName.endsWith(ModelConstants.generationSuffix())) {
-						originalClass = clsName.substring(0, clsName.length()-1);
-					}
-					Element originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);
-					if (originalClassElement != null 
-						&& adiHelper.hasAnnotation(originalClassElement, JsonModel.class)) {
-						
-						if (!clsName.endsWith(ModelConstants.generationSuffix())) {
-							clsName = TypeUtils.getGeneratedClassName(clsName, getEnvironment());
-						}
-						
-						if (isMethod) {
-							if (isLoad) {
-								//Assume static method
-								newBlock.invoke(request.model())
-								 .arg(
-									 getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
-							     );
-							} else {
-								newBlock.invoke(inst, request.model())
-								 .arg(
-									 getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
-							     );
-							}
-						} else {
-							newBlock.assign(
-									inst.ref(request.model()), 
-									getJClass(clsName).staticInvoke("fromJson").arg(ref("elem"))
-								);						
-						}
-						
-					} else {
-						JVar gson = newBlock.decl(
-								getJClass("com.google.gson.Gson"), 
-								"gson",
-								_new(getJClass("com.google.gson.GsonBuilder"))
-								       .invoke("excludeFieldsWithModifiers")
-								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
-								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
-								       .invoke("create")
-						       );
-						
-						if (isMethod) {
-							if (isLoad) {
-								//Assume static method
-								newBlock.invoke(request.model())
-								 .arg(gson.invoke("fromJson")
-									      .arg(ref("elem"))
-									      .arg(getJClass(clsName).dotclass())
-							     );
-							} else {
-								newBlock.invoke(inst, request.model())
-										 .arg(gson.invoke("fromJson")
-											      .arg(ref("elem"))
-											      .arg(getJClass(clsName).dotclass())
-									     );
-							}
-						} else {
-							newBlock.assign(
-									inst.ref(request.model()), 
-									gson.invoke("fromJson")
-	 							        .arg(ref("elem"))
-								        .arg(getJClass(clsName).dotclass())
-								);						
-						}
-					}
-					
-					if (isLoad) newBlock._return(_null());
-				}
-								
-				//TODO support for modelClass field
-//				if (!request.modelClass().equals(Object.class)) {
-//					newBlock.assign(
-//							ref(request.model()), 
-//							_new(getJClass("com.google.gson.Gson")).invoke("fromJson")
-//							     .arg(ref("elem")).arg(JExpr.dotclass(getJClass(request.modelClass())))
-//						);
-//				} else {
-//					newBlock.assign(
-//						ref(request.model()), 
-//						_new(getJClass("com.google.gson.Gson")).invoke("fromJson")
-//						     .arg(ref("elem")).arg(ref(request.model()).invoke("getClass"))
-//					);
-//				}
-			}
-		}
+		newBlock = processModel(newBlock, isLoad, request, fieldsType, methodsType, holder);
 
 		if (hasMock(serverModel)) {
 			JMethod getMockMethod = holder.getGeneratedClass().getMethod(
@@ -981,7 +800,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				while (formatSyntaxMatcher.find()) {
 					String match = formatSyntaxMatcher.group(0);
 					
-					for (String clsField : clsFields.keySet()) {
+					for (String clsField : fieldsType.keySet()) {
 						match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 					}
 					
@@ -995,14 +814,219 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 	}
 	
-	private void getFieldsAndMethods(TypeElement element, Map<String, String> fields, Map<String, String> methods) {
+
+	private JBlock processModel(JBlock newBlock, boolean isLoad, ServerRequest request, 
+			Map<String, TypeMirror> fieldsType, Map<String, TypeMirror> methodsType,
+			UseModelHolder holder) {
+		
+		final JFieldRef json = ref("json");
+		final JFieldRef orderBy = ref("orderBy");
+		final JFieldRef inst = ref("inst");	
+		
+		JMethod processResponseMethod = holder.getGeneratedClass().getMethod(
+				"processResponse", 
+				new AbstractJType[] {getClasses().STRING, getClasses().STRING, getClasses().STRING, getClasses().STRING, holder.getGeneratedClass()}
+			);
+		if (processResponseMethod == null) {
+			processResponseMethod = holder.getGeneratedClass().method(JMod.PRIVATE | JMod.STATIC, getClasses().STRING, "processResponse");
+			processResponseMethod.param(getClasses().STRING, "json");
+			processResponseMethod.param(getClasses().STRING, "query");
+			processResponseMethod.param(getClasses().STRING, "orderBy");
+			processResponseMethod.param(getClasses().STRING, "fields");
+			processResponseMethod.param(holder.getGeneratedClass(), "inst");
+			
+			newBlock = processResponseMethod.body();
+		}
+		
+		if (!request.model().equals("") && !(request.model().equals("this") && isLoad)) {
+			newBlock = processResponseMethod.body().block();
+			IJExpression check = orderBy.invoke("equals").arg(request.name())
+					                         .cand(isLoad ? inst.eq(_null()) : inst.ne(_null()));
+			newBlock = newBlock._if(check)._then();
+			
+			JVar elem = newBlock.decl(
+					getJClass("com.google.gson.JsonElement"), 
+					"elem",
+					_new(getJClass("com.google.gson.JsonParser")).invoke("parse").arg(json)
+				);
+			JConditional ifConditional = newBlock._if(elem.invoke("isJsonArray"));
+			JBlock thenBlock = ifConditional._then();						
+
+			if (request.model().equals("this")) {
+				thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
+				thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
+				
+				newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
+				        ._then()._return(_null());
+
+				newBlock.staticInvoke(getJClass(CastUtility.class), "copy")
+		        	    .arg(invoke("fromJson").arg(ref("elem"))).arg(inst);
+				
+			} else {
+				
+				TypeMirror modelType = fieldsType.get(request.model());	
+				boolean isMethod = false;
+				if (modelType == null) {
+					modelType = methodsType.get(request.model());
+					isMethod = true;
+				}
+				
+				if (modelType == null) return newBlock;
+					
+				final boolean modelIsList = TypeUtils.isSubtype(modelType, CanonicalNameConstants.LIST, getProcessingEnvironment()); 
+				if (modelIsList && modelType instanceof DeclaredType && ((DeclaredType) modelType).getTypeArguments().size() == 1) {
+					
+					modelType = ((DeclaredType) modelType).getTypeArguments().get(0);
+					
+					Element originalClassElement = null;					
+					String originalClass = modelType.toString();
+					if (originalClass.endsWith(ModelConstants.generationSuffix())) {
+						originalClass = TypeUtils.typeFromTypeString(originalClass, getEnvironment());
+						originalClass = originalClass.substring(0, originalClass.length()-1); 							
+					}
+					originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);					
+											
+					if (originalClassElement != null 
+						&& adiHelper.hasAnnotation(originalClassElement, JsonModel.class)) {
+					
+						originalClass = TypeUtils.getGeneratedClassName(originalClass, getEnvironment());
+						
+						if (isMethod) {
+							thenBlock.invoke(inst, request.model())
+									 .arg(getJClass(originalClass).staticInvoke("listFromJson").arg(ref("elem")));
+						} else {
+							thenBlock.assign(
+									inst.ref(request.model()), 
+									getJClass(originalClass).staticInvoke("listFromJson").arg(ref("elem"))
+								);						
+						}
+						
+					} else {
+						JVar gson = thenBlock.decl(
+								getJClass("com.google.gson.Gson"), 
+								"gson",
+								_new(getJClass("com.google.gson.GsonBuilder"))
+								       .invoke("excludeFieldsWithModifiers")
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
+								       .invoke("create")
+						       );
+						
+						String dclr = "java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<" 
+						               + modelType + ">(){}.getType();";
+						
+						thenBlock.directStatement(dclr);
+						
+						if (isMethod) {
+							thenBlock.invoke(inst, request.model())
+									 .arg(gson.invoke("fromJson")
+									          .arg(ref("elem")).arg(ref("listType"))
+								     );
+						} else {
+							thenBlock.assign(
+									inst.ref(request.model()), 
+									gson.invoke("fromJson")
+									     .arg(ref("elem")).arg(ref("listType"))
+								);						
+						}
+							
+					}
+					
+					ifConditional._else()._return(_null());							
+					if (isLoad) newBlock._return(_null());
+					
+				} else {
+					
+					newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
+					        ._then()._return(_null());
+					thenBlock._if(elem.invoke("getAsJsonArray").invoke("size").eq(lit(0)))._then()._return(_null());
+					thenBlock.assign(elem, elem.invoke("getAsJsonArray").invoke("get").arg(lit(0)));
+
+					Element originalClassElement = null;					
+					String originalClass = modelType.toString();
+					if (originalClass.endsWith(ModelConstants.generationSuffix())) {
+						originalClass = TypeUtils.typeFromTypeString(originalClass, getEnvironment());
+						originalClass = originalClass.substring(0, originalClass.length()-1); 							
+					}
+					originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);					
+																
+					if (originalClassElement != null 
+						&& adiHelper.hasAnnotation(originalClassElement, JsonModel.class)) {
+						
+						originalClass = TypeUtils.getGeneratedClassName(originalClass, getEnvironment());
+						
+						if (isMethod) {
+							if (isLoad) {
+								//Assume static method
+								newBlock.invoke(request.model())
+								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem")));
+							} else {
+								newBlock.invoke(inst, request.model())
+								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem")));
+							}
+						} else {
+							newBlock.assign(
+									inst.ref(request.model()), 
+									getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem"))
+								);						
+						}
+						
+					} else {
+						
+						JVar gson = newBlock.decl(
+								getJClass("com.google.gson.Gson"), 
+								"gson",
+								_new(getJClass("com.google.gson.GsonBuilder"))
+								       .invoke("excludeFieldsWithModifiers")
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("FINAL"))
+								       .arg(getJClass(java.lang.reflect.Modifier.class).staticRef("STATIC"))
+								       .invoke("create")
+						       );
+						
+						if (isMethod) {
+							if (isLoad) {
+								//Assume static method
+								newBlock.invoke(request.model())
+								 .arg(gson.invoke("fromJson")
+									      .arg(ref("elem"))
+									      .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+							     );
+							} else {
+								newBlock.invoke(inst, request.model())
+										 .arg(gson.invoke("fromJson")
+											      .arg(ref("elem"))
+											      .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+									     );
+							}
+						} else {
+							newBlock.assign(
+									inst.ref(request.model()), 
+									gson.invoke("fromJson")
+	 							        .arg(ref("elem"))
+								        .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+								);						
+						}
+					}
+					
+					if (isLoad) newBlock._return(_null());
+				}					
+			}
+							
+			//TODO support for modelClass field
+		}
+
+		return newBlock;
+		
+	}
+	
+	private void getFieldsAndMethods(TypeElement element, Map<String, TypeMirror> fieldsType, Map<String, TypeMirror> methodsType) {
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
+			
 			final String elemName = elem.getSimpleName().toString();
-			final String elemType = elem.asType().toString();
 			
 			//Static methods are included
-			if (methods != null) {
+			if (methodsType != null) {
 				if (elem.getKind() == ElementKind.METHOD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
@@ -1011,18 +1035,18 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					//One parameter means that the method can be used to update the model
 					if (executableElement.getParameters().size() == 1) {
 						VariableElement param = executableElement.getParameters().get(0);
-						methods.put(elemName, TypeUtils.typeFromTypeString(param.asType().toString(), getEnvironment()));	
+						methodsType.put(elemName, param.asType());	
 					}
 				}	
 			}
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			
-			if (fields != null) {
+			if (fieldsType != null) {
 				if (elem.getKind() == ElementKind.FIELD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
-					fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
+					fieldsType.put(elemName, elem.asType());
 				}					
 			}
 		}
@@ -1034,7 +1058,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			if (superElement == null) continue;
 			
 			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
-				getFieldsAndMethods(superElement, fields, methods);
+				getFieldsAndMethods(superElement, fieldsType, methodsType);
 			}
 			
 			break;

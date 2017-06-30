@@ -24,6 +24,7 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EBeanHolder;
 
 import com.dspot.declex.annotation.LocalDBTransaction;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JMethod;
@@ -33,6 +34,7 @@ public class LocalDBTransactionHandler extends BaseAnnotationHandler<EBeanHolder
 
 	public LocalDBTransactionHandler(AndroidAnnotationsEnvironment environment) {
 		super(LocalDBTransaction.class, environment);
+		codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 
 	@Override

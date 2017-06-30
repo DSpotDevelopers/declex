@@ -25,6 +25,8 @@ import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -55,7 +57,9 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 	
 	@Override
 	public void validate(Element element, ElementValidation validation) {
+		
 		super.validate(element, validation);
+		if (!validation.isValid()) return;
 		
 		final Element rootElement = TypeUtils.getRootElement(element);
 		final String rootElementClass = rootElement.asType().toString();
@@ -109,11 +113,23 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 			FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
 			JDefinedClass FragmentAction = actionHolder.getFragmentAction();	
 			
-			final String fieldName = element.getSimpleName().toString();	
-			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
+			final String fieldName = element.getSimpleName().toString();
+			
+			final String paramName;
+			final TypeMirror paramType;
+			if (element.getKind() == ElementKind.METHOD) {
+				VariableElement param = ((ExecutableElement)element).getParameters().get(0); 
+				paramType = param.asType();
+				paramName = param.getSimpleName().toString();
+			} else {
+				paramType = element.asType();
+				paramName = fieldName;
+			}
+			
+			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(paramType);
 			
 			JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, fieldName);
-			JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
+			JVar fieldMethodParam = fieldMethod.param(clazz, paramName);
 			fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
 			fieldMethod.body()._return(_this());			
 		}

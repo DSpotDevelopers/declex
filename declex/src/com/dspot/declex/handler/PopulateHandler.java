@@ -66,6 +66,7 @@ import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.AfterPopulateHelper;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.helper.ViewsPropertiesReaderHelper;
@@ -110,6 +111,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	
 	private EventsHelper eventsHelper;
 	private ViewsPropertiesReaderHelper propertiesHelper;
+	private AfterPopulateHelper afterPopulateHelper;
 	
 	public PopulateHandler(AndroidAnnotationsEnvironment environment, List<JClassPlugin> adapterPlugins) {
 		super(Populate.class, environment);
@@ -118,6 +120,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		eventsHelper = EventsHelper.getInstance(environment);
 		propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment);
+		afterPopulateHelper = new AfterPopulateHelper(getEnvironment());
 	}
 	
 	@Override
@@ -128,7 +131,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			
-			if (existsPopulateFieldWithElementName(element)) {
+			if (afterPopulateHelper.existsPopulateFieldWithElementName(element)) {
 				Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 				if (methods == null) {
 					methods = new HashMap<>();
@@ -143,9 +146,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 				
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
-		validatorHelper.isNotPrivate(element, valid);
-		
-		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
+		validatorHelper.isNotPrivate(element, valid);		
 		
 		//Validate special methods
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
@@ -179,6 +180,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			}
 		}
 		
+		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
 		if (!(element instanceof ExecutableElement)) {
 			
 			boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		
@@ -222,11 +224,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	public void process(Element element, EComponentWithViewSupportHolder holder) {		
 		uniquePriorityCounter++;
 		
+		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
+		
 		final boolean isMethod;
 		if (element instanceof ExecutableElement) {
 		
 			//Ignore @Populate support methods
-			if (existsPopulateFieldWithElementName(element)) {
+			if (afterPopulateHelper.existsPopulateFieldWithElementName(element)) {
 				return;
 			}
 			
@@ -239,8 +243,6 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String className = classInformation.generatorClassName;
 		final String originalClassName = classInformation.originalClassName;
 		final boolean isList = classInformation.isList;
-		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
 		
 		OnEventMethods onEventMethods = getOnEventMethods(className, element, viewsHolder);
 		if (onEventMethods == null) return;	
@@ -308,35 +310,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 
 		viewsHolder.setDefLayoutId(defLayoutId);
 		holder.setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);		
-	}
-	
-	private boolean existsPopulateFieldWithElementName(Element element) {
-		
-		final String elementName = element.getSimpleName().toString();
-		String elementNameAsMethod = elementName;
-		if (element.getSimpleName().toString().substring(0, 4).matches("get[A-Z]")) {
-			elementNameAsMethod = elementName.substring(3, 4).toLowerCase() + elementName.substring(4);
-		}
-		
-		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		List<Element> allElems = new LinkedList<>(elems);
-		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
-		
-		for (Element elem : allElems) {
-			if (elem.getKind() == ElementKind.FIELD
-				&& adiHelper.getAnnotation(elem, Populate.class) != null)
-			{
-				if (elem.getSimpleName().toString().equals(elementName)) {
-					return true;
-				}
-				if (elem.getSimpleName().toString().equals(elementNameAsMethod)) {
-					return true;
-				}
-			}
-		}
-	
-		return false;
-	}
+	}	
 	
 	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
 		final String fieldName = element.getSimpleName().toString();
@@ -541,18 +515,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	private boolean processDirectReference(final IdInfoHolder info, String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
 		
 		final String fieldName = element.getSimpleName().toString();
-		
-		EComponentWithViewSupportHolder holder = viewsHolder.holder();
-		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
-		if (hasExternalPopulate) {
-			
-			final Element referenceElement = ((VirtualElement) element).getReference();
-			ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
-			ProcessHolder processHolder = getEnvironment().getProcessHolder();
-			holder = (EComponentWithViewSupportHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
 						
-		}
-				
 		//Create getter
 		final String fieldGetter = FormatsUtils.fieldToGetter(fieldName);
 

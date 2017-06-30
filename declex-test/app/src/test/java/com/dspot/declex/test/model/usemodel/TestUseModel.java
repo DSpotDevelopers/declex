@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel;
+package com.dspot.declex.test.model.usemodel;
 
 import android.content.Context;
 
-import com.dspot.declex.test.usemodel.model.ModelAddress_;
-import com.dspot.declex.test.usemodel.model.ModelClient_;
-import com.dspot.declex.test.usemodel.model.ModelUser;
-import com.dspot.declex.test.usemodel.model.ModelUser_;
+import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
+import com.dspot.declex.test.model.usemodel.model.ModelClient_;
+import com.dspot.declex.test.model.usemodel.model.ModelUser;
+import com.dspot.declex.test.model.usemodel.model.ModelUser_;
 
 import org.junit.Rule;
 import org.junit.Test;

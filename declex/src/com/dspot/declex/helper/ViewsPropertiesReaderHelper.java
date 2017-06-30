@@ -81,7 +81,9 @@ public class ViewsPropertiesReaderHelper {
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
 
-				final String elemNameStart = elem.getSimpleName().toString().substring(0, 4);
+				final String elemName = elem.getSimpleName().toString();
+				final String elemNameStart = elemName.substring(0, 4);
+				final String elemNameStartForBoolean = elemName.toString().substring(0, 3);
 				
 				if (elemNameStart.matches("set[A-Z]")) {
 				
@@ -89,7 +91,7 @@ public class ViewsPropertiesReaderHelper {
 					if (executableElem.getReturnType().toString().equals("void")
 						&& executableElem.getParameters().size() == 1) {
 						
-						final String property = elem.getSimpleName().toString().substring(3);
+						final String property = elemName.substring(3);
 						Set<TypeMirror> types = setters.get(property);
 						if (types == null) {
 							types = new HashSet<>();
@@ -101,14 +103,14 @@ public class ViewsPropertiesReaderHelper {
 					
 				}
 				
-				if (elemNameStart.matches("get[A-Z]")) {
+				if (elemNameStart.matches("get[A-Z]") 
+					|| elemNameStartForBoolean.matches("is[A-Z]")) {
 					
 					ExecutableElement executableElem = (ExecutableElement) elem;
 					if (!executableElem.getReturnType().toString().equals("void")
 						&& executableElem.getParameters().size() == 0) {
 						
-						final String property = elem.getSimpleName().toString().substring(3);
-						
+						final String property = elemName.substring(elemNameStart.matches("get[A-Z]") ? 3 : 2);
 						getters.put(property, executableElem.getReturnType());
 					}
 					

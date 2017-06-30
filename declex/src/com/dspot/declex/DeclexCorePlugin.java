@@ -223,6 +223,9 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new FragmentByTagHandler(androidAnnotationEnv));
 		annotationHandlers.add(new FromHtmlHandler(androidAnnotationEnv));
 		
+		annotationHandlers.add(new AppHandler(androidAnnotationEnv));
+		annotationHandlers.add(new BeanHandler(androidAnnotationEnv));
+		
 		//Parameters Injection Handler
 		annotationHandlers.add(new FragmentArgHandler(androidAnnotationEnv));
 		annotationHandlers.add(new ExtraHandler(androidAnnotationEnv));
@@ -261,8 +264,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new SystemServiceHandler(androidAnnotationEnv));
 
 		annotationHandlers.add(new NonConfigurationInstanceHandler(androidAnnotationEnv));
-		annotationHandlers.add(new AppHandler(androidAnnotationEnv));
-		annotationHandlers.add(new BeanHandler(androidAnnotationEnv));
 		annotationHandlers.add(new InjectMenuHandler(androidAnnotationEnv));
 		annotationHandlers.add(new OptionsMenuHandler(androidAnnotationEnv));
 		annotationHandlers.add(new OptionsMenuItemHandler(androidAnnotationEnv));

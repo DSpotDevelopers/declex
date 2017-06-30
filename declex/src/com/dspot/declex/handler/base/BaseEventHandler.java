@@ -21,6 +21,7 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -55,6 +56,7 @@ import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
@@ -254,16 +256,31 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     				if (superElement == null) continue;
     				
     				if (foundMethodIn(superElement, executableElement, elementName)) {
-    					TypeMirror resultType = executableElement.getReturnType();
     					
-    					JMethod method = holder.getGeneratedClass().method(
-    							JMod.PUBLIC, getJClass(resultType.toString()), elementName
-    						);
-    					method.annotate(Override.class);
+    					final TypeMirror resultType = executableElement.getReturnType();
+    					final List<? extends VariableElement> parameters = executableElement.getParameters();
+    					
+    					final List<AbstractJType> parametersType = new ArrayList<>(parameters.size());
+    					for (VariableElement param : parameters) {
+    						parametersType.add(codeModelHelper.typeMirrorToJClass(param.asType()));
+    					}
+    					
+    					JMethod method = holder.getGeneratedClass().getMethod(
+    							elementName, parametersType.toArray(new AbstractJType[parameters.size()]));  
+    							
+    					if (method == null) {
+    						method = holder.getGeneratedClass().method(
+        							JMod.PUBLIC, codeModelHelper.typeMirrorToJClass(resultType), elementName);
+	    					method.annotate(Override.class);
+	    					
+	    					for (VariableElement param : parameters) {
+	    						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
+	    					}
+    					}    							
     					
     					if (adiHelper.getAnnotation(element, External.class) != null) {
 
-    						//If this is an @External @RunWith method, it should not be call by itself,
+    						//If this is an @External @RunWith method, it should not be called by itself,
     						//this code avoids this issue (an infinite loop)
     						
     						//This will be called by ExernalHandler as well
@@ -272,11 +289,6 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     					}
     					
     					method.body().add(getStatement(getJClass(elementClass), element, viewsHolder, holder));
-
-    					List<? extends VariableElement> parameters = executableElement.getParameters();
-    					for (VariableElement param : parameters) {
-    						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
-    					}
     					
         				return true;
     				}

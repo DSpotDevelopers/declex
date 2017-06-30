@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel.model;
+package com.dspot.declex.test.model.usemodel.model;
 
 import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
 
 @UseModel
 public class ModelClient extends ModelUser {

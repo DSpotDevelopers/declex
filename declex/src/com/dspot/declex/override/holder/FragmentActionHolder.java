@@ -33,6 +33,7 @@ import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.RootContext;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
@@ -150,16 +151,17 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 
-		final String fieldName = element.getSimpleName().toString();
+		final String elementName = element.getSimpleName().toString();
 		if (element.getKind().isField()) {
 			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
 			actionInfo.addMethod(
-					fieldName, 
+					elementName, 
 					actionName, 
-					Arrays.asList(new ActionMethodParam(fieldName, clazz))
+					Arrays.asList(new ActionMethodParam(elementName, clazz))
 				);
 
 		} else if (element.getKind() == ElementKind.METHOD) {
+			
 			List<? extends VariableElement> elementParams = ((ExecutableElement)element).getParameters();
 			List<ActionMethodParam> params = new ArrayList<>(elementParams.size());
 			
@@ -169,7 +171,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 				params.add(new ActionMethodParam(paramName, paramClass));
 			}
 			
-			actionInfo.addMethod(fieldName, actionName, params);
+			actionInfo.addMethod(elementName, actionName, params);
 		}
 	}
 	

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.usemodel;
+package com.dspot.declex.test.model.usemodel;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.test.usemodel.model.ModelUser;
-import com.dspot.declex.test.usemodel.model.ModelUser_;
+import com.dspot.declex.test.model.usemodel.model.ModelUser;
+import com.dspot.declex.test.model.usemodel.model.ModelUser_;
 
 import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EBean;

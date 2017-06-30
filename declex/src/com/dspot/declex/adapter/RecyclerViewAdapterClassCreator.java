@@ -106,8 +106,8 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 				
 		JMethod onBindViewHolderMethod = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "onBindViewHolder");
 		onBindViewHolderMethod.annotate(Override.class);
-		onBindViewHolderMethod.param(RecyclerViewHolder, "viewHolder");
-		onBindViewHolderMethod.param(getCodeModel().INT, "position");
+		onBindViewHolderMethod.param(JMod.FINAL, RecyclerViewHolder, "viewHolder");
+		onBindViewHolderMethod.param(JMod.FINAL, getCodeModel().INT, "position");
 		
 		JMethod onCreateViewHolderMethod = AdapterClass.method(JMod.PUBLIC, RecyclerViewHolder, "onCreateViewHolder");
 		onCreateViewHolderMethod.annotate(Override.class);

@@ -109,7 +109,10 @@ public class ViewsHolder extends
 			layoutObjects.put(defLayoutId, viewsHelper.getLayoutObjects());
 		}
 	}
-
+	
+	public ViewsHelper getViewsHelper() {
+		return viewsHelper;
+	}
 
 	public String getDefLayoutId() {
 		return defLayoutId;
@@ -231,14 +234,38 @@ public class ViewsHolder extends
 					final String property = fieldName.substring(viewId.length());
 					
 					boolean isProperty = false;
+					boolean callPropertyGetter = false;
+					boolean callPropertySetter = false;
 					String fieldTypeToMatch = fieldType;
 					if (TypeUtils.isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
 						
-						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(fieldTypeToMatch);
+						final String pattern = "\\Q" + Property.class.getCanonicalName() + "\\E" 
+								               + "<([a-zA-Z_][a-zA-Z_$0-9.]+)>";
+						
+						//Create the classTree
+						List<TypeMirror> classTree = new LinkedList<>();
+						String subClass = fieldType;
+						while (!subClass.matches(pattern)) {
+							
+							if (subClass.contains("<")) subClass = subClass.substring(0, subClass.indexOf('<'));
+							
+							TypeElement typeElement = processingEnv().getElementUtils().getTypeElement(subClass);
+							classTree.add(0, typeElement.asType());
+							
+							List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(typeElement.asType());
+							for (TypeMirror type : superTypes) {
+								if (TypeUtils.isSubtype(type, Property.class.getCanonicalName(), processingEnv())) {
+									subClass = type.toString(); 
+								}
+							}
+						}
+						
+						Matcher matcher = Pattern.compile(pattern).matcher(fieldTypeToMatch);
 						if (matcher.find()) {
 							fieldTypeToMatch = matcher.group(1);
 							isProperty = true;
 						}
+						
 					}
 
 					if (getters.containsKey(property) || (isProperty && setters.containsKey(property))) {
@@ -259,14 +286,22 @@ public class ViewsHolder extends
 						}
 						
 						if (hasGetter || hasGetterAsString || (hasSetter && isProperty)) {
+
+							final String getterInitialExpression;
+							if (wrapperToPrimitive(fieldTypeToMatch).equals("boolean")) {
+								getterInitialExpression = "is";
+							} else {
+								getterInitialExpression = "get";
+							}							
 							
 							final String savedDefLayoutId = defLayoutId;
 							defLayoutId = layoutId;
 							
 							JFieldRef view = this.createAndAssignView(viewId);
+							JInvocation getProperty = view.invoke(getterInitialExpression + property);
 						
 							defLayoutId = savedDefLayoutId;
-							
+														
 							if (isProperty) {
 								AbstractJClass fieldClass = getJClass(fieldTypeToMatch);
 								
@@ -276,16 +311,18 @@ public class ViewsHolder extends
 								JMethod getMethod = anonymousProperty.method(JMod.PUBLIC, fieldClass, "get");
 								getMethod.annotate(Override.class);								
 								if (hasGetter) {
-									getMethod.body()._return(view.invoke("get" + property));
+									getMethod.body()._if(view.eqNull())._then()._return(getDefault(fieldTypeToMatch));
+									getMethod.body()._return(getProperty);
 								} else if (hasGetterAsString) {
+									getMethod.body()._if(view.eqNull())._then()._return(getDefault(fieldTypeToMatch));
 									if (getters.get(property).getKind().isPrimitive()) {
 										getMethod.body()._return(
-												getJClass(String.class).staticInvoke("valueOf").arg(view.invoke("get" + property)));
+												getJClass(String.class).staticInvoke("valueOf").arg(getProperty));
 									} else {
 										getMethod.body()._return(cond(
-												view.invoke("get" + property).eq(_null()),
+												getProperty.eq(_null()),
 												_null(),
-												view.invoke("get" + property).invoke("toString")));
+												getProperty.invoke("toString")));
 									}
 								} else {
 									getMethod.body()._return(getDefault(fieldTypeToMatch));
@@ -295,6 +332,7 @@ public class ViewsHolder extends
 								setMethod.annotate(Override.class);								
 								JVar value = setMethod.param(fieldClass, "value");
 								if (hasSetter) {
+									setMethod.body()._if(view.eqNull())._then()._return();
 									setMethod.body().invoke(view, "set" + property).arg(value);
 								}
 								
@@ -302,7 +340,7 @@ public class ViewsHolder extends
 								
 							}
 							
-							return invocation.arg(view.invoke("get" + property));
+							return invocation.arg(getProperty);
 							
 						}
 					}

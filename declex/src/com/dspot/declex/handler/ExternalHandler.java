@@ -42,6 +42,7 @@ import com.dspot.declex.annotation.ExternalRecollect;
 import com.dspot.declex.annotation.NonExternal;
 import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.annotation.Recollect;
+import com.dspot.declex.helper.AfterPopulateHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
@@ -71,6 +72,8 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 		//External in the super class will inject through ADI all the external methods
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			
+			AfterPopulateHelper afterPopulateHelper = new AfterPopulateHelper(getEnvironment());
+			
 			dependencies.put(element, EBean.class);
 			
 			List<? extends Element> elems = element.getEnclosedElements();
@@ -89,7 +92,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
 					
 					if (elem.getAnnotation(Populate.class) != null) {
-						if (!existsPopulateFieldWithElementName(elem)) {
+						if (!afterPopulateHelper.existsPopulateFieldWithElementName(elem)) {
 							dependencies.put(elem, ExternalPopulate.class);
 							continue;
 						}						
@@ -150,32 +153,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 			}
 		}
 	}
-	
-	private boolean existsPopulateFieldWithElementName(Element element) {
 		
-		final String elementName = element.getSimpleName().toString();
-		String elementNameAsMethod = elementName;
-		if (element.getSimpleName().toString().substring(0, 4).matches("get[A-Z]")) {
-			elementNameAsMethod = elementName.substring(3, 4).toLowerCase() + elementName.substring(4);
-		}
-		
-		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.FIELD
-				&& adiHelper.getAnnotation(elem, Populate.class) != null)
-			{
-				if (elem.getSimpleName().toString().equals(elementName)) {
-					return true;
-				}
-				if (elem.getSimpleName().toString().equals(elementNameAsMethod)) {
-					return true;
-				}
-			}
-		}
-	
-		return false;
-	}
-	
 	@Override
 	public void validate(final Element element, final ElementValidation valid) {
 		
