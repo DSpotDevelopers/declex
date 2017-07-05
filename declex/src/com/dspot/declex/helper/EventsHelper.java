@@ -472,7 +472,7 @@ public class EventsHelper {
 							
 							invocation = invocation.arg(ref("event"));
 						} else {
-							ParamUtils.injectParam(paramName, paramType, invocation, viewsHolder);
+							ParamUtils.injectParam(paramName, param.asType().toString(), invocation, viewsHolder);
 						}
 					}
 				}

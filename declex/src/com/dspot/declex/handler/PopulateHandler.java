@@ -75,6 +75,7 @@ import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.holder.view_listener.ViewListenerHolder;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.parser.LayoutsParser.LayoutObject;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.ParamUtils;
@@ -121,6 +122,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		eventsHelper = EventsHelper.getInstance(environment);
 		propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment);
 		afterPopulateHelper = new AfterPopulateHelper(getEnvironment());
+		
+		codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 	
 	@Override
@@ -562,14 +565,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String adapterName = fieldName + "$adapter";
 		final String adapterClassName = adapterName.substring(0, 1).toUpperCase() + adapterName.substring(1);
 		final AbstractJClass AdapterClass = getJClass(adapterClassName);
-		final JFieldRef adapter = ref(adapterName);
+		final IJExpression adapterGetter = invoke("get" + adapterClassName);
 
 		block = block._if(assignRef.neNull())._then();
 		
-		final JConditional ifNotifBlock = block._if(adapter.ne(_null()));
+		final JConditional ifNotifBlock = block._if(adapterGetter.ne(_null()));
 		JBlock notifyBlock = ifNotifBlock._then();
 		
-		final boolean foundAdapterDeclaration = TypeUtils.fieldInElement(adapterName, element.getEnclosingElement());
 		final Populate annotation = adiHelper.getAnnotation(element, Populate.class);
 		JFieldRef view = viewsHolder.createAndAssignView(fieldName, new IWriteInBloc() {
 			@Override
@@ -578,10 +580,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 					JBlock notifyBlock = ifNotifBlock._else()._if(view.ne(_null()))._then();
 					
 					if (!annotation.custom()) {
-						notifyBlock.assign(adapter, _new(AdapterClass).arg(assignRef));
+						notifyBlock.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));
 					}
 					
-					notifyBlock.invoke(view, "setAdapter").arg(adapter);
+					notifyBlock.invoke(view, "setAdapter").arg(adapterGetter);
 				}
 			}
 		});
@@ -589,18 +591,59 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		AbstractJClass WrapperListAdapter = getJClass("android.widget.WrapperListAdapter");
 		IJExpression castedList = cast(WrapperListAdapter, view.invoke("getAdapter"));
 		
-		notifyBlock._if(view.ne(_null()).cand(view.invoke("getAdapter").ne(adapter)))
+		notifyBlock._if(view.ne(_null()).cand(view.invoke("getAdapter").ne(adapterGetter)))
 		           ._then()
 		           ._if(view.invoke("getAdapter")._instanceof(WrapperListAdapter).not().cor(
 	        		   view.invoke("getAdapter")._instanceof(WrapperListAdapter).cand(
-        				   castedList.invoke("getWrappedAdapter").ne(adapter)
+        				   castedList.invoke("getWrappedAdapter").ne(adapterGetter)
     				   )
 				   ))._then()
-		           .invoke(view, "setAdapter").arg(adapter);
-		notifyBlock.invoke(adapter, "setModels").arg(assignRef);
-		notifyBlock.invoke(adapter, "notifyDataSetChanged");
+		           .invoke(view, "setAdapter").arg(adapterGetter);
+		notifyBlock.invoke(adapterGetter, "setModels").arg(assignRef);
+		notifyBlock.invoke(adapterGetter, "notifyDataSetChanged");
+		
+		JDefinedClass generatedClassForGetterAndSetter = viewsHolder.getGeneratedClass();
+		AbstractJClass classForGetterAndSetter = AdapterClass;
+				
+		boolean foundAdapterDeclaration = TypeUtils.fieldInElement(adapterName, element.getEnclosingElement());
+		if (!foundAdapterDeclaration && element instanceof VirtualElement) {
+			
+			Element foundAdapterElementDeclaration = TypeUtils.fieldElementInElement(adapterName, ((VirtualElement) element).getElement().getEnclosingElement());
+			
+			if (foundAdapterElementDeclaration != null) {
+				
+				foundAdapterDeclaration = true;
+				
+				final Element referenceElement = ((VirtualElement) element).getReference();
+				ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
+				ProcessHolder processHolder = getEnvironment().getProcessHolder();
+				EComponentHolder holder = (EComponentHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
+				generatedClassForGetterAndSetter = holder.getGeneratedClass();
+				
+				classForGetterAndSetter = codeModelHelper.typeMirrorToJClass(foundAdapterElementDeclaration.asType());
+				
+				final String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
+				IJExpression referenceField = cast(generatedClassForGetterAndSetter, ref(referenceName));
+				
+				JMethod adapterGetterMethod = viewsHolder.getGeneratedClass()
+						                                 .method(JMod.PUBLIC, AdapterClass, "get" + adapterClassName);
+				
+				adapterGetterMethod.body()._if(ref(referenceName).neNull())._then()
+				                          ._return(cast(AdapterClass, invoke(referenceField, "get" + adapterClassName)));
+				
+				adapterGetterMethod.body()._return(_null());
+				
+				JMethod adapterSetterMethod = viewsHolder.getGeneratedClass()
+	                    .method(JMod.PUBLIC, getCodeModel().VOID, "set" + adapterClassName);
+				JVar adapter = adapterSetterMethod.param(AdapterClass, "adapter");
+				adapterSetterMethod.body()._if(ref(referenceName).neNull())._then()
+										  .invoke(referenceField, "set" + adapterClassName).arg(adapter);
+			}
+		}
+
 		
 		if (!foundAdapterDeclaration) {
+						
 			if (viewsHolder.getGeneratedClass().fields().get(adapterName)!=null) {
 				//Another annotation tried to create the same adapter, this is an error
 				LOGGER.error("Tying to create a List Adapter twice for field " + fieldName, element, adiHelper.getAnnotation(element, Populate.class));
@@ -609,16 +652,24 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 					
 			viewsHolder.getGeneratedClass().field(JMod.PRIVATE, AdapterClass, adapterName);
 		}
+		
+		//Create getter and setters
+		JMethod adapterGetterMethod = generatedClassForGetterAndSetter.method(JMod.PUBLIC, classForGetterAndSetter, "get" + adapterClassName);
+		adapterGetterMethod.body()._return(ref(adapterName));
+		
+		JMethod adapterSetterMethod = generatedClassForGetterAndSetter.method(JMod.PUBLIC, getCodeModel().VOID, "set" + adapterClassName);
+		JVar adapter = adapterSetterMethod.param(classForGetterAndSetter, "adapter");
+		adapterSetterMethod.body().assign(ref(adapterName), adapter);
 			
 		
 		if (onEventMethods != null && onEventMethods.loadOnEventBlock != null) {
 			if (foundAdapterDeclaration && annotation.custom()) {
-				onEventMethods.loadOnEventBlock.assign(adapter, _new(AdapterClass).arg(assignRef));			
-				onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapter);
+				onEventMethods.loadOnEventBlock.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));			
+				onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapterGetter);
 				return;
 			}
 			
-			onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapter);
+			onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapterGetter);
 		}
 		
 		//AdapterView

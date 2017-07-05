@@ -411,7 +411,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		//Split by string literals (Specials should not be placed inside Strings)
 		List<String> literalsSplit = Arrays.asList(expression.split("(?<!\\\\)\""));
-		if (literalsSplit.size() <= 1) return parseStringForSpecial(expression, ignoreThis);		
+		if (literalsSplit.size() <= 1) return parseStringForSpecial(expression, ignoreThis);
 		
 		String newExpression = "";
 		int i = 0;
@@ -423,6 +423,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			}
 			i++;
 		}
+		
+		if (expression.endsWith("\"\"")) newExpression = newExpression + "\"\"";
 		
 		return newExpression;
 	}

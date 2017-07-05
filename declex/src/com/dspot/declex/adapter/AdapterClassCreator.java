@@ -31,6 +31,7 @@ import org.androidannotations.holder.GeneratedClassHolder;
 import com.dspot.declex.adapter.plugin.HolderClassCreator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
 import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
@@ -46,7 +47,7 @@ public class AdapterClassCreator extends HolderClassCreator {
 	final AbstractJClass ArrayList;	
 	final AbstractJClass Model;
 	final String className;
-	
+		
 	public AdapterClassCreator(String modelClassName, String className, Element element, GeneratedClassHolder holder, 
 			List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
@@ -132,13 +133,17 @@ public class AdapterClassCreator extends HolderClassCreator {
 					)
 			);
 		
+		final JBlock getCountMethodBody = getCountMethod.body();
+		final JBlock getItemMethodBody = getItemMethod.body();
+		final JBlock getItemIdMethodBody = getItemIdMethod.body();	
+		
 		for (JClassPlugin plugin : plugins) {
 			plugin.process(element, AdapterClass);
 		}
 		
-		getCountMethod.body()._return(models.invoke("size"));
-		getItemMethod.body()._return(models.invoke("get").arg(ref("position")));
-		getItemIdMethod.body()._return(lit(0));
+		getCountMethodBody._return(models.invoke("size"));
+		getItemMethodBody._return(models.invoke("get").arg(ref("position")));
+		getItemIdMethodBody._return(lit(0));
 		
 		return AdapterClass;
 	}

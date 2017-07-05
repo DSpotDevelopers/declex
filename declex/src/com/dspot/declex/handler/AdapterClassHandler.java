@@ -27,6 +27,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -97,15 +98,22 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 			return;
 		}
 		
+		boolean isViewAdapter = false;
+		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
+		if (inflaterMethod == null) {
+			inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
+			isViewAdapter = true;
+		}
+		
 		//Get all the fields and methods
 		List<? extends Element> elems = typeElement.getEnclosedElements();
 		for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
 			
 			if (elem.getKind() == ElementKind.METHOD) {
-				ExecutableElement executableElement = (ExecutableElement) elem;
-				
-				List<? extends VariableElement> params = executableElement.getParameters();
+				final ExecutableElement executableElement = (ExecutableElement) elem;
+				final List<? extends VariableElement> params = executableElement.getParameters();
+				final TypeMirror result = executableElement.getReturnType();
 				
 				if (elemName.equals("getModels") && params.size() == 0 && elem.getModifiers().contains(Modifier.ABSTRACT)) {
 
@@ -118,10 +126,15 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 							);
 						getModelsMethod.annotate(Override.class);
 						getModelsMethod.body()._return(ref("models"));
+					} else {
+						//TODO validate getModels class
 					}
 				}
 				
 				if (elemName.equals("getItemViewType") && params.size() == 1 && !params.get(0).asType().toString().equals("int")) {
+					
+					//TODO validate getItemViewType parameter
+					
 					JMethod getModelsMethod = AdapterClass.method(
 							JMod.PUBLIC, 
 							getCodeModel().INT,
@@ -133,54 +146,67 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					getModelsMethod.body()._return(_super().invoke("getItemViewType").arg(ref("models").invoke("get").arg(position)));
 				}
 				
-				if (elemName.equals("inflate")) {
+				if (isViewAdapter) {
 					
-					if (params.size() > 0 && params.size() < 4) {
-						
-						boolean isViewAdapter = false;
-						JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
-						if (inflaterMethod == null) {
-							inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
-							isViewAdapter = true;
-						}
-						
-						//Remove previous method body
-						codeModelHelper.removeBody(inflaterMethod);
-						
-						JFieldRef position = ref("position");
-						JFieldRef viewType = ref("viewType");
-						JFieldRef parent = ref("parent");
-						JFieldRef convertView = ref("convertView");
-						JFieldRef inflater = ref("inflater");
-
-						JInvocation invoke = JExpr._super().invoke(inflaterMethod);
-						for (VariableElement param : params) {
-							if (param.asType().toString().equals("int")) {
-								if (isViewAdapter) invoke = invoke.arg(position);
-								else invoke = invoke.arg(viewType);
-							} else
-							
-							if (isViewAdapter && param.asType().toString().equals(getClasses().VIEW.fullName())) {
-								invoke = invoke.arg(convertView);
-							} else
-								
-							if (param.asType().toString().equals(getClasses().VIEW_GROUP.fullName())) {
-								invoke = invoke.arg(parent);
-							} else
-							
-							if (param.asType().toString().equals(getClasses().LAYOUT_INFLATER.fullName())) {
-								invoke = invoke.arg(inflater);
-							} else					
-								
-							{
-								invoke = invoke.arg(_null());
-							}
-						}
-						
-						inflaterMethod.body()._return(invoke);
+					if (elemName.equals("getCount") && params.size() == 0 && result.toString().equals("int")) {
+						JMethod getCountMethod = AdapterClass.getMethod("getCount", new AbstractJType[]{});
+						codeModelHelper.removeBody(getCountMethod);
+						getCountMethod.body()._return(_super().invoke(getCountMethod));
 					}
 					
-					return;				
+					if (elemName.equals("getItem") && params.size() == 1 && params.get(0).asType().toString().equals("int")
+						&& result.toString().equals(Object.class.getCanonicalName())) {
+						JMethod getItemMethod = AdapterClass.getMethod("getItem", new AbstractJType[]{getCodeModel().INT});
+						codeModelHelper.removeBody(getItemMethod);
+						getItemMethod.body()._return(_super().invoke(getItemMethod).arg(ref("position")));
+					}
+					
+					if (elemName.equals("getItemId") && params.size() == 1 && params.get(0).asType().toString().equals("int")
+							&& result.toString().equals("long")) {
+						JMethod getItemIdMethod = AdapterClass.getMethod("getItemId", new AbstractJType[]{getCodeModel().INT});
+						codeModelHelper.removeBody(getItemIdMethod);
+						getItemIdMethod.body()._return(_super().invoke(getItemIdMethod).arg(ref("position")));
+					}
+					
+				}
+								
+				if (elemName.equals("inflate") && params.size() > 0 && params.size() < 5) {
+						
+					//Remove previous method body
+					codeModelHelper.removeBody(inflaterMethod);
+					
+					JFieldRef position = ref("position");
+					JFieldRef viewType = ref("viewType");
+					JFieldRef parent = ref("parent");
+					JFieldRef convertView = ref("convertView");
+					JFieldRef inflater = ref("inflater");
+
+					JInvocation invoke = JExpr._super().invoke(inflaterMethod);
+					for (VariableElement param : params) {
+						if (param.asType().toString().equals("int")) {
+							if (isViewAdapter) invoke = invoke.arg(position);
+							else invoke = invoke.arg(viewType);
+						} else
+						
+						if (isViewAdapter && param.asType().toString().equals(getClasses().VIEW.fullName())) {
+							invoke = invoke.arg(convertView);
+						} else
+							
+						if (param.asType().toString().equals(getClasses().VIEW_GROUP.fullName())) {
+							invoke = invoke.arg(parent);
+						} else
+						
+						if (param.asType().toString().equals(getClasses().LAYOUT_INFLATER.fullName())) {
+							invoke = invoke.arg(inflater);
+						} else					
+							
+						{
+							invoke = invoke.arg(_null());
+						}
+					}
+					
+					inflaterMethod.body()._return(invoke);
+					
 				}				
 			}
 		}

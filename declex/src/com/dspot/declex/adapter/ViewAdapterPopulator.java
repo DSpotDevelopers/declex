@@ -206,7 +206,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			fieldNames.add(holderFieldName);
 		}	
 		
-		useConvertViewBody.assign(viewHolder, cast(ViewHolderClass, convertView.invoke("getTag")));
+		JConditional ifConvertViewCorrectInstance = useConvertViewBody._if(convertView.invoke("getTag")._instanceof(ViewHolderClass));
+		ifConvertViewCorrectInstance._then().assign(viewHolder, cast(ViewHolderClass, convertView.invoke("getTag")));
+		ifConvertViewCorrectInstance._else().assign(viewHolder, _null());
 		
 		
 		boolean castNeeded = false;
@@ -244,11 +246,11 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 		});
 		
 		//Get the model
-		JVar model = methodBody.decl(JMod.FINAL, Model, "model");
-				
+		methodBody = methodBody._if(models.invoke("size").gt(position).cand(viewHolder.neNull()))._then();
+		
 		IJExpression modelAssigner = models.invoke("get").arg(position);
-		if (castNeeded) modelAssigner = cast(Model, models.invoke("get").arg(position));
-		methodBody.assign(model, modelAssigner);
+		if (castNeeded) modelAssigner = cast(Model, models.invoke("get").arg(position));		
+		JVar model = methodBody.decl(JMod.FINAL, Model, "model", modelAssigner);
 		
 		if (modelClassName.equals(String.class.getCanonicalName())) {
 			String viewClass = viewsHolder.getClassNameFromId("text");
@@ -337,7 +339,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 		handler.callPopulateSupportMethod(fieldName, methodBody, viewHolder, fieldNames, element, viewsHolder);
 		
 		createViewBody.invoke(rootView, "setTag").arg(viewHolder);
-		methodBody._return(rootView);
+		getViewMethod.body()._return(rootView);
 		
 		viewsHolder.setCreateViewListener(null);
 		viewsHolder.setDefLayoutId(defLayoutId);

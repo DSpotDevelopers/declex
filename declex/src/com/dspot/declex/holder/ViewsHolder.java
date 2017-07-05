@@ -204,7 +204,7 @@ public class ViewsHolder extends
 
 	}
 
-	public JInvocation checkFieldNameInInvocation(String fieldName, String fieldType, JInvocation invocation) {
+	public JInvocation checkFieldNameInInvocation(final String fieldName, final String fieldType, final JInvocation invocation) {
 		
 		for (String layoutId : layoutObjects.keySet()) {
 			
@@ -230,7 +230,7 @@ public class ViewsHolder extends
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
 					propertiesHelper.readGettersAndSetters(layoutObject.className, getters, setters);
-					
+										
 					final String property = fieldName.substring(viewId.length());
 					
 					boolean isProperty = false;
@@ -239,26 +239,28 @@ public class ViewsHolder extends
 					String fieldTypeToMatch = fieldType;
 					if (TypeUtils.isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
 						
-						final String pattern = "\\Q" + Property.class.getCanonicalName() + "\\E" 
-								               + "<([a-zA-Z_][a-zA-Z_$0-9.]+)>";
+//						final String pattern = "\\Q" + Property.class.getCanonicalName() + "\\E" 
+//								               + "<([a-zA-Z_][a-zA-Z_$0-9.]+)>";
+//						
+//						//Create the classTree
+//						List<TypeMirror> classTree = new LinkedList<>();
+//						String subClass = fieldType;
+//						while (!subClass.matches(pattern)) {
+//							
+//							if (subClass.contains("<")) subClass = subClass.substring(0, subClass.indexOf('<'));
+//							
+//							TypeElement typeElement = processingEnv().getElementUtils().getTypeElement(subClass);
+//							classTree.add(0, typeElement.asType());
+//							
+//							List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(typeElement.asType());
+//							for (TypeMirror type : superTypes) {
+//								if (TypeUtils.isSubtype(type, Property.class.getCanonicalName(), processingEnv())) {
+//									subClass = type.toString(); 
+//								}
+//							}
+//						}
 						
-						//Create the classTree
-						List<TypeMirror> classTree = new LinkedList<>();
-						String subClass = fieldType;
-						while (!subClass.matches(pattern)) {
-							
-							if (subClass.contains("<")) subClass = subClass.substring(0, subClass.indexOf('<'));
-							
-							TypeElement typeElement = processingEnv().getElementUtils().getTypeElement(subClass);
-							classTree.add(0, typeElement.asType());
-							
-							List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(typeElement.asType());
-							for (TypeMirror type : superTypes) {
-								if (TypeUtils.isSubtype(type, Property.class.getCanonicalName(), processingEnv())) {
-									subClass = type.toString(); 
-								}
-							}
-						}
+						final String pattern = "[a-zA-Z_][a-zA-Z_$0-9.]+<([a-zA-Z_][a-zA-Z_$0-9.]+)>";
 						
 						Matcher matcher = Pattern.compile(pattern).matcher(fieldTypeToMatch);
 						if (matcher.find()) {

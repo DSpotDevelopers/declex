@@ -355,6 +355,21 @@ public class TypeUtils {
 		return false;
 	}
 	
+	public static Element fieldElementInElement(String fieldName, Element element) {
+		List<? extends Element> elems = element.getEnclosedElements();
+		for (Element elem : elems)
+			if (elem.getKind() == ElementKind.FIELD) {
+				if (elem.getSimpleName().toString().equals(fieldName)) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					return elem;
+				}
+				
+			}
+		
+		return null;
+	}
+	
 	public static boolean isClassAnnotatedWith(String className, Class<? extends Annotation> annotation, AndroidAnnotationsEnvironment environment) {
 		ADIHelper adiHelper = new ADIHelper(environment);
 		
