@@ -18,7 +18,6 @@ package com.dspot.declex.handler;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
@@ -57,8 +56,6 @@ import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
-import com.helger.jcodemodel.JConditional;
-import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
@@ -137,7 +134,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		final ViewsHolder viewsHolder;
 		if (holder instanceof EComponentWithViewSupportHolder) {
 			viewsHolder = holder.getPluginHolder(
-					new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+					new ViewsHolder((EComponentWithViewSupportHolder) holder)
 				);
 		} else {
 			viewsHolder = null;
@@ -356,23 +353,11 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		}
 		
 		if (hasEvent) {
-			IJExpression instanceOfExpression = ref("event").invoke("getValues").component(lit(0));
 			
-			JConditional condition = callBlock._if(
-						ref("event").invoke("getValues").ref("length").gt(lit(0))
-						.cand(instanceOfExpression._instanceof(getJClass(Runnable.class)))
-					);
+			callBlock.invoke(putModelMethod).arg(args)
+                    .arg(ref("event").invoke("getNextListener"))
+                    .arg(ref("event").invoke("getFailedListener"));
 			
-			JBlock ifBlock = condition._then();
-			ifBlock.invoke(putModelMethod)
-				   .arg(args)
-			       .arg(JExpr.cast(getJClass(Runnable.class), instanceOfExpression))
-			       .arg(_null());
-			ifBlock.invoke(ref("event"), "setValues").arg(JExpr.newArray(getJClass(Object.class)));
-			
-			condition._else().invoke(putModelMethod).arg(args)
-			                                        .arg(_null())
-			                                        .arg(_null());
 		} else {
 			callBlock.invoke(putModelMethod).arg(args)
 							            .arg(_null())

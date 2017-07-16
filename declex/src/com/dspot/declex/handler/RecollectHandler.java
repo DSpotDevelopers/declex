@@ -90,8 +90,6 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		
-		final String elementName = element.getSimpleName().toString();
-		
 		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
 		validatorHelper.isNotPrivate(element, valid);
 		
@@ -135,7 +133,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 	@Override
 	public void process(Element element, final EComponentWithViewSupportHolder holder) {
 		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
+		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder));
 		final String fieldName = element.getSimpleName().toString();
 		
 		final boolean hasExternalRecollect = adiHelper.getAnnotation(element, ExternalRecollect.class) != null;

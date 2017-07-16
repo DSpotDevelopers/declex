@@ -55,7 +55,7 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		
 		uniquePriorityCounter++;
 		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
+		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder));
 		final String methodName = element.getSimpleName().toString();
 		
 		JBlock block = new JBlock();

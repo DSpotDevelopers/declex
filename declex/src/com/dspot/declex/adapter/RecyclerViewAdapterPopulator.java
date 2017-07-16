@@ -117,20 +117,21 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		JFieldRef inflater = ref("inflater");
 		final JBlock onCreateViewMethodBody = onCreateViewHolder.body();
 
-		JFieldRef contentViewId = null;
-		String listItemId = null;
-		String defLayoutId = viewsHolder.getDefLayoutId();
+		final JFieldRef contentViewId;
+		final String listItemId;
+		final String defLayoutId = viewsHolder.getDefLayoutId();
 
 		// Read the Layout from the XML file
 		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(fieldName);
 		if (node.hasAttribute("tools:listitem")) {
 			String listItem = node.getAttribute("tools:listitem");
 			listItemId = listItem.substring(listItem.lastIndexOf('/') + 1);
-			contentViewId = environment.getRClass().get(Res.LAYOUT)
-					.getIdStaticRef(listItemId, environment);
+			contentViewId = environment.getRClass().get(Res.LAYOUT).getIdStaticRef(listItemId, environment);
 
 			viewsHolder.addLayout(listItemId);
 			viewsHolder.setDefLayoutId(listItemId);
+		} else {
+			throw new IllegalStateException("This should not happens, Validations not working");
 		}
 
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
@@ -255,23 +256,22 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 			public JFieldRef createView(String viewId, String viewName,
 					AbstractJClass viewClass, JBlock declBlock) {
 
-				JVar viewField = FinalViewHolderClass.fields().get(
-						viewId + DeclexConstant.VIEW);
+				if (!viewsHolder.layoutContainsId(viewId, listItemId)) return null;
+				
+				JVar viewField = FinalViewHolderClass.fields().get(viewId + DeclexConstant.VIEW);
+				
 				if (viewField == null) {
-					AbstractJClass idNameClass = getJClass(viewsHolder
-							.getClassNameFromId(viewId));
-					JFieldRef idRef = environment.getRClass().get(Res.ID)
-							.getIdStaticRef(viewId, environment);
+					AbstractJClass idNameClass = getJClass(viewsHolder.getClassNameFromId(viewId));
+					JFieldRef idRef = environment.getRClass().get(Res.ID).getIdStaticRef(viewId, environment);
 
-					viewField = FinalViewHolderClass.field(JMod.PUBLIC,
-							idNameClass, viewId + DeclexConstant.VIEW);
-					IJExpression findViewById = rootView.invoke("findViewById")
-							.arg(idRef);
-					if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+					viewField = FinalViewHolderClass.field(JMod.PUBLIC,idNameClass, viewId + DeclexConstant.VIEW);
+					IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
+					
+					if (!idNameClass.equals(CanonicalNameConstants.VIEW)) {
 						findViewById = cast(idNameClass, findViewById);
+					}
 
-					onCreateViewMethodBody.assign(
-							finalViewHolder.ref(viewField), findViewById);
+					onCreateViewMethodBody.assign(finalViewHolder.ref(viewField), findViewById);
 				}
 
 				return finalViewHolder.ref(viewField);

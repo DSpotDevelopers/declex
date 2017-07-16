@@ -9,7 +9,6 @@ import javax.lang.model.element.Element;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.EFragment;
-import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.parser.LayoutsParser;
@@ -19,19 +18,17 @@ public class ViewsHelper {
 	
 	private LayoutsParser layoutParser;
 	
-	private IdAnnotationHelper annotationHelper;
-	
 	private Element element;
 	private AndroidAnnotationsEnvironment environment;
 	
 	private String layoutId;
 	private Map<String, LayoutObject> layoutObjects;
 	
-	public ViewsHelper(Element element, IdAnnotationHelper annotationHelper, AndroidAnnotationsEnvironment environment) {		
+	public ViewsHelper(Element element, AndroidAnnotationsEnvironment environment) {	
+		
 		this.layoutParser = LayoutsParser.getInstance();		
 		this.element = element;
 		this.environment = environment;
-		this.annotationHelper = annotationHelper;
 		
 		getLayoutInformation();
 	}
@@ -49,7 +46,7 @@ public class ViewsHelper {
 
 				if (matcher.find()) {
 					layoutId = matcher.group(1);
-					layoutObjects = layoutParser.getLayoutObjects(layoutId, annotationHelper);
+					layoutObjects = layoutParser.getLayoutObjects(layoutId);
 				}
 			}
 		}
@@ -65,7 +62,7 @@ public class ViewsHelper {
 
 				if (matcher.find()) {
 					layoutId = matcher.group(1);
-					layoutObjects = layoutParser.getLayoutObjects(layoutId, annotationHelper);
+					layoutObjects = layoutParser.getLayoutObjects(layoutId);
 				}
 			}
 		}
@@ -82,7 +79,7 @@ public class ViewsHelper {
 	public Map<String, LayoutObject> getLayoutObjects(String layoutId) {
 		if (layoutId.equals(this.layoutId)) return layoutObjects;
 		
-		return layoutParser.getLayoutObjects(layoutId, annotationHelper);
+		return layoutParser.getLayoutObjects(layoutId);
 	}
 	
 }

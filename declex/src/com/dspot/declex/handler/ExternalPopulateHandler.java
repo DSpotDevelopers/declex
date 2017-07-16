@@ -34,6 +34,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.annotation.ExternalPopulate;
 import com.dspot.declex.annotation.Model;
@@ -41,7 +42,7 @@ import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.external.PopulateModelListener;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
+import com.dspot.declex.holder.PopulateHolder;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
@@ -145,8 +146,10 @@ public class ExternalPopulateHandler extends ExternalHandler {
 		JVar afterPopulate = anonymousRunnableRun.param(Runnable.class, "afterPopulate");
 		JVar onFailed = anonymousRunnableRun.param(OnFailedRunnable.class, "onFailed");
 		
-		anonymousRunnableRun.body().invoke("_populate_" + elementName)
-		                           .arg(afterPopulate).arg(onFailed);
+		PopulateHolder populateHolder = holder.getPluginHolder(new PopulateHolder((EComponentWithViewSupportHolder)holder));
+		JMethod populateMethod = elementName.equals("this")? populateHolder.getPopulateThis() : populateHolder.getPopulateMethod(element);
+		
+		anonymousRunnableRun.body().invoke(populateMethod).arg(afterPopulate).arg(onFailed);
 		
 		
 		final Element referenceElement = ((VirtualElement) element).getReference();

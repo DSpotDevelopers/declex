@@ -85,8 +85,8 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		try {
 			timeStats.start("Helpers Initialization");
 			
-			layoutsParser = new LayoutsParser(processingEnv, LOGGER);
-			menuParser = new MenuParser(processingEnv, LOGGER);
+			layoutsParser = new LayoutsParser(androidAnnotationsEnv, LOGGER);
+			menuParser = new MenuParser(androidAnnotationsEnv, LOGGER);
 			
 			actions = new Actions(androidAnnotationsEnv);	
 			
@@ -202,7 +202,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		
 		for (TypeElement annotation : annotations) {
 			Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-						
+									
 			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();			
 			
 			annotationElements: for (Element element : elements) {

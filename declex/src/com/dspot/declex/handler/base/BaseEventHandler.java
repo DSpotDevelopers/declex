@@ -123,7 +123,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		ViewsHolder viewsHolder = null;
 		if (holder instanceof EComponentWithViewSupportHolder) {
 			viewsHolder = holder.getPluginHolder(
-					new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+					new ViewsHolder((EComponentWithViewSupportHolder) holder)
 				);		
 		}
 		final Map<AbstractJClass, IJExpression> declForListener = new HashMap<>();

@@ -47,9 +47,7 @@ import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
-import org.androidannotations.holder.GeneratedClassHolder;
 import org.androidannotations.internal.process.ProcessHolder;
-import org.androidannotations.internal.process.ProcessHolder.Classes;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
@@ -59,18 +57,18 @@ import com.dspot.declex.adapter.RecyclerViewAdapterClassCreator;
 import com.dspot.declex.adapter.RecyclerViewAdapterPopulator;
 import com.dspot.declex.adapter.ViewAdapterPopulator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
-import com.dspot.declex.annotation.ExternalPopulate;
 import com.dspot.declex.annotation.LoadOnEvent;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.AfterPopulateHelper;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.helper.ViewsHelper;
 import com.dspot.declex.helper.ViewsPropertiesReaderHelper;
+import com.dspot.declex.holder.EventHolder;
 import com.dspot.declex.holder.ModelHolder;
+import com.dspot.declex.holder.PopulateHolder;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.IWriteInBloc;
 import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
@@ -84,11 +82,8 @@ import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
-import com.helger.jcodemodel.JCatchBlock;
 import com.helger.jcodemodel.JClassAlreadyExistsException;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JDefinedClass;
@@ -97,7 +92,6 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
-import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
 public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSupportHolder> {
@@ -130,11 +124,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	public void validate(Element element, ElementValidation valid) {
 				
 		final String elementName = element.getSimpleName().toString();
-		
+				
 		//Ignore @Populate Methods
 		if (element instanceof ExecutableElement) {
 			
 			if (afterPopulateHelper.existsPopulateFieldWithElementName(element)) {
+				
 				Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 				if (methods == null) {
 					methods = new HashMap<>();
@@ -142,7 +137,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				}
 				
 				methods.put(elementName, (ExecutableElement) element);
-				
+
 				return;
 			}
 			
@@ -183,7 +178,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			}
 		}
 		
-		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), annotationHelper, getEnvironment());
+		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), getEnvironment());
 		if (!(element instanceof ExecutableElement)) {
 			
 			boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		
@@ -227,7 +222,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	public void process(Element element, EComponentWithViewSupportHolder holder) {		
 		uniquePriorityCounter++;
 		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
+		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder));
+		final PopulateHolder populateHolder = holder.getPluginHolder(new PopulateHolder(holder));
 		
 		final boolean isMethod;
 		if (element instanceof ExecutableElement) {
@@ -246,17 +242,27 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String className = classInformation.generatorClassName;
 		final String originalClassName = classInformation.originalClassName;
 		final boolean isList = classInformation.isList;
-		
-		OnEventMethods onEventMethods = getOnEventMethods(className, element, viewsHolder);
-		if (onEventMethods == null) return;	
 				
+		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
+		if (loadOnEvent != null) {
+			String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
+			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
+			
+			if (classField == null || eventClass == null) {
+				LOGGER.error("@LoadOnEvent failed in " + className, element, loadOnEvent);
+				return;
+			}
+
+			eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
+		}
+		
 		int layoutId = 0;
 		int index = 0;
 		int[] values = adiHelper.getAnnotation(element, Populate.class).value();
 		
 		//Restoration objects
-		String defLayoutId = viewsHolder.getDefLayoutId();
-		JVar onViewChangedHasViewsParam = holder.getOnViewChangedHasViewsParam();
+		final String defLayoutId = viewsHolder.getDefLayoutId();
+		final JVar onViewChangedHasViewsParam = holder.getOnViewChangedHasViewsParam();
 		
 		do {
 			if (layoutId != 0) {
@@ -269,28 +275,28 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				if (isList) {
 					
 					if (layoutId == 0) {
-						processList(originalClassName, element, viewsHolder, onEventMethods);					
+						processList(originalClassName, element, viewsHolder, populateHolder);					
 					}
 					
 				} else {
 					
-					processDirectReference(info, className, element, viewsHolder, onEventMethods);
+					processDirectReference(info, className, element, viewsHolder, populateHolder);
 					
 				}
 			} else if (isMethod) {
 				
-				processMethod(element, viewsHolder, onEventMethods, classInformation, layoutId);
+				processMethod(element, viewsHolder, populateHolder, classInformation, layoutId);
 				
 			} else {
 				
-				processModel(className, element, viewsHolder, onEventMethods);
+				processModel(className, element, viewsHolder, populateHolder);
 				
 			}	
 			
 			if (!adiHelper.getAnnotation(element, Populate.class).independent()) {
 				SharedRecords.priorityAdd(
 						viewsHolder.holder().getOnViewChangedBody(), 
-						JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+						JExpr.invoke(populateHolder.getPopulateMethod(element)).arg(_null()).arg(_null()), 
 						uniquePriorityCounter
 					);
 			}
@@ -312,117 +318,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}			
 
 		viewsHolder.setDefLayoutId(defLayoutId);
-		holder.setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);		
+		holder.setOnViewChangedHasViewsParam(onViewChangedHasViewsParam);	
 	}	
-	
-	private OnEventMethods getOnEventMethods(String className, Element element, ViewsHolder viewsHolder) {
-		final String fieldName = element.getSimpleName().toString();
 		
-		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
+	private void processMethod(Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder, ClassInformation classInformation, int layoutId) {
 		
-		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
-		JBlock loadOnEventBlock = null;
-		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
-		if (loadOnEvent != null) {
-			String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
-			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
-			
-			if (classField == null || eventClass == null) {
-				LOGGER.error("@LoadOnEvent failed in " + className, element, loadOnEvent);
-				return null;
-			}
-
-			loadOnEventBlock = eventsHelper.addEventListener(eventClass, element.getEnclosingElement(), viewsHolder);
-		}
-		
-		//Create the populate method
-		JMethod populateFieldMethod = viewsHolder.getGeneratedClass().getMethod(
-				"_populate_" + fieldName,
-				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
-			);
-		if (populateFieldMethod == null) {
-			populateFieldMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_populate_" + fieldName);
-			populateFieldMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterPopulate");
-			populateFieldMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
-		}
-		
-		//Create the "populate this" method
-		JMethod populateThisMethod = viewsHolder.getGeneratedClass().getMethod(
-				"_populate_this",
-				new AbstractJType[] {getJClass(Runnable.class), getJClass(OnFailedRunnable.class)}
-			);
-		if (populateThisMethod == null) {
-			populateThisMethod = viewsHolder.getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_populate_this");
-			JVar afterPopulate = populateThisMethod.param(JMod.FINAL, getJClass(Runnable.class), "afterPopulate");
-			populateThisMethod.param(JMod.FINAL, getJClass(OnFailedRunnable.class), "onFailed");
-			
-			JBlock block = new JBlock();
-			block._if(afterPopulate.neNull())._then()
-			     .invoke(afterPopulate, "run");
-			SharedRecords.priorityAdd(populateThisMethod.body(), block, uniquePriorityCounter);
-		}
-		
-		if (!adiHelper.getAnnotation(element, Populate.class).independent()) {
-			populateThisMethod.body().invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));			
-		}
-		
-		Model model = adiHelper.getAnnotation(element, Model.class); 
-		if (model != null) {			
-			final ModelHolder modelHolder;
-			
-			//Support ExternalPopulate
-			if (hasExternalPopulate) {
-				
-				final Element referenceElement = ((VirtualElement) element).getReference();
-				ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
-				ProcessHolder processHolder = getEnvironment().getProcessHolder();
-				EComponentHolder holder = (EComponentHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
-				
-				modelHolder = holder.getPluginHolder(new ModelHolder(holder));
-				element = ((VirtualElement) element).getElement();
-				
-			} else {
-				modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));				
-			}
-			
-			JBlock methodBody = modelHolder.getAfterLoadModelBlock(element);
-			
-			if (model.async()) {
-				JDefinedClass annonimousRunnable = getCodeModel().anonymousClass(Runnable.class);
-				JMethod annonimousRunnableRun = annonimousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
-				annonimousRunnableRun.annotate(Override.class);
-				
-				JVar handler = methodBody.decl(getClasses().HANDLER, "handler", 
-						_new(getClasses().HANDLER).arg(getClasses().LOOPER.staticInvoke("getMainLooper")));
-				methodBody.invoke(handler, "post").arg(_new(annonimousRunnable));
-				
-				methodBody = annonimousRunnableRun.body();
-			} 
-			
-			JBlock ifPopulate = methodBody._if(
-				ref("args").invoke("containsKey").arg("populate").not()
-				.cor(cast(getJClass(Boolean.class), ref("args").invoke("get").arg("populate")))
-			)._then();
-			
-			if (hasExternalPopulate) {
-				final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
-                        + fieldName.substring(1);
-				
-				JFieldRef listenerField = ref(populateListenerName);				
-  			    ifPopulate._if(listenerField.neNull())._then()
-						  .invoke(listenerField, "populateModel")
-			              .arg(_null()).arg(ref("onFailed"));
-				
-			} else {
-				ifPopulate.invoke(populateFieldMethod).arg(_null()).arg(ref("onFailed"));
-			}
-			
-		}
-		
-		return new OnEventMethods(loadOnEventBlock, populateFieldMethod, viewsHolder.holder());
-	}
-	
-	private void processMethod(Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods, ClassInformation classInformation, int layoutId) {
 		final String methodName = element.getSimpleName().toString();		
 		final String className = classInformation.generatorClassName;
 		
@@ -444,8 +344,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 				JFieldRef view = viewsHolder.createAndAssignView(fieldInfo.idName);
 				
-				JBlock block = onEventMethods.populateFieldMethodBody.block();
-				putAssignInBlock(fieldInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);
+				JBlock block = populateHolder.getPopulateMethodBlock(element).blockVirtual();
+				putAssignInBlock(fieldInfo, block, view, invoke(methodName), element, viewsHolder, populateHolder);
 				
 				return;
 			}
@@ -464,14 +364,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 				JFieldRef view = viewsHolder.createAndAssignView(methodInfo.idName);
 				
-				JBlock block = onEventMethods.populateFieldMethodBody.block();
-				putAssignInBlock(methodInfo, block, view, invoke(methodName), element, viewsHolder, onEventMethods);
+				JBlock block = populateHolder.getPopulateMethodBlock(element).blockVirtual();
+				putAssignInBlock(methodInfo, block, view, invoke(methodName), element, viewsHolder, populateHolder);
 				
 				return;
 			}
 		}
 		
-		processModel(className, element, viewsHolder, onEventMethods);
+		processModel(className, element, viewsHolder, populateHolder);
 	}
 	
 	private IdInfoHolder findInfoHolder(Element element, ViewsHolder viewsHolder) {
@@ -515,7 +415,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		return null;
 	}
 	
-	private boolean processDirectReference(final IdInfoHolder info, String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
+	private boolean processDirectReference(final IdInfoHolder info, String className, Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder) {
 		
 		final String fieldName = element.getSimpleName().toString();
 						
@@ -534,13 +434,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			LOGGER.warn("\nField: " + fieldName, element, adiHelper.getAnnotation(element, Populate.class));
 		
 		IJExpression view = info.idName != null? viewsHolder.createAndAssignView(info.idName) : _this();
-		JBlock block = onEventMethods.populateFieldMethodBody.block();
-		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods);
+		JBlock block = populateHolder.getPopulateMethodBlock(element).blockVirtual();
+		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, populateHolder);
 		
 		return true;
 	}
 	
-	private void processList(String className, Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
+	private void processList(String className, Element element, ViewsHolder viewsHolder, final PopulateHolder populateHolder) {
 
 		final String fieldName = element.getSimpleName().toString();
 
@@ -550,17 +450,17 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			this.processList(
 					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
 					element instanceof ExecutableElement? invoke(fieldName) : invoke(modelHolder.getGetterMethod(element)), 
-					onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);			
+					populateHolder.getPopulateMethodBlock(element), element, viewsHolder, populateHolder);			
 		} else {
 			this.processList(
 					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
 					element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
-					onEventMethods.populateFieldMethodBody, element, viewsHolder, onEventMethods);			
+							populateHolder.getPopulateMethodBlock(element), element, viewsHolder, populateHolder);			
 		}
 	}
 	
 	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, JBlock block, 
-			Element element, ViewsHolder viewsHolder, final OnEventMethods onEventMethods) {
+			Element element, ViewsHolder viewsHolder, final PopulateHolder populateHolder) {
 		
 		final String adapterName = fieldName + "$adapter";
 		final String adapterClassName = adapterName.substring(0, 1).toUpperCase() + adapterName.substring(1);
@@ -576,7 +476,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		JFieldRef view = viewsHolder.createAndAssignView(fieldName, new IWriteInBloc() {
 			@Override
 			public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
-				if (onEventMethods != null) {
+				if (populateHolder != null) {
 					JBlock notifyBlock = ifNotifBlock._else()._if(view.ne(_null()))._then();
 					
 					if (!annotation.custom()) {
@@ -662,14 +562,20 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		adapterSetterMethod.body().assign(ref(adapterName), adapter);
 			
 		
-		if (onEventMethods != null && onEventMethods.loadOnEventBlock != null) {
+		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
+		if (loadOnEvent != null) {
+			final String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
+			final String eventClass = SharedRecords.getEvent(classField, getEnvironment());			
+			final EventHolder eventHolder = viewsHolder.holder().getPluginHolder(new EventHolder(viewsHolder.holder()));
+			final JBlock eventBody = eventHolder.getEventBlock(eventClass);
+			
 			if (foundAdapterDeclaration && annotation.custom()) {
-				onEventMethods.loadOnEventBlock.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));			
-				onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapterGetter);
+				eventBody.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));			
+				eventBody.invoke(view, "setAdapter").arg(adapterGetter);
 				return;
 			}
 			
-			onEventMethods.loadOnEventBlock.invoke(view, "setAdapter").arg(adapterGetter);
+			eventBody.invoke(view, "setAdapter").arg(adapterGetter);
 		}
 		
 		//AdapterView
@@ -723,7 +629,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 	}	
 
-	private void processModel(String className, Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
+	private void processModel(String className, Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder) {
 		String fieldName = element.getSimpleName().toString();
 		
 		//Find all the fields and methods that are presented in the layouts
@@ -760,7 +666,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			injectAndAssignField(
 				fields.get(field), composedField, 
-				element, viewsHolder, onEventMethods
+				element, viewsHolder, populateHolder
 			);
 		}
 		
@@ -774,7 +680,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			injectAndAssignField(
 				methods.get(method), composedField, 
-				element, viewsHolder, onEventMethods
+				element, viewsHolder, populateHolder
 				/*,mapField != null && mapField.equals(methods.get(method).idName)*/
 			);
 			
@@ -783,13 +689,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		//Call _populate_ method after setting everything
 		SharedRecords.priorityAdd(
 				viewsHolder.holder().getOnViewChangedBody(), 
-				JExpr.invoke(onEventMethods.populateFieldMethod).arg(_null()).arg(_null()), 
+				JExpr.invoke(populateHolder.getPopulateMethod(element)).arg(_null()).arg(_null()), 
 				uniquePriorityCounter
 			);
 	}
 	
 	private void injectAndAssignField(IdInfoHolder info, String methodName,  
-			Element element, ViewsHolder viewsHolder, OnEventMethods onEventMethods/*, boolean isMapField*/) {
+			Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder/*, boolean isMapField*/) {
 		
 
 		final String fieldName = element.getSimpleName().toString();
@@ -847,19 +753,19 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		JFieldRef view = viewsHolder.createAndAssignView(info.idName);
 		
-		putAssignInBlock(info, changedBlock, view, methodsCall, element, viewsHolder, onEventMethods);
-		onEventMethods.populateFieldMethodBody.add(checkForNull);
+		putAssignInBlock(info, changedBlock, view, methodsCall, element, viewsHolder, populateHolder);
+		populateHolder.getPopulateMethodBlock(element).add(checkForNull);
 	}
 	
 	private void putAssignInBlock(IdInfoHolder info, JBlock block, IJExpression view, 
 			IJExpression assignRef, Element element, 
-			ViewsHolder viewsHolder, OnEventMethods onEventMethods) {
-		this.putAssignInBlock(info, block, view, assignRef, element, viewsHolder, onEventMethods, null);
+			ViewsHolder viewsHolder, PopulateHolder populateHolder) {
+		this.putAssignInBlock(info, block, view, assignRef, element, viewsHolder, populateHolder, null);
 	}
 	
 	public void putAssignInBlock(IdInfoHolder info, JBlock block, IJExpression view, 
 			IJExpression assignRef, Element element, 
-			ViewsHolder viewsHolder, OnEventMethods onEventMethods,
+			ViewsHolder viewsHolder, PopulateHolder populateHolder,
 			String layoutItemId) {
 		
 		String idName = info.idName;
@@ -975,7 +881,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 						className = className.substring(0, className.length()-1);
 					}
 					
-					processList(viewClass, info.idName, originalClassName, origAssignRef, block, element, viewsHolder, onEventMethods);
+					processList(viewClass, info.idName, originalClassName, origAssignRef, block, element, viewsHolder, populateHolder);
 					
 					return;
 				}
@@ -1043,44 +949,5 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				});
 			}
 		}
-	}
-	
-	public static class OnEventMethods {
-		JBlock loadOnEventBlock;
-		JMethod populateFieldMethod;
-		JBlock populateFieldMethodBody;
-		
-		public OnEventMethods(JBlock loadOnEventBlock, JMethod populateFieldMethod, GeneratedClassHolder holder) {
-			super();
-			this.loadOnEventBlock = loadOnEventBlock;
-			this.populateFieldMethod = populateFieldMethod;
-			
-			if (populateFieldMethod != null) {
-				final Classes classes = holder.getEnvironment().getClasses();				
-				final JFieldRef afterPopulate = ref("afterPopulate");				
-				
-				JTryBlock tryBlock = populateFieldMethod.body()._try();
-				{//Catch block
-					JCatchBlock catchBlock = tryBlock._catch(classes.THROWABLE);
-					JVar caughtException = catchBlock.param("e");
-								
-					IJStatement uncaughtExceptionCall = classes.THREAD 
-							.staticInvoke("getDefaultUncaughtExceptionHandler") 
-							.invoke("uncaughtException") 
-							.arg(classes.THREAD.staticInvoke("currentThread")) 
-							.arg(caughtException);
-					
-					JFieldRef onFailed = ref("onFailed");
-					JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
-					ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
-					ifOnFailedAssigned._else().add(uncaughtExceptionCall);
-				}
-				this.populateFieldMethodBody = tryBlock.body().block();
-				
-				
-				tryBlock.body()._if(afterPopulate.ne(_null()))._then()
-				               .invoke(afterPopulate, "run");
-			}
-		}	
 	}
 }

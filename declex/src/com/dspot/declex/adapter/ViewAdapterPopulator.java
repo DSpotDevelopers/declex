@@ -101,9 +101,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 		
 		JBlock methodBody = getViewMethod.body();
 		
-		JFieldRef contentViewId = null;
-		String listItemId = null;
-		String defLayoutId = viewsHolder.getDefLayoutId();
+		final JFieldRef contentViewId;
+		final String listItemId;
+		final String defLayoutId = viewsHolder.getDefLayoutId();
 		
 		//Read the Layout from the XML file
 		org.w3c.dom.Element node = viewsHolder.getDomElementFromId(fieldName);
@@ -114,7 +114,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			
 			viewsHolder.addLayout(listItemId);
 			viewsHolder.setDefLayoutId(listItemId);
-		} 
+		} else {
+			throw new IllegalStateException("This should not happens, Validations not working");
+		}
 		
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
@@ -228,8 +230,11 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			public JFieldRef createView(String viewId, String viewName, 
 					AbstractJClass viewClass, JBlock declBlock) {
 				
+				if (!viewsHolder.layoutContainsId(viewId, listItemId)) return null;
+				
 				JVar viewField = FinalViewHolderClass.fields().get(viewName);
 				if (viewField == null) { 
+					
 					AbstractJClass idNameClass = getJClass(viewsHolder.getClassNameFromId(viewId));	
 					JFieldRef idRef = environment.getRClass().get(Res.ID).getIdStaticRef(viewId, environment);
 					

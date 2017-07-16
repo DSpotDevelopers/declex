@@ -29,6 +29,7 @@ import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JConditional;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
+import com.helger.jcodemodel.JMethod;
 
 public class PopulateActionProcessor extends BaseActionProcessor {
 
@@ -65,11 +66,9 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			if (field != null) {
 				
 				if (getAnnotation(field, ExternalPopulate.class) != null) {
-					final String fieldName = field.getSimpleName().toString();
-					final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
-	                        + fieldName.substring(1);
-				
-					JFieldRef listenerField = ref(populateListenerName);
+					
+					JFieldRef listenerField = 
+							getMethodInHolder("getPopulateListener", "com.dspot.declex.holder.PopulateHolder", field);
 					
 					JBlock block = new JBlock();
 					JConditional ifNeNull = block._if(listenerField.neNull());
@@ -83,9 +82,12 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 					
 					addPostBuildBlock(block);	
 					
-				} else {
+				} else {					
 					
-					JInvocation invoke = invoke("_populate_" + field.getSimpleName().toString())
+					JMethod populateMethod = 
+							getMethodInHolder("getPopulateMethod", "com.dspot.declex.holder.PopulateHolder", field);
+					
+					JInvocation invoke = invoke(populateMethod)
 							.arg(getAction().invoke("getDone"))
 							.arg(getAction().invoke("getFailed"));
 					addPostBuildBlock(invoke);						
@@ -107,7 +109,11 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 					
 					addPostBuildBlock(block);					
 				} else {
-					JInvocation invoke = invoke("_populate_this")
+					
+					JMethod populateThisMethod = 
+							getMethodInHolder("getPopulateThis", "com.dspot.declex.holder.PopulateHolder", field);
+					
+					JInvocation invoke = invoke(populateThisMethod)
 							.arg(getAction().invoke("getDone"))
 							.arg(getAction().invoke("getFailed"));
 					addPostBuildBlock(invoke);	

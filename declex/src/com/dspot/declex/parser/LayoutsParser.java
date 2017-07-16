@@ -27,9 +27,10 @@ import javax.lang.model.element.TypeElement;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.androidannotations.helper.IdAnnotationHelper;
+import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.rclass.IRClass.Res;
+import org.androidannotations.rclass.IRInnerClass;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -46,6 +47,7 @@ public class LayoutsParser {
 	private List<File> layoutFolders = new LinkedList<File>();
 	
 	private ProcessingEnvironment processingEnv;
+	private AndroidAnnotationsEnvironment environment;
 	
 	private static LayoutsParser instance;
 	
@@ -53,9 +55,10 @@ public class LayoutsParser {
 		return instance;
 	}
 	
-	public LayoutsParser(ProcessingEnvironment processingEnv, Logger logger) {
+	public LayoutsParser(AndroidAnnotationsEnvironment environment, Logger logger) {
 		this.LOGGER = logger;
-		this.processingEnv = processingEnv;
+		this.processingEnv = environment.getProcessingEnvironment();
+		this.environment = environment;
 		
 		File resFolderFile = FileUtils.getResFolder(processingEnv);
 		LOGGER.info("Layout Parsing in: " + resFolderFile.getAbsolutePath());
@@ -71,11 +74,11 @@ public class LayoutsParser {
 		LayoutsParser.instance = this;
 	}
 	
-	public Map<String, LayoutObject> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper) {
-		return getLayoutObjects(layoutName, idHelper, null);
+	public Map<String, LayoutObject> getLayoutObjects(String layoutName) {
+		return getLayoutObjects(layoutName, null);
 	}
 	
-	private Map<String, LayoutObject> getLayoutObjects(String layoutName, IdAnnotationHelper idHelper, String layoutId) {
+	private Map<String, LayoutObject> getLayoutObjects(String layoutName, String layoutId) {
 		Map<String, LayoutObject> layoutObjects = layoutMaps.get(layoutName);
 		
 		if (layoutObjects == null) {
@@ -83,7 +86,7 @@ public class LayoutsParser {
 				for (File file : layout.listFiles()) {
 					if (file.isFile() && file.getName().equals(layoutName + ".xml")) {
 						
-						layoutObjects = parseLayout(file, idHelper, layoutId);
+						layoutObjects = parseLayout(file, layoutId);
 						
 						if (layoutMaps.containsKey(layoutName)) {
 							//Merge layouts
@@ -100,7 +103,7 @@ public class LayoutsParser {
 		return layoutObjects;
 	}
 	
-	private void searchInNode(Element node, IdAnnotationHelper idHelper, Map<String, LayoutObject> foundObjects, String layoutId) {
+	private void searchInNode(Element node, Map<String, LayoutObject> foundObjects, String layoutId) {
 		//documentElement.normalize();
 		
 		final String[] packages = {
@@ -120,7 +123,7 @@ public class LayoutsParser {
 				String layoutName = node.getAttribute("layout");
 				layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
-				foundObjects.putAll(getLayoutObjects(layoutName, idHelper, id));
+				foundObjects.putAll(getLayoutObjects(layoutName, id));
 			}
 			return;
 		}
@@ -139,7 +142,7 @@ public class LayoutsParser {
 			if (node.getTagName().equals("fragment")) {
 				if (node.hasAttribute("android:name")) {
 					String fragmentClassName = node.getAttribute("android:name");
-					if (idHelper.containsField(id, Res.ID))	{
+					if (containsField(id, Res.ID))	{
 						foundObjects.put(
 								id,
 								new LayoutObject(fragmentClassName, node)
@@ -153,7 +156,7 @@ public class LayoutsParser {
 					String layoutName = node.getAttribute("tools:layout");
 					layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 					
-					foundObjects.putAll(getLayoutObjects(layoutName, idHelper, null));
+					foundObjects.putAll(getLayoutObjects(layoutName, null));
 				}
 				
 				return;
@@ -173,7 +176,7 @@ public class LayoutsParser {
 				}
 			}
 			
-			if (idHelper.containsField(id, Res.ID))	{
+			if (containsField(id, Res.ID))	{
 				LayoutObject layoutObject = new LayoutObject(className, node);
 				foundObjects.put(id, layoutObject);
 				
@@ -183,7 +186,7 @@ public class LayoutsParser {
 						String layoutName = node.getAttribute("app:headerLayout");
 						layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
-						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName, idHelper);
+						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName);
 						
 						for (LayoutObject headerLayoutObject : headerLayoutObjects.values()) {
 							headerLayoutObject.holderId = id;
@@ -198,7 +201,7 @@ public class LayoutsParser {
 						String layoutName = node.getAttribute("app:headerLayout");
 						layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
-						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName, idHelper);
+						Map<String, LayoutObject> headerLayoutObjects = getLayoutObjects(layoutName);
 						
 						for (LayoutObject headerLayoutObject : headerLayoutObjects.values()) {
 							headerLayoutObject.holderId = id;
@@ -213,11 +216,11 @@ public class LayoutsParser {
 		NodeList nodes = node.getChildNodes();
 		for (int i = 0; i < nodes.getLength(); i++) 
 			if (nodes.item(i) instanceof Element){
-			searchInNode((Element)nodes.item(i), idHelper, foundObjects, null);
+			searchInNode((Element)nodes.item(i), foundObjects, null);
 		}
 	}
 	
-	private Map<String, LayoutObject> parseLayout(File xmlLayoutFile, IdAnnotationHelper idHelper, String layoutId) {
+	private Map<String, LayoutObject> parseLayout(File xmlLayoutFile, String layoutId) {
 		LOGGER.info("Layout Parsing: " + xmlLayoutFile.getName());
 		
 		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
@@ -234,11 +237,16 @@ public class LayoutsParser {
 		Map<String, LayoutObject> foundObjects = new TreeMap<>();
 		Element documentElement = doc.getDocumentElement();
 		
-		searchInNode(documentElement, idHelper, foundObjects, layoutId);
+		searchInNode(documentElement, foundObjects, layoutId);
 		
 		LOGGER.info("Layout Parsing Found: " + foundObjects);
 		
 		return foundObjects;
+	}
+	
+	private boolean containsField(String name, Res res) {
+		IRInnerClass rInnerClass = environment.getRClass().get(res);
+		return rInnerClass.containsField(name);
 	}
 	
 	public static class LayoutObject {

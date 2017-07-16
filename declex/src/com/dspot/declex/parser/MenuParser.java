@@ -26,9 +26,10 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.androidannotations.helper.IdAnnotationHelper;
+import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.rclass.IRClass.Res;
+import org.androidannotations.rclass.IRInnerClass;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -43,6 +44,7 @@ public class MenuParser {
 	private List<File> menuFolders = new LinkedList<File>();
 	
 	private ProcessingEnvironment processingEnv;
+	private AndroidAnnotationsEnvironment environment;
 	
 	private static MenuParser instance;
 	
@@ -50,9 +52,11 @@ public class MenuParser {
 		return instance;
 	}
 	
-	public MenuParser(ProcessingEnvironment processingEnv, Logger logger) {
+	public MenuParser(AndroidAnnotationsEnvironment environment, Logger logger) {
+		
 		this.LOGGER = logger;
-		this.processingEnv = processingEnv;
+		this.processingEnv = environment.getProcessingEnvironment();
+		this.environment = environment;
 		
 		File resFolderFile = FileUtils.getResFolder(processingEnv);
 		LOGGER.info("Menu Parsing in: " + resFolderFile.getAbsolutePath());
@@ -68,14 +72,14 @@ public class MenuParser {
 		MenuParser.instance = this;
 	}
 	
-	public List<String> getMenuObjects(String menuName, IdAnnotationHelper idHelper) {
+	public List<String> getMenuObjects(String menuName) {
 		List<String> menuObjects = menuMaps.get(menuName);
 		
 		if (menuObjects == null) {
 			for (File menu : menuFolders) {
 				for (File file : menu.listFiles()) {
 					if (file.isFile() && file.getName().equals(menuName + ".xml")) {
-						menuObjects = parse(file, idHelper);
+						menuObjects = parse(file);
 						menuMaps.put(menuName, menuObjects);
 						break;
 					}
@@ -86,23 +90,23 @@ public class MenuParser {
 		return menuObjects;
 	}
 	
-	private void searchInNode(Element node, IdAnnotationHelper idHelper, List<String> foundObjects ) {
+	private void searchInNode(Element node, List<String> foundObjects ) {
 		
 		if (node.hasAttribute("android:id")) {
 			String id = node.getAttribute("android:id");
 			id = id.substring(id.lastIndexOf('/') + 1);
 			
-			if (idHelper.containsField(id, Res.ID))	foundObjects.add(id);
+			if (containsField(id, Res.ID))foundObjects.add(id);
 		}		
 		
 		NodeList nodes = node.getChildNodes();
 		for (int i = 0; i < nodes.getLength(); i++) 
 			if (nodes.item(i) instanceof Element){
-			searchInNode((Element)nodes.item(i), idHelper, foundObjects);
+			searchInNode((Element)nodes.item(i), foundObjects);
 		}
 	}
 	
-	private List<String> parse(File xmlMenuFile, IdAnnotationHelper idHelper) {
+	private List<String> parse(File xmlMenuFile) {
 		LOGGER.info("Menu Parsing: " + xmlMenuFile.getName());
 		
 		DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
@@ -119,10 +123,15 @@ public class MenuParser {
 		List<String> foundObjects = new LinkedList<String>();
 		Element documentElement = doc.getDocumentElement();
 		
-		searchInNode(documentElement, idHelper, foundObjects);
+		searchInNode(documentElement, foundObjects);
 		
 		LOGGER.info("Menu Parsing Found: " + foundObjects);
 		
 		return foundObjects;
+	}
+	
+	private boolean containsField(String name, Res res) {
+		IRInnerClass rInnerClass = environment.getRClass().get(res);
+		return rInnerClass.containsField(name);
 	}
 }

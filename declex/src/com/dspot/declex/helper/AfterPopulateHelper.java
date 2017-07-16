@@ -42,13 +42,15 @@ public class AfterPopulateHelper {
 		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
 		
 		for (Element elem : allElems) {
-			if (elem.getKind().isField() && adiHelper.getAnnotation(elem, Populate.class) != null) {
+			
+			if (elem.getKind().isField() && adiHelper.hasAnnotation(elem, Populate.class)) {
 				
 				final String elemName = elem.getSimpleName().toString();
 				
 				if (elemName.equals(elementName)) {
 					return true;
 				}
+				
 				if (elemName.equals(elementNameAsMethod)) {
 					return true;
 				}

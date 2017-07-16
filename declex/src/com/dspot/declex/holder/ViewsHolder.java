@@ -43,7 +43,6 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.holder.FoundViewHolder;
@@ -83,7 +82,6 @@ public class ViewsHolder extends
 	private String defLayoutId = null;
 	
 	private MenuParser menuParser;
-	private IdAnnotationHelper annotationHelper;
 
 	private Map<String, ViewInfo> views = new HashMap<>();
 	
@@ -93,20 +91,18 @@ public class ViewsHolder extends
 	private ADIHelper adiHelper;
 	private ViewsPropertiesReaderHelper propertiesHelper;
 
-	public ViewsHolder(EComponentWithViewSupportHolder holder,
-			IdAnnotationHelper annotationHelper) {
+	public ViewsHolder(EComponentWithViewSupportHolder holder) {
 		super(holder);
-
-		this.annotationHelper = annotationHelper;
-		this.adiHelper = new ADIHelper(environment());
-		this.propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment());
 		
+		this.adiHelper = new ADIHelper(environment());
+		this.propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment());		
 		this.menuParser = MenuParser.getInstance();
 		
-		viewsHelper = new ViewsHelper(holder.getAnnotatedElement(), annotationHelper, environment());
+		viewsHelper = new ViewsHelper(holder.getAnnotatedElement(), environment());
 		defLayoutId = viewsHelper.getLayoutId();
 		if (defLayoutId != null) {
 			layoutObjects.put(defLayoutId, viewsHelper.getLayoutObjects());
+			onViewChangedHasViewsParamValues.put(defLayoutId, holder().getOnViewChangedHasViewsParam());
 		}
 	}
 	
@@ -135,8 +131,7 @@ public class ViewsHolder extends
 							idQualifiedName);
 
 					if (matcher.find()) {
-						menuObjects = menuParser.getMenuObjects(
-								matcher.group(1), annotationHelper);
+						menuObjects = menuParser.getMenuObjects(matcher.group(1));
 					}
 				}
 			}
@@ -426,19 +421,22 @@ public class ViewsHolder extends
 		return this.createAndAssignView(fieldName, null);
 	}
 
-	public JFieldRef createAndAssignView(final String fieldName,
-			IWriteInBloc writeInBlock) {
+	public JFieldRef createAndAssignView(final String fieldName, IWriteInBloc writeInBlock) {
+		
 		final String viewName = fieldName + DeclexConstant.VIEW;
 		final AbstractJClass viewClass = getJClass(getClassNameFromId(fieldName));
 		
-		if (createViewListener != null) {
+		if (createViewListener != null) {			
+			
 			final JBlock declBlock = writeInBlock==null? null : new JBlock();
 			final JFieldRef view = createViewListener.createView(fieldName, viewName, viewClass, declBlock);
 			
-			if (writeInBlock != null)
-				writeInBlock.writeInBlock(viewName, viewClass, view, declBlock);
-			
-			return view; 
+			if (view != null) {
+				if (writeInBlock != null)
+					writeInBlock.writeInBlock(viewName, viewClass, view, declBlock);
+				
+				return view;
+			}
 		}
 
 		final JFieldRef view = ref(viewName);		

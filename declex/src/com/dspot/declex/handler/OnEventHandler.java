@@ -58,7 +58,7 @@ public class OnEventHandler extends BaseOnEventHandler {
 		final ViewsHolder viewsHolder;
 		if (holder instanceof EComponentWithViewSupportHolder) {
 			viewsHolder = holder.getPluginHolder(
-				new ViewsHolder((EComponentWithViewSupportHolder) holder, annotationHelper)
+				new ViewsHolder((EComponentWithViewSupportHolder) holder)
 			);
 		} else {
 			viewsHolder = null;
