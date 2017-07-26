@@ -295,7 +295,7 @@ public class ViewsHolder extends
 							defLayoutId = layoutId;
 							
 							JFieldRef view = this.createAndAssignView(viewId);
-							JInvocation getProperty = view.invoke(getterInitialExpression + property);
+							IJExpression getProperty = view.invoke(getterInitialExpression + property);
 						
 							defLayoutId = savedDefLayoutId;
 														
@@ -335,6 +335,12 @@ public class ViewsHolder extends
 								
 								return invocation.arg(_new(anonymousProperty));
 								
+							} else if (hasGetterAsString) {
+								if (getters.get(property).getKind().isPrimitive()) {
+									getProperty = getJClass(String.class).staticInvoke("valueOf").arg(getProperty);
+								} else {
+									getProperty = cond(getProperty.eq(_null()), _null(),getProperty.invoke("toString"));
+								}
 							}
 							
 							return invocation.arg(getProperty);

@@ -388,8 +388,8 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	
 	private void setExistenceStructure() {
 		try {
-			fullInitVar = getGeneratedClass().field(JMod.PUBLIC, getCodeModel().BOOLEAN, "_fullInit", JExpr.FALSE);
-			existsVar = getGeneratedClass().field(JMod.NONE, getCodeModel().BOOLEAN, "_exists", JExpr.TRUE);
+			fullInitVar = getGeneratedClass().field(JMod.PUBLIC | JMod.TRANSIENT, getCodeModel().BOOLEAN, "_fullInit", JExpr.FALSE);
+			existsVar = getGeneratedClass().field(JMod.TRANSIENT, getCodeModel().BOOLEAN, "_exists", JExpr.TRUE);
 			
 			Field constructorField = EBeanHolder.class.getDeclaredField("constructor");
 			constructorField.setAccessible(true);
