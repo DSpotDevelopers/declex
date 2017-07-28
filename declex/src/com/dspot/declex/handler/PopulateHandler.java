@@ -21,8 +21,10 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.invoke;
+import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -835,14 +837,49 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		if (TypeUtils.isSubtype(viewClass, "android.widget.ImageView", getProcessingEnvironment())) {
 			AbstractJClass Picasso = getJClass("com.squareup.picasso.Picasso");
-			
-			JInvocation PicassoBuilder = Picasso.staticInvoke("with").arg(context)
-								    .invoke("load");
+			AbstractJClass RequestCreator = getJClass("com.squareup.picasso.RequestCreator");
 
+			if (type.toString().equals(RequestCreator.fullName())) {
+				
+				block._if(origAssignRef.neNull())._then()
+				      .add(origAssignRef.invoke("into").arg(view));				
+				
+				return;
+			}
+			
+			IJExpression PicassoBuilder = Picasso.staticInvoke("with").arg(context);
+
+			JBlock typeCheckBlock = null;
+			JBlock typeCheckIfBlock = null;
+						
 			if (type.toString().equals(String.class.getCanonicalName())) {
-				PicassoBuilder = PicassoBuilder.arg(assignRef);
+				
+				PicassoBuilder = PicassoBuilder.invoke("load").arg(assignRef);
+				
+			} else if (type.toString().equals(Object.class.getCanonicalName())) {
+				
+				typeCheckBlock = new JBlock();
+				JVar picasso = typeCheckBlock.decl(Picasso, idName + "$picasso", PicassoBuilder);
+				JVar requestCreator = typeCheckBlock.decl(RequestCreator, idName + "$request", _null());
+				
+				JConditional ifInstance = typeCheckBlock._if(origAssignRef._instanceof(getJClass(String.class)));
+				ifInstance._then().assign(requestCreator, picasso.invoke("load").arg(cast(getJClass(String.class), origAssignRef)));
+				
+				ifInstance = ifInstance._elseif(origAssignRef._instanceof(getJClass(Integer.class)));
+				ifInstance._then().assign(requestCreator, picasso.invoke("load").arg(cast(getJClass(Integer.class), origAssignRef)));
+				
+				ifInstance = ifInstance._elseif(origAssignRef._instanceof(getJClass(File.class)));
+				ifInstance._then().assign(requestCreator, picasso.invoke("load").arg(cast(getJClass(File.class), origAssignRef)));
+				
+				ifInstance = ifInstance._elseif(origAssignRef._instanceof(getJClass("android.net.Uri")));
+				ifInstance._then().assign(requestCreator, picasso.invoke("load").arg(cast(getJClass("android.net.Uri"), origAssignRef)));
+				
+				typeCheckIfBlock = typeCheckBlock._if(requestCreator.neNull())._then();
+				
+				PicassoBuilder = requestCreator;
+				
 			} else {
-				PicassoBuilder = PicassoBuilder.arg(origAssignRef);
+				PicassoBuilder = PicassoBuilder.invoke("load").arg(origAssignRef);
 			}
 			
 			if (node != null && node.hasAttribute("android:src")) {
@@ -852,15 +889,29 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 						.arg(getEnvironment().getRClass().get(Res.DRAWABLE).getIdStaticRef(srcId, getEnvironment()));
 			}
 		
-			JBlock ifBlock;
-			if (type.toString().equals(String.class.getCanonicalName())) {
-				ifBlock = block._if(assignRef.invoke("equals").arg("").not())._then();
+			JBlock ifBlock = block;
+		
+			if (type.getKind().isPrimitive()) {
+				ifBlock = ifBlock._if(origAssignRef.ne(lit(0)))._then();
 			} else {
-				ifBlock = block.blockVirtual();			
+				ifBlock = ifBlock._if(origAssignRef.neNull())._then();
+			}
+			
+			if (type.toString().equals(String.class.getCanonicalName())) {
+				ifBlock = ifBlock._if(assignRef.invoke("equals").arg("").not())._then();
+			} else {
+				ifBlock = ifBlock.blockVirtual();			
 			}
 			
 			if (!thisContext) ifBlock = ifBlock._if(context.ne(_null()))._then();
-			ifBlock.add(PicassoBuilder.invoke("into").arg(view));
+			
+			if (typeCheckBlock == null) {
+				ifBlock.add(PicassoBuilder.invoke("into").arg(view));
+			} else {
+				ifBlock.add(typeCheckBlock);	
+				typeCheckIfBlock.add(PicassoBuilder.invoke("into").arg(view));
+			}
+			
 			
 			return;
 		}		

@@ -109,7 +109,10 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					
 					if (paramType.equals(className) 
 						|| paramType.equals(TypeUtils.getGeneratedClassName(className, getEnvironment()))) continue;
+					
 					if (!paramType.contains(".") && className.endsWith("." + paramType)) continue;
+					
+					if (paramName.equals("_this")) continue;
 					
 					fields.put(paramName, paramType);
 				}	
