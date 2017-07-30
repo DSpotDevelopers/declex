@@ -59,15 +59,19 @@ public class MenuParser {
 		this.environment = environment;
 		
 		File resFolderFile = FileUtils.getResFolder(processingEnv);
-		LOGGER.info("Menu Parsing in: " + resFolderFile.getAbsolutePath());
-		
-		for (File file : resFolderFile.listFiles()) {
-			if (file.isDirectory() && (file.getName().equals("menu") || file.getName().startsWith("menu-"))) {
-				menuFolders.add(file);
+		if (resFolderFile.exists()) {
+			LOGGER.info("Menu Parsing in: " + resFolderFile.getAbsolutePath());
+			
+			for (File file : resFolderFile.listFiles()) {
+				if (file.isDirectory() && (file.getName().equals("menu") || file.getName().startsWith("menu-"))) {
+					menuFolders.add(file);
+				}
 			}
+			
+			LOGGER.info("Menu Folders found: " + menuFolders);
+		} else {
+			LOGGER.info("Menu Folders Not Found");
 		}
-		
-		LOGGER.info("Menu Folders found: " + menuFolders);
 		
 		MenuParser.instance = this;
 	}

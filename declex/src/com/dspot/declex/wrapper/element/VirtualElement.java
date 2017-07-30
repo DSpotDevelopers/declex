@@ -18,9 +18,12 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import com.helger.jcodemodel.IJExpression;
+
 public class VirtualElement implements Element {
 
 	private Element reference;
+	private IJExpression referenceExpression;
 	
 	protected Element element;
 	private Element enclosingElement;
@@ -74,6 +77,14 @@ public class VirtualElement implements Element {
 		this.reference = reference;
 	}
 		
+	public IJExpression getReferenceExpression() {
+		return referenceExpression;
+	}
+	
+	public void setReferenceExpression(IJExpression referenceExpression) {
+		this.referenceExpression = referenceExpression;
+	}
+	
 	public Element getElement() {
 		return element;
 	}

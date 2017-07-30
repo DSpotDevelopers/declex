@@ -86,6 +86,7 @@ public class FileUtils {
 			File rootProject = FileHelper.findRootProject(processingEnv);
 			folderPath = rootProject.getAbsolutePath();
 		} catch (FileNotFoundException e) {
+			
 			//Try with gradle
 			File gradle = new File("app" + File.separator + "build" + File.separator + "generated" + File.separator + "source" + File.separator + "apt");
 			

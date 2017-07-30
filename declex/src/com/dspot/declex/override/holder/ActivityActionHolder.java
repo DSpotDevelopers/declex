@@ -37,7 +37,7 @@ import org.androidannotations.plugin.PluginClassHolder;
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.annotation.action.StopOn;
-import com.dspot.declex.api.action.builtin.base.BaseActivityActionHolder;
+import com.dspot.declex.api.action.base.BaseActivityActionHolder;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.processor.ActivityActionProcessor;
@@ -179,6 +179,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			ActivityAction.annotate(EBean.class);
 			
 			JAnnotationUse actionFor = ActivityAction.annotate(ActionFor.class);
+			actionFor.param("global", true);
 			actionFor.param("value", activityName);
 			actionFor.param("timeConsuming", false);	
 			actionFor.param("processors", ActivityActionProcessor.class);

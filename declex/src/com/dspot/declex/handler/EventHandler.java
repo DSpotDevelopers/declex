@@ -39,6 +39,7 @@ import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import com.dspot.declex.annotation.Event;
+import com.dspot.declex.annotation.Export;
 import com.dspot.declex.annotation.External;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
@@ -145,7 +146,9 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		
-		if (adiHelper.hasAnnotation(element, External.class)) {
+		if (adiHelper.hasAnnotation(element, External.class) 
+			|| adiHelper.hasAnnotation(element, Export.class)) {
+			
 			if (element instanceof VirtualElement) {
 				eventsHelper.registerAsEventListener(holder);
 			}

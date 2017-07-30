@@ -59,17 +59,22 @@ public class LayoutsParser {
 		this.LOGGER = logger;
 		this.processingEnv = environment.getProcessingEnvironment();
 		this.environment = environment;
-		
+
 		File resFolderFile = FileUtils.getResFolder(processingEnv);
-		LOGGER.info("Layout Parsing in: " + resFolderFile.getAbsolutePath());
-		
-		for (File file : resFolderFile.listFiles()) {
-			if (file.isDirectory() && (file.getName().equals("layout") || file.getName().startsWith("layout-"))) {
-				layoutFolders.add(file);
+		if (resFolderFile.exists()) {
+			LOGGER.info("Layout Parsing in: " + resFolderFile.getAbsolutePath());
+			
+			for (File file : resFolderFile.listFiles()) {
+				if (file.isDirectory() && (file.getName().equals("layout") || file.getName().startsWith("layout-"))) {
+					layoutFolders.add(file);
+				}
 			}
+			
+			LOGGER.info("Layout Folders Found: " + layoutFolders);			
+		} else {
+			LOGGER.info("Layout Folders Not Found");
 		}
-		
-		LOGGER.info("Layout Folders found: " + layoutFolders);
+			
 		
 		LayoutsParser.instance = this;
 	}

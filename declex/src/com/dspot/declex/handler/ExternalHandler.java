@@ -168,7 +168,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 				return;
 			}
 			
-			if ((element instanceof ExecutableElement) && !element.getModifiers().contains(Modifier.PUBLIC)) {
+			if (!element.getModifiers().contains(Modifier.PUBLIC)) {
 				valid.addError("You can use @External only on public methods");
 				return;
 			}

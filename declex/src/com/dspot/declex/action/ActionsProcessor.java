@@ -100,6 +100,7 @@ import com.sun.source.tree.BreakTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.tree.EmptyStatementTree;
 import com.sun.source.tree.EnhancedForLoopTree;
@@ -131,8 +132,6 @@ import com.sun.source.util.Trees;
 public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private String debugIndex = "";
-
-	private int actionCount = 0;
 	
 	private List<MethodInvocationTree> subMethods = new LinkedList<>();
 	
@@ -180,7 +179,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private ADIHelper adiHelper;
 	private Element element;
 	
-	private List<? extends ImportTree> imports;
+	private final List<? extends ImportTree> imports;
+	private final CompilationUnitTree compilationUnit;
 	
 	private boolean ignoreActions;
 	private ClassTree anonymousClassTree;
@@ -206,10 +206,13 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
     			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
 		);
     	
+    	//This means the element is Virtual and was already processed (ex. Imported Method)
+    	if (treePath == null) return false;
+    	
     	//Check if the Action Api was activated for this compilation unit
     	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
     		
-            if (importTree.getQualifiedIdentifier().toString().startsWith(DeclexConstant.ACTION + ".")) {
+            if (Actions.isAction(importTree.getQualifiedIdentifier().toString())) {
 
             	try {
 
@@ -365,6 +368,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 		this.codeModelHelper = new DeclexAPTCodeModelHelper(env);
 		this.adiHelper = new ADIHelper(env);
+		
+		compilationUnit = treePath.getCompilationUnit();
 		imports = treePath.getCompilationUnit().getImports();
 		
 		if (overrideAction.contains(element)) {
@@ -987,12 +992,12 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	@Override
-	public Boolean visitMethodInvocation(MethodInvocationTree invoke,
-			Trees trees) {
+	public Boolean visitMethodInvocation(MethodInvocationTree invoke, Trees trees) {
+		
 		if (ignoreActions) {
 			return super.visitMethodInvocation(invoke, trees);
 		}
-
+		
 		String methodSelect = invoke != null? invoke.getMethodSelect().toString() 
 				                            : actionInFieldWithoutInitializer;
 	
@@ -1051,12 +1056,9 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					}
 				}
 
-				String actionName = methodSelect.substring(0, 1).toLowerCase() 
-		                  + methodSelect.substring(1) + actionCount;
-				if (actionInfo.isGlobal) {
-					actionName = actionName + "$" + element.getSimpleName();
-				}
-				
+				final int position = (int) trees.getSourcePositions().getStartPosition(compilationUnit, invoke);				
+				final String actionName = methodSelect.substring(0, 1).toLowerCase() + methodSelect.substring(1) + position;				
+								
 				JBlock block = blocks.get(0);
 				
 				//This is important to detect empty blocks
@@ -1078,7 +1080,6 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				writePreviousStatements();
 				            					
 				currentAction.set(0, methodSelect);
-				actionCount++;
 				
 				IJExpression context = holder == null? ref("none") : holder.getContextRef();
 				if (context == _this()) {
@@ -1144,14 +1145,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						if (methods != null && methods.size() > 0) {
 							String holderClass = actionInfo.holderClass;
 							String resultClass = methods.get(0).resultClass;
-							
-							if (holderClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-								holderClass = holderClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-							}
-							if (resultClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-								resultClass = resultClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-							}
-							
+														
 							if (!TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment())) {
 								
 								if (actionInfo.superHolderClass == null 
@@ -2380,7 +2374,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 	}
 	
-	private static class ActionDetectedException extends RuntimeException {
+	public static class ActionDetectedException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
 	}
 	

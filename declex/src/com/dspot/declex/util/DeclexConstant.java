@@ -17,7 +17,7 @@ package com.dspot.declex.util;
 
 public class DeclexConstant {
 	public final static String VIEW = "$view";
-	public final static String ACTION = "com.dspot.declex.Action";
 	
-	public static final String EVENT_PATH = "com.dspot.declex.event.";
+	public static String ACTION = "com.dspot.declex.Action";
+	public static String EVENT_PATH = "com.dspot.declex.event.";
 }
