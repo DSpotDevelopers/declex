@@ -51,6 +51,12 @@ import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.Export;
+import com.dspot.declex.annotation.External;
+import com.dspot.declex.annotation.JsonModel;
+import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.ServerModel;
+import com.dspot.declex.annotation.UseEvents;
+import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.ActionHelper;
@@ -222,7 +228,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		if (!FilesCacheHelper.isCacheFilesEnabled()) {
 			timeStats.start("Scan for Exports");
 			Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements = new HashMap<>();
-			scanForExports(roundEnv, virtualAnnotatedElements);
+			scanForExports(roundEnv, annotations, virtualAnnotatedElements);
 			timeStats.stop("Scan for Exports");
 			
 			if (!virtualAnnotatedElements.isEmpty()) {
@@ -380,65 +386,95 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	 * for Actions and Beans which export methods. It creates Virtual Elements for these
 	 * exported methods
 	 * @param roundEnv
+	 * @param annotations 
 	 * @param virtualAnnotatedElements 
 	 */
-	private void scanForExports(RoundEnvironment roundEnv, final Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements) {
+	private void scanForExports(RoundEnvironment roundEnv, Set<? extends TypeElement> annotations, 
+			final Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements) {
+	
+		//TODO find the best way to call the annotation dependency injection, the method below is a simple hack
+		Set<String> generatingTargets = new HashSet<>();
+		Set<Element> processedElements = new HashSet<>();
+		{
+			for (AnnotationHandler<?> annotationHandler : androidAnnotationsEnv.getGeneratingHandlers()) {
+				generatingTargets.add(annotationHandler.getTarget());
+			}
+			
+//			generatingTargets.add(External.class.getCanonicalName());
+//			generatingTargets.add(UseModel.class.getCanonicalName());
+//			generatingTargets.add(UseEvents.class.getCanonicalName());
+//			generatingTargets.add(LocalDBModel.class.getCanonicalName());
+//			generatingTargets.add(JsonModel.class.getCanonicalName());
+//			generatingTargets.add(ServerModel.class.getCanonicalName());
+		}
 		
 		//Import exported methods
-		for (AnnotationHandler<?> annotationHandler : androidAnnotationsEnv.getGeneratingHandlers()) {
+		for (String generatingTarget : generatingTargets) {
 			
-			final TypeElement annotation = processingEnv.getElementUtils().getTypeElement(annotationHandler.getTarget());
+			final TypeElement annotation = processingEnv.getElementUtils().getTypeElement(generatingTarget);
 			final Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-			
+						
 			//Check all the actions
 			for (final Element element : elements) {
+				
+				if (!element.getKind().isClass()) continue;
+				
+				if (processedElements.contains(element)) continue;
+				processedElements.add(element);
+				
 				final Trees trees = Trees.instance(processingEnv);
 		    	final TreePath treePath = trees.getPath(element);	
-		    			    	
+		    	
+		    	boolean actionScanNeeded = false;
 		    	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
 		    	
-		    		//Scan actions if needed 
 		            if (Actions.isAction(importTree.getQualifiedIdentifier().toString())) {
+		            	actionScanNeeded = true;
 		            	
-		            	for (Element elem : element.getEnclosedElements()) {
-		            		
-		            		final TreePath elemTreePath = trees.getPath(elem);
-		            		
-	    	            	TreePathScanner<Boolean, Trees> scanner = new TreePathScanner<Boolean, Trees>() {
-	    	            		@Override
-	    	            		public Boolean visitIdentifier(IdentifierTree id, Trees trees) {
-	    	            			
-	    	            			String name = id.getName().toString();
-	    	            			
-	    	            			if (Actions.getInstance().hasActionNamed(name)) {
-	    	            				TypeElement actionHolderElement = Actions.getInstance().getActionHolderForAction(name);
-	    	            				final ActionFor actionForAnnotation = actionHolderElement.getAnnotation(ActionFor.class);
-	    	            				
-	    	            				//Only global actions can export methods
-	    	            				if (actionForAnnotation.global()) {
-	    	            					
-	    	            					final int position = (int) trees.getSourcePositions()
-	    	            							                        .getStartPosition(treePath.getCompilationUnit(), id);				
-	    	            					final String actionName = name.substring(0, 1).toLowerCase() + name.substring(1) + position;	
-	    	            					
-	    	            					scanForExports(
-	    	            							actionHolderElement, 
-	    	            							(TypeElement)element, 
-	    	            							JExpr.ref(actionName), 
-	    	            							virtualAnnotatedElements,
-	    	            							false);
-	    	            				}
-	    	            			}
-	    	            			
-	    	            			return super.visitIdentifier(id, trees);
-	    	            		}
-	    	            	};
-	    	            	scanner.scan(elemTreePath, trees);
-		            				            		
-		            	} //for
-		            } //if
+		            	//The loop continues in order to check different libraries actions  
+		            } 
 		            
 		    	}		    	
+		    			    	
+		    	if (actionScanNeeded) {
+		    		
+	            	for (Element elem : element.getEnclosedElements()) {
+	            		
+	            		final TreePath elemTreePath = trees.getPath(elem);
+	            		
+    	            	TreePathScanner<Boolean, Trees> scanner = new TreePathScanner<Boolean, Trees>() {
+    	            		@Override
+    	            		public Boolean visitIdentifier(IdentifierTree id, Trees trees) {
+    	            			
+    	            			String name = id.getName().toString();
+    	            			
+    	            			if (Actions.getInstance().hasActionNamed(name)) {
+    	            				TypeElement actionHolderElement = Actions.getInstance().getActionHolderForAction(name);
+    	            				final ActionFor actionForAnnotation = actionHolderElement.getAnnotation(ActionFor.class);
+    	            				
+    	            				//Only global actions can export methods
+    	            				if (actionForAnnotation.global()) {
+    	            					
+    	            					final int position = (int) trees.getSourcePositions()
+    	            							                        .getStartPosition(treePath.getCompilationUnit(), id);				
+    	            					final String actionName = name.substring(0, 1).toLowerCase() + name.substring(1) + position;	
+    	            					
+    	            					scanForExports(
+    	            							actionHolderElement, 
+    	            							(TypeElement)element, 
+    	            							JExpr.ref(actionName), 
+    	            							virtualAnnotatedElements,
+    	            							false);
+    	            				}
+    	            			}
+    	            			
+    	            			return super.visitIdentifier(id, trees);
+    	            		}
+    	            	};
+    	            	scanner.scan(elemTreePath, trees);
+	            				            		
+	            	} //for
+		    	} //if (actionScanNeeded)
 		    	
 		    	//Scan all the Beans used
             	for (Element elem : element.getEnclosedElements()) {

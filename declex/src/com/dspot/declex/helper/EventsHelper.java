@@ -155,8 +155,6 @@ public class EventsHelper {
 		
 		registerEvent(clazz.getCanonicalName(), fields);
 		
-		System.out.println("DD: " + clazz + " : " + fields);
-		
 	}
 
 	private static void createEventInfo(String className, AndroidAnnotationsEnvironment env) {
@@ -292,7 +290,7 @@ public class EventsHelper {
 		//If the class was already created, do nothing (ex. events in libraries)
 		try {
 			ClassLoader classLoader = instance.getClass().getClassLoader();			
-			Class<?> clazz = classLoader.loadClass(className);
+			Class<?> clazz = classLoader.loadClass(className);			
 			return environment.getJClass(clazz);
 			
 		} catch (ClassNotFoundException e) {}

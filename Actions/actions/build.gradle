@@ -1,6 +1,11 @@
 apply plugin: 'com.android.library'
-
 def DECLEX_VERSION = '2.0.a.8'
+
+ext {
+    PUBLISH_GROUP_ID = 'com.dspot'
+    PUBLISH_ARTIFACT_ID = 'declex-actions'
+    PUBLISH_VERSION = "$DECLEX_VERSION"
+}
 
 android {
     compileSdkVersion 26
@@ -32,10 +37,13 @@ dependencies {
     annotationProcessor "com.dspot:declex:$DECLEX_VERSION"
     compile "com.dspot:declex-api:$DECLEX_VERSION"
 
+    compile project(":actions_processors")
+    //compile "com.dspot:declex-actions-processors:$DECLEX_VERSION"
+
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:26.+'
 
-    compile project(":actions_processors")
-
     testCompile 'junit:junit:4.12'
 }
+
+apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'

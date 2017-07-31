@@ -16,6 +16,8 @@ allprojects {
     repositories {
         mavenLocal()
         jcenter()
+
+        maven {url 'https://dl.bintray.com/dspot-developers/declex'}
     }
     tasks.withType(JavaCompile) {
         options.compilerArgs << '-XprintProcessorInfo'
