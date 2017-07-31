@@ -23,6 +23,7 @@ import javax.lang.model.element.Element;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.annotation.External;
@@ -32,8 +33,6 @@ import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
-	
-	private Map<Element, String> inlineEvents = new HashMap<>();
 	
 	protected EventsHelper eventsHelper;
 
@@ -56,8 +55,10 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}
+		if (classField.endsWith(ModelConstants.generationSuffix())) {
+			classField = classField.substring(0, classField.length()-1);
+		}
 		
-		inlineEvents.put(element, classField);
 		eventsHelper.registerEvent(classField);
 	}
 
@@ -77,6 +78,10 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}
+		if (classField.endsWith(ModelConstants.generationSuffix())) {
+			classField = classField.substring(0, classField.length()-1);
+		}
+		
 		eventsHelper.createEvent(classField, element);
 	}
 	

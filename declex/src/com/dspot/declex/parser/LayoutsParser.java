@@ -264,5 +264,10 @@ public class LayoutsParser {
 			this.className = className;
 			this.domElement = domElement;
 		}
+		
+		@Override
+		public String toString() {
+			return className;
+		}
 	}
 }

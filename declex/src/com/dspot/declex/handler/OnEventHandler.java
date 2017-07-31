@@ -19,6 +19,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
@@ -55,6 +56,10 @@ public class OnEventHandler extends BaseOnEventHandler {
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}
+		if (classField.endsWith(ModelConstants.generationSuffix())) {
+			classField = classField.substring(0, classField.length()-1);
+		}
+		
 		AbstractJClass EventClass = eventsHelper.createEvent(classField, element);
 		        
 		final ViewsHolder viewsHolder;

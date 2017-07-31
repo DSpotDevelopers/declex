@@ -105,7 +105,60 @@ public class EventsHelper {
 	private EventsHelper(AndroidAnnotationsEnvironment environment) {
 		this.environment = environment;
 	}
+	
+	public static boolean isEvent(String name) {
 		
+		String eventToCheck = name.substring(0, name.lastIndexOf('.'));
+		if (eventToCheck.isEmpty() || !eventToCheck.endsWith(".event")) return false;
+		
+		if (eventToCheck.equals(DeclexConstant.EVENT_PATH)) return true;
+		
+		try {
+			ClassLoader classLoader = instance.getClass().getClassLoader();			
+			Class<?> clazz = classLoader.loadClass(name);
+				
+			boolean isEvent = false;
+			
+			if (clazz.getAnnotation(UseEvents.class) != null) isEvent = true;
+			
+			if (clazz.getCanonicalName().endsWith(ModelConstants.generationSuffix())) {
+				clazz = clazz.getSuperclass();
+				if (clazz.getAnnotation(UseEvents.class) != null) isEvent = true;
+			}
+			
+			if (isEvent) {
+				instance.registerEvent(clazz);
+			}
+			
+			return isEvent;
+			
+		} catch (ClassNotFoundException e) {
+			return false;
+		}
+		
+	}
+		
+	private void registerEvent(Class<?> clazz) {
+		
+		final Map<String, String> fields = new HashMap<>();
+		
+		TypeElement typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(clazz.getCanonicalName()); 
+		for (Element element : typeElement.getEnclosedElements()) {
+			
+			if (element.getKind().isField()) {
+				if (element.getModifiers().isEmpty()) {
+					fields.put(element.getSimpleName().toString(), element.asType().toString());
+				}
+			}
+			
+		}
+		
+		registerEvent(clazz.getCanonicalName(), fields);
+		
+		System.out.println("DD: " + clazz + " : " + fields);
+		
+	}
+
 	private static void createEventInfo(String className, AndroidAnnotationsEnvironment env) {
 		if (!className.contains(".")) {
 			className = DeclexConstant.EVENT_PATH + className;
@@ -137,7 +190,37 @@ public class EventsHelper {
 		
 		actionInfo.addMethod(EXECUTE_NAME, env.getCodeModel().VOID.fullName());
 	}
+		
+	public void registerEvent(String className) {
+		registerEvent(className, new HashMap<String, String>(0));
+		
+		//Ensure to register this event (ex. if it is a library event)
+		isEvent(className);
+	}
 	
+	public void registerEvent(String className, Map<String, String> fields) {
+		
+		//Add to the Special Events in validation, so other validators will find this Event
+		SharedRecords.addEventGeneratedClass(className, environment);
+		
+		Map<String, String> storedFields = eventsFields.get(className);
+		if (storedFields == null) {
+			eventsFields.put(className, fields);
+		} else {
+			storedFields.putAll(fields);
+		}
+		
+		EventsHelper.createEventInfo(className, environment);
+	}
+	
+    public void removeParameterReference(String clazz, String paramName) {
+		
+		if (!eventsFields.containsKey(clazz)) return;
+		
+		Map<String, String>  fields = eventsFields.get(clazz);
+		fields.remove(paramName);
+	}
+
 	public void registerAsEventListener(EComponentHolder holder) {
 		AbstractJClass EventBus = environment.getJClass("org.greenrobot.eventbus.EventBus");
 		
@@ -195,34 +278,7 @@ public class EventsHelper {
 		}
 		
 	}
-	
-	public void registerEvent(String className) {
-		registerEvent(className, new HashMap<String, String>(0));
-	}
-	
-	public void registerEvent(String className, Map<String, String> fields) {
-		
-		//Add to the Special Events in validation, so other validators will find this Event
-		SharedRecords.addEventGeneratedClass(className, environment);
-		
-		Map<String, String> storedFields = eventsFields.get(className);
-		if (storedFields == null) {
-			eventsFields.put(className, fields);
-		} else {
-			storedFields.putAll(fields);
-		}
-		
-		EventsHelper.createEventInfo(className, environment);
-	}
-	
-    public void removeParameterReference(String clazz, String paramName) {
-		
-		if (!eventsFields.containsKey(clazz)) return;
-		
-		Map<String, String>  fields = eventsFields.get(clazz);
-		fields.remove(paramName);
-	}
-
+    
 	public AbstractJClass createEvent(String className, Element fromElement) {
 		return createEvent(className, fromElement, false);
 	}
@@ -232,6 +288,15 @@ public class EventsHelper {
 		if (!className.contains(".")) {
 			className = DeclexConstant.EVENT_PATH + className;
 		}
+
+		//If the class was already created, do nothing (ex. events in libraries)
+		try {
+			ClassLoader classLoader = instance.getClass().getClassLoader();			
+			Class<?> clazz = classLoader.loadClass(className);
+			return environment.getJClass(clazz);
+			
+		} catch (ClassNotFoundException e) {}
+		
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
 

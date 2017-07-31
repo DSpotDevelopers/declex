@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.handler;
 
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
@@ -30,16 +32,20 @@ import javax.lang.model.element.VariableElement;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
+import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.annotation.Export;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
 public class ExportHandler extends BaseAnnotationHandler<EComponentHolder> {
@@ -62,26 +68,63 @@ public class ExportHandler extends BaseAnnotationHandler<EComponentHolder> {
 	@Override
 	public void validate(final Element element, final ElementValidation valid) {
 		
-		if (element.getAnnotation(AfterInject.class) != null) {
-			valid.addError("You cannot use @Export in an @AfterInject method");
-			return;
-		}
-		
-		if (element.getModifiers().contains(Modifier.STATIC)) {
-			valid.addError("You cannot use @Export in a static element");
-			return;
-		}
-		
-		if (element.getModifiers().contains(Modifier.PRIVATE)) {
-			valid.addError("You cannot use @Export in private elements");
-			return;
+		if (!(element instanceof VirtualElement)) {
+			
+			if (!adiHelper.hasAnnotation(element.getEnclosingElement(), EBean.class)) {
+				valid.addError("Export can be used only in @EBeans");
+				return;
+				
+			}
+				
+			ActionFor actionForAnnotation = element.getEnclosingElement().getAnnotation(ActionFor.class); 
+			if (actionForAnnotation != null) {
+				if (actionForAnnotation != null) {
+					valid.addError("You cannot use @Export in a not Global Action Holder. You should set \"global\" parameter of the ActionFor annotation to \"true\"");
+					return;					
+				}
+			} else {
+				
+				if (!element.getKind().isField() && !element.getModifiers().contains(Modifier.PUBLIC)) {
+					valid.addError("Inside a normal @EBean, you should use export only in PUBLIC elements");
+					return;
+				}
+				
+			}
+			
+			if (element.getAnnotation(AfterInject.class) != null) {
+				valid.addError("You cannot use @Export in an @AfterInject method");
+				return;
+			}
+			
+			if (element.getModifiers().contains(Modifier.STATIC)) {
+				valid.addError("You cannot use @Export in a static element");
+				return;
+			}
+			
+			if (element.getModifiers().contains(Modifier.PRIVATE)) {
+				valid.addError("You cannot use @Export in private elements");
+				return;
+			}
 		}
 	}
 	
 	@Override
 	public void process(Element element, EComponentHolder holder) {
 		
-		if (element instanceof VirtualElement) {
+		if (element.getKind().isField() && !(element instanceof VirtualElement)) {
+			
+			final String fieldName = element.getSimpleName().toString();
+			
+			//Create getter
+			JMethod getterMethod = holder.getGeneratedClass().method(
+					JMod.PUBLIC, 
+					codeModelHelper.typeMirrorToJClass(element.asType()), 
+					FormatsUtils.fieldToGetter(fieldName)
+				);
+			getterMethod.body()._return(_this().ref(fieldName));
+		}
+		
+		if (element.getKind() == ElementKind.METHOD && element instanceof VirtualElement) {
 			
 			final IJExpression referenceExpression = ((VirtualElement) element).getReferenceExpression();
 			final ExecutableElement executableElement = (ExecutableElement) element;

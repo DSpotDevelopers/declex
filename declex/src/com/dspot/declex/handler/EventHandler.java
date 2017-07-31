@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
@@ -71,7 +72,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
 	@Override
 	protected void validate(Element element, ElementValidation valid) {
-		
+	
 	    String className = element instanceof ExecutableElement ? 
 		           element.getSimpleName().toString().substring(2) : 
 	               element.asType().toString();
@@ -80,8 +81,8 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         while (className.endsWith(ModelConstants.generationSuffix())) {
         	className = className.substring(0, className.length()-1);
         }
-     
-		if (element instanceof ExecutableElement) {
+        
+		if (element.getKind() == ElementKind.METHOD) {
 			ExecutableElement executableElement = (ExecutableElement) element;
 			
 			if (!executableElement.getReturnType().getKind().equals(TypeKind.VOID)) {
@@ -125,6 +126,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 		}
 
 		if (element.getKind().isClass()) {
+			
 			className = DeclexConstant.EVENT_PATH + className;
 			final Map<String, String> fields = new HashMap<>();
 			List<? extends Element> elems = element.getEnclosedElements();
