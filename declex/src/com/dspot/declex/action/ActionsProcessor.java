@@ -162,6 +162,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private boolean visitingVariable;
 	private String actionInFieldWithoutInitializer = null;
+	private int actionInFieldWithoutInitializerPosition;
 	
 	private List<String> actionsTree = new LinkedList<>();
 	private List<JBlock> actionsTreeAfterExecute = new LinkedList<>();
@@ -613,6 +614,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (!(element instanceof ExecutableElement)) {
 			if (variable.getInitializer() == null) {
 				actionInFieldWithoutInitializer = variable.getType().toString();
+				actionInFieldWithoutInitializerPosition = (int) trees.getSourcePositions().getStartPosition(compilationUnit, variable);
 				return visitMethodInvocation(null, trees);
 			}
 		}
@@ -1056,7 +1058,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					}
 				}
 
-				final int position = (int) trees.getSourcePositions().getStartPosition(compilationUnit, invoke);				
+				final int position = invoke == null ? actionInFieldWithoutInitializerPosition : 
+						             (int) trees.getSourcePositions().getStartPosition(compilationUnit, invoke);				
 				final String actionName = methodSelect.substring(0, 1).toLowerCase() + methodSelect.substring(1) + position;				
 								
 				JBlock block = blocks.get(0);

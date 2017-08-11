@@ -51,12 +51,6 @@ import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.Export;
-import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.JsonModel;
-import com.dspot.declex.annotation.LocalDBModel;
-import com.dspot.declex.annotation.ServerModel;
-import com.dspot.declex.annotation.UseEvents;
-import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.ActionHelper;
@@ -231,9 +225,12 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			scanForExports(roundEnv, annotations, virtualAnnotatedElements);
 			timeStats.stop("Scan for Exports");
 			
-			if (!virtualAnnotatedElements.isEmpty()) {
+			timeStats.start("Extract Annotations");
 			
-				timeStats.start("Extract Annotations");
+			final ModelExtractor modelExtractor = new ModelExtractor();
+			final AnnotationElementsHolder extractedModel;
+			
+			if (!virtualAnnotatedElements.isEmpty()) {				
 				
 				Set<TypeElement> completeAnnotations = new HashSet<>(annotations);
 				completeAnnotations.addAll(virtualAnnotatedElements.keySet());
@@ -252,20 +249,31 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 					}
 				}
 				
-				ModelExtractor modelExtractor = new ModelExtractor();
-				AnnotationElementsHolder extractedModel = modelExtractor.extract(
+				
+				extractedModel = modelExtractor.extract(
 						completeAnnotations, 
 					getSupportedAnnotationTypes(), 
 					new RoundEnvironmentByCache(roundEnv, virtualAnnotatedElements)
 				);
 				
-				timeStats.stop("Extract Annotations");
-				
-				return extractedModel;
-
 			} else {
-				return super.extractAnnotations(annotations, roundEnv);
+				extractedModel = modelExtractor.extract(annotations, getSupportedAnnotationTypes(), roundEnv);
 			}
+			
+			Set<AnnotatedAndRootElements> ancestorAnnotatedElements = extractedModel.getAllAncestors();
+			for (AnnotatedAndRootElements elements : ancestorAnnotatedElements) {
+				
+				//Add ancestors to File Cache Service
+				Element rootElement = elements.annotatedElement;
+				if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
+					FilesCacheHelper.getInstance()
+					                .addAncestor(rootElement, elements.rootTypeElement);
+				}
+			}
+			
+			timeStats.stop("Extract Annotations");
+			
+			return extractedModel;
 									
 		}
 		

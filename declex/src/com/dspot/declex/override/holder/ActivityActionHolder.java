@@ -145,13 +145,13 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			);
 	}
 	
-	private static void findExtraFields(Element element, List<Element> fragmentArgFields, ProcessingEnvironment env) {
+	private static void findExtraFields(Element element, List<Element> fields, ProcessingEnvironment env) {
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.FIELD) {
 				if (elem.getAnnotation(Extra.class) != null) {
-					fragmentArgFields.add(elem);
+					fields.add(elem);
 				}
 			}
 		}
@@ -161,7 +161,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
 			
-			findExtraFields(superElement, fragmentArgFields, env);
+			findExtraFields(superElement, fields, env);
 		}
 
 	}

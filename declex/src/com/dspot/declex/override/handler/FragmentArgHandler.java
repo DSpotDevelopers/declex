@@ -65,11 +65,12 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		final String rootElementClass = rootElement.asType().toString();
 		
 		if (filesCacheHelper.isAncestor(rootElementClass)) {
-			
+						
 			Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElementClass);
+			
 			for (String subClass : subClasses) {
 				if (filesCacheHelper.isAncestor(subClass)) continue;
-
+				
 				ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
 				
 				if (element.getKind() == ElementKind.PARAMETER) {

@@ -489,8 +489,8 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			}			
 		}
 		
-		for (String param : info.extraParams) {
-			setInvocation = ((JInvocation)setInvocation).arg(ref(param));
+		for (VariableElement param : info.extraParams) {
+			setInvocation = ((JInvocation)setInvocation).arg(ref(param.getSimpleName().toString()));
 		}
 		
 		changedBlock.add((JInvocation)methodsCall);

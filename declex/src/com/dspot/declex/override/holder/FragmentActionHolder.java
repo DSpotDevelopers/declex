@@ -33,7 +33,6 @@ import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.RootContext;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
@@ -335,9 +334,15 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	private void setAddToBackStack() {
 		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
+		JVar tag = addToBackStackMethod.param(getClasses().STRING, "tag");
 		addToBackStackMethod.body()._if(transactionField.neNull())._then()
-		                           .invoke(transactionField, "addToBackStack").arg(_null());
+		                           .invoke(transactionField, "addToBackStack").arg(tag);
 		addToBackStackMethod.body()._return(_this());
+		
+		JMethod addToBackStackNullMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
+		addToBackStackNullMethod.body().invoke(addToBackStackMethod).arg(_null());
+		addToBackStackNullMethod.body()._return(_this());
+		
 	}
 	
 	private void setBuilder() {

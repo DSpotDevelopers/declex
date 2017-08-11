@@ -38,6 +38,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.annotations.OptionsMenu;
@@ -681,8 +682,7 @@ public class ViewsHolder extends
 
 				if (id.equals(elemName) || normalizedId.equals(elemName)) {
 					fields.put(completeElemName, new IdInfoHolder(layoutElementId,
-							elem, elem.asType(), layoutElementIdClass,
-							new ArrayList<String>(0)));
+							elem, elem.asType(), layoutElementIdClass));
 				} else if (elemName.startsWith(id)) {
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
@@ -696,7 +696,7 @@ public class ViewsHolder extends
 								|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 								fields.put(
 									completeElemName, 
-									new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
+									new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 								);
 							}							
 						}
@@ -705,7 +705,7 @@ public class ViewsHolder extends
 							|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 							fields.put(
 								completeElemName, 
-								new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<String>(0), property)
+								new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 							);								
 						}
 					}
@@ -723,9 +723,9 @@ public class ViewsHolder extends
 					if (exeElem.getParameters().size() < (getter ? 0 : 1))
 						continue;
 					
-					List<String> extraParams = new LinkedList<String>();
+					List<VariableElement> extraParams = new LinkedList<>();
 					for (int i = (getter ? 0 : 1); i < exeElem.getParameters().size(); i++) {
-						extraParams.add(exeElem.getParameters().get(i).getSimpleName().toString());
+						extraParams.add(exeElem.getParameters().get(i));
 					}
 
 					TypeMirror paramType = null;
@@ -736,10 +736,20 @@ public class ViewsHolder extends
 					}
 
 					if (id.equals(elemName) || normalizedId.equals(elemName) || idForMethod.equals(elemName)) {
-						methods.put(
-							completeElemName, new IdInfoHolder(layoutElementId,
-							elem, paramType, layoutElementIdClass, extraParams)
-						);						
+						
+						IdInfoHolder info = new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams);
+						
+						if (methods.containsKey(completeElemName) && getter) {
+							IdInfoHolder existingInfo = methods.get(completeElemName);
+							
+							//The getter with 0 arguments has higher priority
+							if (existingInfo.extraParams.size() == 0) {
+								info = existingInfo;
+							}
+						}
+						
+						methods.put(completeElemName, info);
+						
 					} else { //elemName.startsWith(id)
 						final Map<String, TypeMirror> getters = new HashMap<>();
 						final Map<String, Set<TypeMirror>> setters = new HashMap<>();
@@ -836,18 +846,22 @@ public class ViewsHolder extends
 
 		public TypeMirror type;
 
-		public List<String> extraParams;
+		public List<VariableElement> extraParams;
 		public Element element;
 		
 		public String getterOrSetter;
 
+		public IdInfoHolder(String idName, Element element, TypeMirror type, String className) {
+			this(idName, element, type, className, new ArrayList<VariableElement>(0));
+		}
+		
 		public IdInfoHolder(String idName, Element element, TypeMirror type,
-				String className, List<String> extraParams) {
+				String className, List<VariableElement> extraParams) {
 			this(idName, element, type, className, extraParams, null);
 		}
 		
 		public IdInfoHolder(String idName, Element element, TypeMirror type,
-				String className, List<String> extraParams, String getterOrSetter) {
+				String className, List<VariableElement> extraParams, String getterOrSetter) {
 			super();
 			this.element = element;
 			this.idName = idName;

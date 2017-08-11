@@ -30,6 +30,7 @@ import java.util.Map;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
@@ -292,8 +293,7 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 						.getProcessingEnvironment().getElementUtils()
 						.getTypeElement(String.class.getCanonicalName());
 				IdInfoHolder info = new IdInfoHolder("text", stringElement,
-						stringElement.asType(), viewClass,
-						new LinkedList<String>());
+						stringElement.asType(), viewClass);
 				JFieldRef view = viewHolder.ref(info.idName
 						+ DeclexConstant.VIEW);
 

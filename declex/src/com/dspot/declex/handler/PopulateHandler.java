@@ -59,6 +59,7 @@ import com.dspot.declex.adapter.RecyclerViewAdapterClassCreator;
 import com.dspot.declex.adapter.RecyclerViewAdapterPopulator;
 import com.dspot.declex.adapter.ViewAdapterPopulator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
+import com.dspot.declex.annotation.ExternalPopulate;
 import com.dspot.declex.annotation.LoadOnEvent;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Populate;
@@ -409,7 +410,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		if (setters.containsKey(property)) {
 			for (TypeMirror propertyType : setters.get(property)) {
 				if (TypeUtils.isSubtype(element.asType(), propertyType, getProcessingEnvironment())) {
-					return new IdInfoHolder(null, element, element.asType(), annotatedElementClass, new ArrayList<String>(0), property);
+					return new IdInfoHolder(null, element, element.asType(), annotatedElementClass, new ArrayList<VariableElement>(0), property);
 				}							
 			}
 		}
@@ -445,20 +446,25 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	private void processList(String className, Element element, ViewsHolder viewsHolder, final PopulateHolder populateHolder) {
 
 		final String fieldName = element.getSimpleName().toString();
+		IJExpression assignRef;
+		if (element.getKind() == ElementKind.METHOD) {
+			assignRef = invoke(fieldName);
+		} else if (adiHelper.getAnnotation(element, Model.class) != null) {
 
-		if (adiHelper.getAnnotation(element, Model.class) != null) {
 			final ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
-
-			this.processList(
-					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
-					element instanceof ExecutableElement? invoke(fieldName) : invoke(modelHolder.getGetterMethod(element)), 
-					populateHolder.getPopulateMethodBlock(element), element, viewsHolder, populateHolder);			
+			assignRef = invoke(modelHolder.getGetterMethod(element));
+			
+		} else if (adiHelper.hasAnnotation(element, ExternalPopulate.class)) {
+			assignRef = invoke(fieldToGetter(fieldName));
 		} else {
-			this.processList(
-					viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
-					element instanceof ExecutableElement? invoke(fieldName) : ref(fieldName), 
-							populateHolder.getPopulateMethodBlock(element), element, viewsHolder, populateHolder);			
+			assignRef = ref(fieldName);
 		}
+		
+		this.processList(
+				viewsHolder.getClassNameFromId(fieldName), fieldName, className, 
+				assignRef, populateHolder.getPopulateMethodBlock(element), element, 
+				viewsHolder, populateHolder);
+		
 	}
 	
 	private void processList(String viewClass, String fieldName, String className, final IJExpression assignRef, JBlock block, 
@@ -781,11 +787,18 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		//If the method is declared with VOID, the first parameter is assumed to be the View component.
 		if (type.getKind().equals(TypeKind.VOID)) {
-			if (info.extraParams.size() > 0) {
-				assignRef = ((JInvocation)assignRef).arg(view);
+			
+			if (info.extraParams.size() > 0) {	
 				
-				for (int i = 1; i < info.extraParams.size(); i++) {
-					final String viewId = info.extraParams.get(i);
+				int startIndex = 0;
+				if (TypeUtils.isSubtype(info.extraParams.get(0), getClasses().VIEW.fullName(), getProcessingEnvironment())) {
+					assignRef = ((JInvocation)assignRef).arg(view);
+					startIndex = 1;
+				}
+				
+				for (int i = startIndex; i < info.extraParams.size(); i++) {
+					VariableElement param = info.extraParams.get(i); 
+					final String viewId = param.getSimpleName().toString(); 
 					assignRef = ParamUtils.injectParam(viewId, info.type.toString(), (JInvocation) assignRef, viewsHolder);
 				}
 				
@@ -795,8 +808,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}		
 		
 		if (assignRef instanceof JInvocation) {
-			for (String param : info.extraParams) {
-				assignRef = ParamUtils.injectParam(param, info.type.toString(), (JInvocation) assignRef, viewsHolder);
+			for (VariableElement param : info.extraParams) {
+				assignRef = ParamUtils.injectParam(param.getSimpleName().toString(), info.type.toString(), (JInvocation) assignRef, viewsHolder);
 			}
 		}
 		

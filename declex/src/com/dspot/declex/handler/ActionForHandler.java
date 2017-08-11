@@ -86,7 +86,6 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			}
 		}
 		
-		
 		boolean initFound = false;
 		boolean buildFound = false;
 		boolean executeFound = false;
