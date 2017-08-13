@@ -46,6 +46,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import org.androidannotations.Option;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
@@ -68,6 +69,8 @@ import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
 public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
+	
+	public static final Option OPTION_GENERATE_IS_GETTERS = new Option("generation.booleanIsGetters", "true");
 
 	private JMethod writeObjectMethod;
 	private JMethod readObjectMethod;
@@ -257,11 +260,18 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			final String getterIsName = "is" + fieldToGetter(field).substring(3);
 			final String setterName = fieldToSetter(field);
 			
+			boolean createIsGetter = false;
+			
+			boolean optionGenerateIsGetters = environment().getOptionBooleanValue(OPTION_GENERATE_IS_GETTERS);
+			if (optionGenerateIsGetters) {
+				createIsGetter = fieldElement.asType().toString().equals("boolean")
+		                 || fieldElement.asType().toString().equals(Boolean.class.getCanonicalName());
+			}
+			
 			boolean createGetter = true;
-			boolean createIsGetter = fieldElement.asType().toString().equals("boolean");
 			boolean createSetter = true;
 			
-			if (methodsToCheck.containsKey(getterName)) {
+			if (createGetter && methodsToCheck.containsKey(getterName)) {
 					
 				for (ExecutableElement element : methodsToCheck.get(getterName)) {
 					if (element.getParameters().size() > 0) continue;

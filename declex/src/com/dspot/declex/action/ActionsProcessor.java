@@ -65,6 +65,7 @@ import com.dspot.declex.annotation.action.Field;
 import com.dspot.declex.annotation.action.FormattedExpression;
 import com.dspot.declex.annotation.action.Literal;
 import com.dspot.declex.annotation.action.StopOn;
+import com.dspot.declex.api.action.ActionsTools;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
@@ -413,6 +414,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	private String parseForSpecials(String expression, boolean ignoreThis) {
+		
 		if (isValidating()) return expression;
 		
 		//Split by string literals (Specials should not be placed inside Strings)
@@ -425,7 +427,14 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			if (i % 2 == 0) { //Not string literals
 				newExpression = newExpression + parseStringForSpecial(part, ignoreThis);		
 			} else {  //String literals
-				newExpression = newExpression + "\"" + part + "\"";
+				
+				
+				if (newExpression.endsWith("<!>")) { //This is used to detect injected expressions
+					newExpression = newExpression.substring(0, newExpression.length()-3) + part;
+				} else {
+					newExpression = newExpression + "\"" + part + "\"";		
+				}
+			
 			}
 			i++;
 		}
@@ -451,6 +460,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (currentActionSelectors.size() > 0) {
 			expression = expression.replace(currentActionSelectors.get(0), "");
 		}
+		
+		//Injections
+		expression = expression.replaceAll("\\$inject\\(\\)", "()");
+		expression = expression.replaceAll("\\$inject\\(", ActionsTools.class.getCanonicalName() + ".\\$cast(<!>");
+		expression = expression.replaceAll("\\$injectItem\\((.*)$", ActionsTools.class.getCanonicalName() + ".\\$item($1<!>");
 		
 		//Static imports
 		for (Entry<String, String> staticImport : staticImports.entrySet()) {
@@ -488,51 +502,59 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}
 		
 		if (!sharedVariablesHolder.containsField(name)) {
-			if (initializer != null && !name.startsWith("$")) {
-
-				sharedVariablesHolder.field(
-						JMod.NONE, 
-						VARIABLECLASS, 
-						name
-					);
+			
+			if (initializer != null) {
 				
-				//Initializers for arrays
-				if (arrayCounter > 0) {
-					String initializerValue = expressionToString(initializer);
-					while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
-						initializerValue = initializerValue.substring(1, initializerValue.length()-1);
-					}
-					
-					if (initializerValue.startsWith("{")) {
-						initializerValue = "new " + VARIABLECLASS.name() + initializerValue;
-					}
-					
-					block.assign(ref(name), direct(initializerValue));
-					
-				} else {
-					block.assign(ref(name), initializer);
+				String initializerValue = expressionToString(initializer);	
+				while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
+					initializerValue = initializerValue.substring(1, initializerValue.length()-1);
 				}
 				
-			} else {
-				if (name.startsWith("$")) {
+				if (!initializerValue.isEmpty()) {
+					
 					sharedVariablesHolder.field(
 							JMod.NONE, 
 							VARIABLECLASS, 
 							name
 						);
 					
-					block.assign(ref(name), ref(name.substring(1)));
+					//Initializers for arrays
+					if (arrayCounter > 0) {
+						if (initializerValue.startsWith("{")) {
+							initializerValue = "new " + VARIABLECLASS.name() + initializerValue;
+						}
+						
+						block.assign(ref(name), direct(initializerValue));
+						
+					} else {
+						block.assign(ref(name), initializer);
+					}
+					
 				} else {
-					sharedVariablesHolder.field(
-							JMod.NONE, 
-							VARIABLECLASS, 
-							name
-						);												
+					//Nothing should be done, the variable will be injected directly from the context										
 				}
+								
+			} else {
+				sharedVariablesHolder.field(
+						JMod.NONE, 
+						VARIABLECLASS, 
+						name
+					);
 			}
 		} else {
 			if (initializer != null) {
-				block.assign(ref(name), initializer);
+				
+				String initializerValue = expressionToString(initializer);
+				while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
+					initializerValue = initializerValue.substring(1, initializerValue.length()-1);
+				}
+
+				if (!initializerValue.isEmpty()) {
+					block.assign(ref(name), initializer);					
+				} else {
+					//Nothing should be done, the variable will be injected directly from the context
+				}
+								
 			}
 		}
 	}
@@ -2040,6 +2062,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	private List<String> processArguments(String methodName, MethodInvocationTree invocation,  JVar action, ActionInfo actionInfo) {
+		
 		Pattern patternForStringLiterals = Pattern.compile("\"((?:\\\\\"|[^\"])*?)\"");
 		
 		List<String> arguments = new LinkedList<>();

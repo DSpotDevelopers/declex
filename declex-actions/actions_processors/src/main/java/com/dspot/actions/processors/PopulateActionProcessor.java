@@ -112,7 +112,7 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 				} else {
 					
 					JMethod populateThisMethod = 
-							getMethodInHolder("getPopulateThis", "com.dspot.declex.holder.PopulateHolder", field);
+							getMethodInHolder("getPopulateThis", "com.dspot.declex.holder.PopulateHolder");
 					
 					JInvocation invoke = invoke(populateThisMethod)
 							.arg(getAction().invoke("getDone"))

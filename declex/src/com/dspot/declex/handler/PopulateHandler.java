@@ -668,9 +668,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		*/
 		
 		for (String field : fields.keySet()) {
+			
 			String composedField = "";
-			for (String fieldPart : field.split("\\."))
+			for (String fieldPart : field.split("\\.")) {
 				composedField = composedField + "." + fieldToGetter(fieldPart);
+			}
 			
 			injectAndAssignField(
 				fields.get(field), composedField, 
@@ -679,6 +681,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		for (String method : methods.keySet()) {
+			
 			String composedField = "";
 			String[] methodSplit = method.split("\\.");
 			for (int i = 0; i < methodSplit.length-1; i++) {

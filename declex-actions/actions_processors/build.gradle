@@ -1,5 +1,5 @@
 apply plugin: 'java'
-def DECLEX_VERSION = '2.0.a.8'
+def DECLEX_VERSION = '2.0.a.9'
 
 buildscript {
     repositories {
