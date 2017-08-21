@@ -15,18 +15,18 @@
  */
 package com.dspot.declex.adapter;
 
+import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
-import static com.helger.jcodemodel.JExpr._new;
 
 import java.util.List;
 
 import javax.lang.model.element.Element;
 
-import org.androidannotations.holder.GeneratedClassHolder;
+import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.adapter.plugin.HolderClassCreator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
@@ -48,7 +48,7 @@ public class AdapterClassCreator extends HolderClassCreator {
 	final AbstractJClass Model;
 	final String className;
 		
-	public AdapterClassCreator(String modelClassName, String className, Element element, GeneratedClassHolder holder, 
+	public AdapterClassCreator(String modelClassName, String className, Element element, EComponentHolder holder, 
 			List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
 
@@ -138,7 +138,7 @@ public class AdapterClassCreator extends HolderClassCreator {
 		final JBlock getItemIdMethodBody = getItemIdMethod.body();	
 		
 		for (JClassPlugin plugin : plugins) {
-			plugin.process(element, AdapterClass);
+			plugin.process(element, holder, AdapterClass);
 		}
 		
 		getCountMethodBody._return(models.invoke("size"));

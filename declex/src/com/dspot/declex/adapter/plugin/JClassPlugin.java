@@ -17,10 +17,12 @@ package com.dspot.declex.adapter.plugin;
 
 import javax.lang.model.element.Element;
 
+import org.androidannotations.holder.EComponentHolder;
+
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 
 public interface JClassPlugin {
 	public AbstractJClass getBaseAdapter(Element element);
-	public void process(Element element, JDefinedClass clazz);
+	public void process(Element element, EComponentHolder holder, JDefinedClass clazz);
 }

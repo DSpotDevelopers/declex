@@ -25,7 +25,7 @@ import java.util.List;
 
 import javax.lang.model.element.Element;
 
-import org.androidannotations.holder.GeneratedClassHolder;
+import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.adapter.plugin.HolderClassCreator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
@@ -49,7 +49,7 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 	final String className;
 	
 	public RecyclerViewAdapterClassCreator(String modelClassName, String className, Element element, 
-			GeneratedClassHolder holder, List<JClassPlugin> adapterPlugins) {
+			EComponentHolder holder, List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
 		
 		RecyclerViewHolder = getJClass(className + "ViewHolder");
@@ -127,7 +127,7 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 			);
 		
 		for (JClassPlugin plugin : plugins) {
-			plugin.process(element, AdapterClass);
+			plugin.process(element, holder, AdapterClass);
 		}
 		
 		getItemCountMethod.body()._return(models.invoke("size"));

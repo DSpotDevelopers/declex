@@ -30,10 +30,10 @@ import java.util.Map;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
@@ -85,7 +85,7 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 	}
 
 	@Override
-	public void process(Element element, JDefinedClass AdapterClass) {
+	public void process(Element element, EComponentHolder holder, JDefinedClass AdapterClass) {
 
 		String viewHolderClassName = adapterClassName + "ViewHolder";
 		JDefinedClass ViewHolderClass = null;

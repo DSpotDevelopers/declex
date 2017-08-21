@@ -15,7 +15,6 @@
  */
 package com.dspot.declex.handler;
 
-import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._super;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -34,13 +33,16 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.adapter.plugin.JClassPlugin;
 import com.dspot.declex.annotation.AdapterClass;
 import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
+import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
@@ -83,13 +85,14 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 
 	@Override
 	public void process(Element element, EComponentHolder holder)
-			throws Exception { 
+			throws Exception { 		
 	}
 
 	@Override
-	public void process(Element element, JDefinedClass AdapterClass) {
+	public void process(Element element, EComponentHolder holder, JDefinedClass AdapterClass) {
+		
 		if (element.getAnnotation(AdapterClass.class) == null) return;
-
+		
 		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
 		TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(classField);
 		
@@ -103,7 +106,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		if (inflaterMethod == null) {
 			inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
 			isViewAdapter = true;
-		}
+		}		
 		
 		//Get all the fields and methods
 		List<? extends Element> elems = typeElement.getEnclosedElements();
@@ -201,7 +204,15 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 						} else					
 							
 						{
-							invoke = invoke.arg(_null());
+							
+							final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder((EComponentWithViewSupportHolder) holder));
+							
+							if (viewsHolder != null) {
+								invoke = ParamUtils.injectParam(
+										param.getSimpleName().toString(), 
+										codeModelHelper.typeMirrorToJClass(param.asType()).fullName(), 
+										invoke, viewsHolder);
+							}
 						}
 					}
 					

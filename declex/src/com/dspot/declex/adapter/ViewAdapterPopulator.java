@@ -32,6 +32,7 @@ import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
@@ -82,7 +83,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 	}
 		
 	@Override
-	public void process(Element element, JDefinedClass AdapterClass) {
+	public void process(Element element, EComponentHolder holder, JDefinedClass AdapterClass) {
 		JMethod getViewMethod = AdapterClass.getMethod("getView", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW, getClasses().VIEW_GROUP});
 		JFieldRef position = ref("position");
 		JFieldRef convertView = ref("convertView");

@@ -17,13 +17,14 @@ package com.dspot.declex.adapter.plugin;
 
 import javax.lang.model.element.Element;
 
-import org.androidannotations.holder.GeneratedClassHolder;
+import org.androidannotations.holder.EComponentHolder;
 
 public abstract class HolderClassCreator extends BaseClassCreator {
-	protected GeneratedClassHolder holder;
+	
+	protected EComponentHolder holder;
 	protected Element element;
 	
-	public HolderClassCreator(Element element, GeneratedClassHolder holder) {
+	public HolderClassCreator(Element element, EComponentHolder holder) {
 		super(holder.getEnvironment());
 		this.element = element;
 		this.holder = holder;
