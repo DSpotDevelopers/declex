@@ -18,12 +18,14 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.IJExpression;
 
 public class VirtualElement implements Element {
 
 	private Element reference;
 	private IJExpression referenceExpression;
+	private Element containerElement;
 	
 	protected Element element;
 	private Element enclosingElement;
@@ -59,6 +61,7 @@ public class VirtualElement implements Element {
 	
 	VirtualElement(Element element) {
 		this.element = element;
+		this.containerElement = TypeUtils.getRootElement(element);
 	}
 	
 	public void setTemporal() {
@@ -83,6 +86,10 @@ public class VirtualElement implements Element {
 	
 	public void setReferenceExpression(IJExpression referenceExpression) {
 		this.referenceExpression = referenceExpression;
+	}
+	
+	public Element getContainerElement() {
+		return containerElement;
 	}
 	
 	public Element getElement() {

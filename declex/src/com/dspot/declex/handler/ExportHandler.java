@@ -78,7 +78,7 @@ public class ExportHandler extends BaseAnnotationHandler<EComponentHolder> {
 				
 			ActionFor actionForAnnotation = element.getEnclosingElement().getAnnotation(ActionFor.class); 
 			if (actionForAnnotation != null) {
-				if (actionForAnnotation != null) {
+				if (!actionForAnnotation.global()) {
 					valid.addError("You cannot use @Export in a not Global Action Holder. You should set \"global\" parameter of the ActionFor annotation to \"true\"");
 					return;					
 				}

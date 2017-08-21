@@ -51,6 +51,7 @@ import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.Export;
+import com.dspot.declex.annotation.Import;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.ActionHelper;
@@ -66,6 +67,7 @@ import com.dspot.declex.wrapper.element.VirtualElement;
 import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
+import com.helger.jcodemodel.JFieldRef;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
@@ -265,9 +267,8 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				
 				//Add ancestors to File Cache Service
 				Element rootElement = elements.annotatedElement;
-				if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
-					FilesCacheHelper.getInstance()
-					                .addAncestor(rootElement, elements.rootTypeElement);
+				if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {					
+					FilesCacheHelper.getInstance().addAncestor(rootElement, elements.rootTypeElement);
 				}
 			}
 			
@@ -470,6 +471,8 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
     	            					scanForExports(
     	            							actionHolderElement, 
     	            							(TypeElement)element, 
+    	            							null,
+    	            							JExpr.ref(actionName),
     	            							JExpr.ref(actionName), 
     	            							virtualAnnotatedElements,
     	            							false);
@@ -490,12 +493,14 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	            		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
 	            		
 	            		if (typeElement != null) {
+
+	            			JFieldRef beanReference = JExpr.ref(elem.getSimpleName().toString());
+	            			IJExpression castedBeanReference = JExpr.cast(
+	            					androidAnnotationsEnv.getJClass(TypeUtils.getGeneratedClassName(typeElement, androidAnnotationsEnv)), beanReference);
+	            			
         					scanForExports(
-        							typeElement, 
-        							(TypeElement)element, 
-        							JExpr.ref(elem.getSimpleName().toString()),
-        							virtualAnnotatedElements,
-        							true);
+        							typeElement, (TypeElement)element, elem,
+        							beanReference, castedBeanReference, virtualAnnotatedElements, true);
 	            		}
 	            	}
             	}
@@ -503,21 +508,30 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		}
 	}
 	
-	private void scanForExports(TypeElement element, TypeElement enclosingElement, 
-			IJExpression referenceExpression, Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements,
+	private void scanForExports(
+			TypeElement element, TypeElement enclosingElement, Element referenceElement,
+			IJExpression referenceExpression,  IJExpression castedReferenceExpression,
+			Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements,
 			boolean castToForward) {
 		
 		for (Element elem : element.getEnclosedElements()) {
 
 			Export exportAnnotation = elem.getAnnotation(Export.class);
-			if (exportAnnotation != null) {
+			Import importAnnotation = elem.getAnnotation(Import.class);
+			if (exportAnnotation != null || importAnnotation != null) {
 				
 				if (elem.getKind() == ElementKind.METHOD) {
 						
 					//This element should be exported
 					VirtualElement virtualElement = VirtualElement.from(elem);
 					virtualElement.setEnclosingElement(enclosingElement);
-					virtualElement.setReferenceExpression(referenceExpression);
+					virtualElement.setReference(referenceElement);
+					
+					if (importAnnotation != null) {
+						virtualElement.setReferenceExpression(castedReferenceExpression);
+					} else {
+						virtualElement.setReferenceExpression(referenceExpression);	
+					}					
 					
 					for (AnnotationMirror annotation : virtualElement.getAnnotationMirrors()) {
 						
@@ -553,7 +567,9 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
     					scanForExports(
     							typeElement, 
     							enclosingElement, 
+    							referenceElement,
     							forwardExpression,
+    							castedReferenceExpression.invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString())),
     							virtualAnnotatedElements, 
     							true);
             		}
@@ -569,7 +585,10 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
 			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) break;
 			
-			scanForExports(superElement, enclosingElement, referenceExpression, virtualAnnotatedElements, castToForward);
+			scanForExports(
+					superElement, enclosingElement, referenceElement,
+					referenceExpression, castedReferenceExpression, 
+					virtualAnnotatedElements, castToForward);
 		}
 		
 	}
