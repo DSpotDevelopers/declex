@@ -345,6 +345,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+			if (elem.getModifiers().contains(Modifier.TRANSIENT)) continue;
 
 			//Omit specials fields
 			if (elem.getAnnotation(RunWith.class) != null) continue;

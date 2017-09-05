@@ -152,7 +152,7 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		final JVar rootView = onCreateViewMethodBody.decl(getClasses().VIEW,
 				"rootView", invoke("inflate").arg(viewType).arg(parent).arg(inflater));
 
-		IJAssignmentTarget viewHolder = onCreateViewMethodBody.decl(
+		final IJAssignmentTarget viewHolder = onCreateViewMethodBody.decl(
 				ViewHolderClass, "viewHolder",
 				_new(ViewHolderClass).arg(rootView));
 
@@ -226,13 +226,11 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 			fieldNames.add(holderFieldName);
 		}
 
-		// =========================onBindViewHolder
-		// Method======================
+		// =========================onBindViewHolder Method======================
 
 		JMethod onBindViewHolder = AdapterClass.getMethod("onBindViewHolder",
 				new AbstractJType[] { getJClass(viewHolderClassName),
 						getCodeModel().INT });
-		viewHolder = ref("viewHolder");
 		position = ref("position");
 		JBlock onBindMethodBody = onBindViewHolder.body();
 
@@ -371,8 +369,9 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 					public void writeInBlock(String viewName,
 							AbstractJClass viewClass, JFieldRef view,
 							JBlock block) {
-						listenerHolder.createListener("viewHolder." + viewName,
-								eventsBlock);
+						
+						JBlock ifNeNull = eventsBlock._if(viewHolder.ref(viewName).neNull())._then();
+						listenerHolder.createListener("viewHolder." + viewName, ifNeNull);
 					}
 				});
 				onBindMethodBody.add(eventsBlock);

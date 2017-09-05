@@ -107,11 +107,10 @@ public class Actions {
 				//If it is an Actions container object, add it as an external Action
 				instance.addActions(actionToCheck);
 			}
-			
+		
 			return isAction;
 			
 		} catch (ClassNotFoundException e) {
-			
 			return false;
 		}
 		

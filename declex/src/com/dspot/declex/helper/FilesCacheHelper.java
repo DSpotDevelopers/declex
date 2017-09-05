@@ -933,6 +933,9 @@ public class FilesCacheHelper {
     }
 	
 	public void addAncestor(Element ancestor, Element subClass) {
+		
+		System.out.println("DD: " + ancestor + " : " + subClass);
+		
 		//Do not accept ancestors of generated elements
 		if (generatedClassesDependencies.containsKey(subClass.asType().toString())) {
 			return;

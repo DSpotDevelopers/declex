@@ -134,7 +134,9 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					}
 				}
 				
-				if (elemName.equals("getItemViewType") && params.size() == 1 && !params.get(0).asType().toString().equals("int")) {
+				if (elemName.equals("getItemViewType") 
+					&& ((params.size() == 1 && !params.get(0).asType().toString().equals("int"))
+					    || params.size() != 1)) {
 					
 					//TODO validate getItemViewType parameter
 					
@@ -146,7 +148,26 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					getModelsMethod.annotate(Override.class);
 					JVar position = getModelsMethod.param(getCodeModel().INT, "position");
 					
-					getModelsMethod.body()._return(_super().invoke("getItemViewType").arg(ref("models").invoke("get").arg(position)));
+					JInvocation invoke = _super().invoke("getItemViewType");
+					
+					for (VariableElement param : params) {
+
+						if (param.getSimpleName().toString().equals("model")) {
+							invoke = invoke.arg(ref("models").invoke("get").arg(position));
+						} else {
+							
+							final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder((EComponentWithViewSupportHolder) holder));
+							
+							if (viewsHolder != null) {
+								invoke = ParamUtils.injectParam(
+										param.getSimpleName().toString(), 
+										codeModelHelper.typeMirrorToJClass(param.asType()).fullName(), 
+										invoke, viewsHolder);
+							}
+						}
+					}
+					
+					getModelsMethod.body()._return(invoke);
 				}
 				
 				if (isViewAdapter) {
@@ -173,7 +194,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					
 				}
 								
-				if (elemName.equals("inflate") && params.size() > 0 && params.size() < 5) {
+				if (elemName.equals("inflate")) {
 						
 					//Remove previous method body
 					codeModelHelper.removeBody(inflaterMethod);

@@ -334,8 +334,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 
 					@Override
 					public void writeInBlock(String viewName, AbstractJClass viewClass,
-							JFieldRef view, JBlock block) {
-						listenerHolder.createListener("viewHolder." + viewName, eventsBlock);
+							JFieldRef view, JBlock block) {						
+						JBlock ifNeNull = eventsBlock._if(viewHolder.ref(viewName).neNull())._then();
+						listenerHolder.createListener("viewHolder." + viewName, ifNeNull);
 					}
 				});
 				methodBody.add(eventsBlock);

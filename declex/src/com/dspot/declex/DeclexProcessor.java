@@ -51,7 +51,13 @@ import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.Export;
+import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.Import;
+import com.dspot.declex.annotation.JsonModel;
+import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.ServerModel;
+import com.dspot.declex.annotation.UseEvents;
+import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.ActionHelper;
@@ -409,12 +415,12 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				generatingTargets.add(annotationHandler.getTarget());
 			}
 			
-//			generatingTargets.add(External.class.getCanonicalName());
-//			generatingTargets.add(UseModel.class.getCanonicalName());
-//			generatingTargets.add(UseEvents.class.getCanonicalName());
-//			generatingTargets.add(LocalDBModel.class.getCanonicalName());
-//			generatingTargets.add(JsonModel.class.getCanonicalName());
-//			generatingTargets.add(ServerModel.class.getCanonicalName());
+			generatingTargets.add(External.class.getCanonicalName());
+			generatingTargets.add(UseModel.class.getCanonicalName());
+			generatingTargets.add(UseEvents.class.getCanonicalName());
+			generatingTargets.add(LocalDBModel.class.getCanonicalName());
+			generatingTargets.add(JsonModel.class.getCanonicalName());
+			generatingTargets.add(ServerModel.class.getCanonicalName());
 		}
 		
 		//Import exported methods
