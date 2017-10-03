@@ -190,7 +190,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         } else {
         	
         	if (element.getKind().isClass()) {
-        		
+        		        		
         		 List<? extends Element> elems = element.getEnclosedElements();
         		 for (Element elem : elems) {
         			 if (elem.getKind().isField()) {
@@ -200,6 +200,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
     					eventFields.put(paramName, paramType);        				 
         			 }
         		 }
+        		 
         	}
         	
         }
@@ -246,7 +247,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 				
 		//Create the fields for the event, if it is created here
 		if (EventClass instanceof JDefinedClass) {
-			
+
 			List<AbstractJType> paramsList = new LinkedList<>();			
 			for (Entry<String, String> field : eventFields.entrySet()) {
 				AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
@@ -259,6 +260,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			
 			JMethod initMethod = ((JDefinedClass) EventClass).getMethod("init", paramsArray);
 			if (initMethod == null) {
+				
 				for (Entry<String, String> field : eventFields.entrySet()) {
 				
 					final String fieldName = field.getKey();
@@ -266,7 +268,9 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					
 					try {						
 						((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);
-					} catch (Exception e){}
+					} catch (Exception e){
+						e.printStackTrace();
+					}
 					
 					if (initMethod == null) {
 						initMethod = ((JDefinedClass) EventClass).method(

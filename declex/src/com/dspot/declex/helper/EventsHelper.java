@@ -292,7 +292,6 @@ public class EventsHelper {
 			ClassLoader classLoader = instance.getClass().getClassLoader();			
 			Class<?> clazz = classLoader.loadClass(className);			
 			return environment.getJClass(clazz);
-			
 		} catch (ClassNotFoundException e) {}
 		
 		final int index = className.lastIndexOf('.');

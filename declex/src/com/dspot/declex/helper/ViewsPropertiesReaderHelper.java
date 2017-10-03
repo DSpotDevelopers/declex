@@ -82,38 +82,41 @@ public class ViewsPropertiesReaderHelper {
 			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
 
 				final String elemName = elem.getSimpleName().toString();
-				final String elemNameStart = elemName.substring(0, 4);
-				final String elemNameStartForBoolean = elemName.toString().substring(0, 3);
 				
-				if (elemNameStart.matches("set[A-Z]")) {
-				
-					ExecutableElement executableElem = (ExecutableElement) elem;
-					if (executableElem.getReturnType().toString().equals("void")
-						&& executableElem.getParameters().size() == 1) {
-						
-						final String property = elemName.substring(3);
-						Set<TypeMirror> types = setters.get(property);
-						if (types == null) {
-							types = new HashSet<>();
-							setters.put(property, types);
+				if (elemName.length() >= 4) {
+					final String elemNameStart = elemName.substring(0, 4);
+					final String elemNameStartForBoolean = elemName.toString().substring(0, 3);
+					
+					if (elemNameStart.matches("set[A-Z]")) {
+					
+						ExecutableElement executableElem = (ExecutableElement) elem;
+						if (executableElem.getReturnType().toString().equals("void")
+							&& executableElem.getParameters().size() == 1) {
+							
+							final String property = elemName.substring(3);
+							Set<TypeMirror> types = setters.get(property);
+							if (types == null) {
+								types = new HashSet<>();
+								setters.put(property, types);
+							}
+							
+							types.add(executableElem.getParameters().get(0).asType());
 						}
 						
-						types.add(executableElem.getParameters().get(0).asType());
 					}
 					
-				}
-				
-				if (elemNameStart.matches("get[A-Z]") 
-					|| elemNameStartForBoolean.matches("is[A-Z]")) {
-					
-					ExecutableElement executableElem = (ExecutableElement) elem;
-					if (!executableElem.getReturnType().toString().equals("void")
-						&& executableElem.getParameters().size() == 0) {
+					if (elemNameStart.matches("get[A-Z]") 
+						|| elemNameStartForBoolean.matches("is[A-Z]")) {
 						
-						final String property = elemName.substring(elemNameStart.matches("get[A-Z]") ? 3 : 2);
-						getters.put(property, executableElem.getReturnType());
+						ExecutableElement executableElem = (ExecutableElement) elem;
+						if (!executableElem.getReturnType().toString().equals("void")
+							&& executableElem.getParameters().size() == 0) {
+							
+							final String property = elemName.substring(elemNameStart.matches("get[A-Z]") ? 3 : 2);
+							getters.put(property, executableElem.getReturnType());
+						}
+						
 					}
-					
 				}
 			}
 		}
