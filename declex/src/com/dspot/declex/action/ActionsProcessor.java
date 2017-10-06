@@ -52,6 +52,7 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.holder.EComponentHolder;
@@ -59,21 +60,23 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.helper.ViewNotifierHelper;
 import org.androidannotations.internal.process.ProcessHolder.Classes;
 
-import com.dspot.declex.api.action.annotation.Assignable;
-import com.dspot.declex.api.action.annotation.Field;
-import com.dspot.declex.api.action.annotation.FormattedExpression;
-import com.dspot.declex.api.action.annotation.Literal;
-import com.dspot.declex.api.action.annotation.StopOn;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.Field;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.Literal;
+import com.dspot.declex.annotation.action.StopOn;
+import com.dspot.declex.api.action.ActionsTools;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.structure.ActionResult;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
-import com.dspot.declex.share.holder.EnsureImportsHolder;
+import com.dspot.declex.holder.EnsureImportsHolder;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -98,6 +101,7 @@ import com.sun.source.tree.BreakTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.tree.EmptyStatementTree;
 import com.sun.source.tree.EnhancedForLoopTree;
@@ -126,11 +130,9 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 
-class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
+public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private String debugIndex = "";
-
-	private int actionCount = 0;
 	
 	private List<MethodInvocationTree> subMethods = new LinkedList<>();
 	
@@ -161,6 +163,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private boolean visitingVariable;
 	private String actionInFieldWithoutInitializer = null;
+	private int actionInFieldWithoutInitializerPosition;
 	
 	private List<String> actionsTree = new LinkedList<>();
 	private List<JBlock> actionsTreeAfterExecute = new LinkedList<>();
@@ -175,9 +178,11 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	private AndroidAnnotationsEnvironment env;
 	private EComponentHolder holder;
 	private DeclexAPTCodeModelHelper codeModelHelper;
+	private ADIHelper adiHelper;
 	private Element element;
 	
-	private List<? extends ImportTree> imports;
+	private final List<? extends ImportTree> imports;
+	private final CompilationUnitTree compilationUnit;
 	
 	private boolean ignoreActions;
 	private ClassTree anonymousClassTree;
@@ -199,12 +204,17 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (hasAction != null) return hasAction;
 		
 		final Trees trees = Trees.instance(env.getProcessingEnvironment());
-    	final TreePath treePath = trees.getPath(element);
+    	final TreePath treePath = trees.getPath(
+    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+		);
+    	
+    	//This means the element is Virtual and was already processed (ex. Imported Method)
+    	if (treePath == null) return false;
     	
     	//Check if the Action Api was activated for this compilation unit
     	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
     		
-            if (importTree.getQualifiedIdentifier().toString().startsWith(DeclexConstant.ACTION + ".")) {
+            if (Actions.isAction(importTree.getQualifiedIdentifier().toString())) {
 
             	try {
 
@@ -326,6 +336,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			if (isSuperMethodInParents(superElement, executableElement, env)) return true;			
 		}
@@ -358,6 +369,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		this.valid = valid;
 		
 		this.codeModelHelper = new DeclexAPTCodeModelHelper(env);
+		this.adiHelper = new ADIHelper(env);
+		
+		compilationUnit = treePath.getCompilationUnit();
 		imports = treePath.getCompilationUnit().getImports();
 		
 		if (overrideAction.contains(element)) {
@@ -400,11 +414,12 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	private String parseForSpecials(String expression, boolean ignoreThis) {
+		
 		if (isValidating()) return expression;
 		
 		//Split by string literals (Specials should not be placed inside Strings)
 		List<String> literalsSplit = Arrays.asList(expression.split("(?<!\\\\)\""));
-		if (literalsSplit.size() <= 1) return parseStringForSpecial(expression, ignoreThis);		
+		if (literalsSplit.size() <= 1) return parseStringForSpecial(expression, ignoreThis);
 		
 		String newExpression = "";
 		int i = 0;
@@ -412,10 +427,19 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			if (i % 2 == 0) { //Not string literals
 				newExpression = newExpression + parseStringForSpecial(part, ignoreThis);		
 			} else {  //String literals
-				newExpression = newExpression + "\"" + part + "\"";
+				
+				
+				if (newExpression.endsWith("<!>")) { //This is used to detect injected expressions
+					newExpression = newExpression.substring(0, newExpression.length()-3) + part;
+				} else {
+					newExpression = newExpression + "\"" + part + "\"";		
+				}
+			
 			}
 			i++;
 		}
+		
+		if (expression.endsWith("\"\"")) newExpression = newExpression + "\"\"";
 		
 		return newExpression;
 	}
@@ -436,6 +460,11 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (currentActionSelectors.size() > 0) {
 			expression = expression.replace(currentActionSelectors.get(0), "");
 		}
+		
+		//Injections
+		expression = expression.replaceAll("\\$inject\\(\\)", "()");
+		expression = expression.replaceAll("\\$inject\\(", ActionsTools.class.getCanonicalName() + ".\\$cast(<!>");
+		expression = expression.replaceAll("\\$injectItem\\((.*)$", ActionsTools.class.getCanonicalName() + ".\\$item($1<!>");
 		
 		//Static imports
 		for (Entry<String, String> staticImport : staticImports.entrySet()) {
@@ -473,51 +502,59 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}
 		
 		if (!sharedVariablesHolder.containsField(name)) {
-			if (initializer != null && !name.startsWith("$")) {
-
-				sharedVariablesHolder.field(
-						JMod.NONE, 
-						VARIABLECLASS, 
-						name
-					);
+			
+			if (initializer != null) {
 				
-				//Initializers for arrays
-				if (arrayCounter > 0) {
-					String initializerValue = expressionToString(initializer);
-					while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
-						initializerValue = initializerValue.substring(1, initializerValue.length()-1);
-					}
-					
-					if (initializerValue.startsWith("{")) {
-						initializerValue = "new " + VARIABLECLASS.name() + initializerValue;
-					}
-					
-					block.assign(ref(name), direct(initializerValue));
-					
-				} else {
-					block.assign(ref(name), initializer);
+				String initializerValue = expressionToString(initializer);	
+				while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
+					initializerValue = initializerValue.substring(1, initializerValue.length()-1);
 				}
 				
-			} else {
-				if (name.startsWith("$")) {
+				if (!initializerValue.isEmpty()) {
+					
 					sharedVariablesHolder.field(
 							JMod.NONE, 
 							VARIABLECLASS, 
 							name
 						);
 					
-					block.assign(ref(name), ref(name.substring(1)));
+					//Initializers for arrays
+					if (arrayCounter > 0) {
+						if (initializerValue.startsWith("{")) {
+							initializerValue = "new " + VARIABLECLASS.name() + initializerValue;
+						}
+						
+						block.assign(ref(name), direct(initializerValue));
+						
+					} else {
+						block.assign(ref(name), initializer);
+					}
+					
 				} else {
-					sharedVariablesHolder.field(
-							JMod.NONE, 
-							VARIABLECLASS, 
-							name
-						);												
+					//Nothing should be done, the variable will be injected directly from the context										
 				}
+								
+			} else {
+				sharedVariablesHolder.field(
+						JMod.NONE, 
+						VARIABLECLASS, 
+						name
+					);
 			}
 		} else {
 			if (initializer != null) {
-				block.assign(ref(name), initializer);
+				
+				String initializerValue = expressionToString(initializer);
+				while (initializerValue.startsWith("(") && initializerValue.endsWith(")")) {
+					initializerValue = initializerValue.substring(1, initializerValue.length()-1);
+				}
+
+				if (!initializerValue.isEmpty()) {
+					block.assign(ref(name), initializer);					
+				} else {
+					//Nothing should be done, the variable will be injected directly from the context
+				}
+								
 			}
 		}
 	}
@@ -599,6 +636,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (!(element instanceof ExecutableElement)) {
 			if (variable.getInitializer() == null) {
 				actionInFieldWithoutInitializer = variable.getType().toString();
+				actionInFieldWithoutInitializerPosition = (int) trees.getSourcePositions().getStartPosition(compilationUnit, variable);
 				return visitMethodInvocation(null, trees);
 			}
 		}
@@ -757,7 +795,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				);
 			}
 			
-			if (insideAction || delegatingMethodResultValueVar == null) {
+			if (insideAction || delegatingMethodResultValueVar == null || sharedVariablesHolder != null) {
 				statements.add(
 					new StringExpressionStatement("return;")
 				);
@@ -776,7 +814,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (!block.isEmpty()) continue;
 				
 				JBlock finishBlock = block._if(delegatingMethodFinishedVar)._then();
-				if (delegatingMethodResultValueVar != null && i == 0) {
+				if (delegatingMethodResultValueVar != null && i == 0 && sharedVariablesHolder == null) {
 					finishBlock._return(delegatingMethodResultValueVar);
 				} else {
 					finishBlock._return();
@@ -978,12 +1016,12 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	@Override
-	public Boolean visitMethodInvocation(MethodInvocationTree invoke,
-			Trees trees) {
+	public Boolean visitMethodInvocation(MethodInvocationTree invoke, Trees trees) {
+		
 		if (ignoreActions) {
 			return super.visitMethodInvocation(invoke, trees);
 		}
-
+		
 		String methodSelect = invoke != null? invoke.getMethodSelect().toString() 
 				                            : actionInFieldWithoutInitializer;
 	
@@ -1042,12 +1080,10 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					}
 				}
 
-				String actionName = methodSelect.substring(0, 1).toLowerCase() 
-		                  + methodSelect.substring(1) + actionCount;
-				if (actionInfo.isGlobal) {
-					actionName = actionName + "$" + element.getSimpleName();
-				}
-				
+				final int position = invoke == null ? actionInFieldWithoutInitializerPosition : 
+						             (int) trees.getSourcePositions().getStartPosition(compilationUnit, invoke);				
+				final String actionName = methodSelect.substring(0, 1).toLowerCase() + methodSelect.substring(1) + position;				
+								
 				JBlock block = blocks.get(0);
 				
 				//This is important to detect empty blocks
@@ -1069,7 +1105,6 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				writePreviousStatements();
 				            					
 				currentAction.set(0, methodSelect);
-				actionCount++;
 				
 				IJExpression context = holder == null? ref("none") : holder.getContextRef();
 				if (context == _this()) {
@@ -1135,14 +1170,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 						if (methods != null && methods.size() > 0) {
 							String holderClass = actionInfo.holderClass;
 							String resultClass = methods.get(0).resultClass;
-							
-							if (holderClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-								holderClass = holderClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-							}
-							if (resultClass.startsWith(Actions.BUILTIN_DIRECT_PKG)) {
-								resultClass = resultClass.replace(Actions.BUILTIN_DIRECT_PKG, Actions.BUILTIN_PKG);
-							}
-							
+														
 							if (!TypeUtils.isSubtype(holderClass, resultClass, env.getProcessingEnvironment())) {
 								
 								if (actionInfo.superHolderClass == null 
@@ -1187,7 +1215,9 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				if (buildMethods != null && buildMethods.size() > 0) {
 					
 					try {
-						actionInfo.metaData.put("action", action);						
+						actionInfo.metaData.put("action", action);
+						actionInfo.metaData.put("element", element);
+						actionInfo.metaData.put("adi", adiHelper);
 						
 						if (isValidating()) {
 							actionInfo.validateProcessors();
@@ -1213,8 +1243,8 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					@SuppressWarnings("unchecked")
 					List<IJStatement> postInitBlocks = (List<IJStatement>) actionInfo.metaData.get("postInitBlocks");
 					if (postInitBlocks != null) {
-						for (IJStatement postBuildBlock : postInitBlocks) {
-							postInit.add(postBuildBlock);
+						for (IJStatement postInitBlock : postInitBlocks) {
+							postInit.add(postInitBlock);
 						}
 					}
 					
@@ -1359,59 +1389,61 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		//TODO Replace calls to super, if any
 		for (Object content : block.getContents()) {
 			
-			boolean contentReplaced = false;
-			StringWriter writer = new StringWriter();
-			JFormatter formatter = new JFormatter(writer);
-			IJStatement statement = (IJStatement) content;
-			statement.state(formatter);
-			String statementString = writer.getBuffer().toString();
-			
-			Matcher matcher = Pattern.compile(
-					"((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
-					+ "([a-zA-Z_$][a-zA-Z_$0-9]*)\\(([^;]*);"
-				).matcher(statementString);
-			
-			while (matcher.find()) {
-				String methodName = matcher.group(2);
-				String parameters = matcher.group(3);
-				parameters = parameters.substring(0, parameters.lastIndexOf(')'));
+			if (content instanceof IJStatement) {
+				boolean contentReplaced = false;
+				StringWriter writer = new StringWriter();
+				JFormatter formatter = new JFormatter(writer);
+				IJStatement statement = (IJStatement) content;
+				statement.state(formatter);
+				String statementString = writer.getBuffer().toString();
 				
-				//Count parameters TODO: determine parameter types
-				int deep = 0;
-				int parametersCount = 0;
-				for (int i = 0; i < parameters.length(); i++) {
-					char ch = parameters.charAt(i);
-					if (ch == '(') deep++;
-					if (ch == ')') deep--;
-					if (ch == ',' && deep == 0) parametersCount++;
-				}
-				if (!parameters.equals("")) parametersCount++;
+				Matcher matcher = Pattern.compile(
+						"((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
+						+ "([a-zA-Z_$][a-zA-Z_$0-9]*)\\(([^;]*);"
+					).matcher(statementString);
 				
-				String executableElementName = executableElement.getSimpleName().toString();
-				if (executableElementName.startsWith("$")) {
-					executableElementName = executableElementName.substring(1);
-				}
-				
-				if (parametersCount == executableElement.getParameters().size()
-					&& methodName.equals(executableElementName)) {
+				while (matcher.find()) {
+					String methodName = matcher.group(2);
+					String parameters = matcher.group(3);
+					parameters = parameters.substring(0, parameters.lastIndexOf(')'));
 					
-					statementString = statementString.replace(matcher.group(1), "$");
-					replace = true;
-					contentReplaced = true;
+					//Count parameters TODO: determine parameter types
+					int deep = 0;
+					int parametersCount = 0;
+					for (int i = 0; i < parameters.length(); i++) {
+						char ch = parameters.charAt(i);
+						if (ch == '(') deep++;
+						if (ch == ')') deep--;
+						if (ch == ',' && deep == 0) parametersCount++;
+					}
+					if (!parameters.equals("")) parametersCount++;
+					
+					String executableElementName = executableElement.getSimpleName().toString();
+					if (executableElementName.startsWith("$")) {
+						executableElementName = executableElementName.substring(1);
+					}
+					
+					if (parametersCount == executableElement.getParameters().size()
+						&& methodName.equals(executableElementName)) {
+						
+						statementString = statementString.replace(matcher.group(1), "$");
+						replace = true;
+						contentReplaced = true;
+					}
+				}
+				
+				if (contentReplaced) {
+					newBody.directStatement("//Action Method \"" + executableElement + "\" was injected");
+					String[] lines = statementString.split(System.lineSeparator());
+					for (String line : lines) {
+						newBody.directStatement(line);
+					}
+					continue;
 				}
 			}
 			
-			if (contentReplaced) {
-				newBody.directStatement("//Action Method \"" + executableElement + "\" was injected");
-				String[] lines = statementString.split(System.lineSeparator());
-				for (String line : lines) {
-					newBody.directStatement(line);
-				}
-				continue;
-			}
-			
-			if (statement instanceof JVar) {
-				JVar var = (JVar) statement;
+			if (content instanceof JVar) {
+				JVar var = (JVar) content;
 				try {
 					java.lang.reflect.Field varInitField = JVar.class.getDeclaredField("m_aInitExpr");
 					varInitField.setAccessible(true);
@@ -1422,7 +1454,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					throw new RuntimeException(e);
 				}
 			} else {
-				newBody.add((IJStatement) statement);
+				newBody.add((IJStatement) content);
 			}
 		}
 		
@@ -2030,6 +2062,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	}
 	
 	private List<String> processArguments(String methodName, MethodInvocationTree invocation,  JVar action, ActionInfo actionInfo) {
+		
 		Pattern patternForStringLiterals = Pattern.compile("\"((?:\\\\\"|[^\"])*?)\"");
 		
 		List<String> arguments = new LinkedList<>();
@@ -2136,9 +2169,13 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 								param.metaData.put("fieldClass", fieldClass);
 								param.metaData.put("fieldJClass", getJClass(fieldClass));
 							} else {
-								throw new ActionProcessingException(
-										"There's no an accesible field named: " + currentParam + " in " + invocation
-									);
+								
+								if (!currentParam.equals(((Field) annotation).ignoreExpression())) {
+									throw new ActionProcessingException(
+											"There's no an accesible field named: " + currentParam + " in " + invocation
+										);
+								}
+								
 							}
 						}
 						
@@ -2181,6 +2218,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
 			Element elem = findField(superElement, fieldName);
 			if (elem != null) return elem;
@@ -2362,7 +2400,7 @@ class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		
 	}
 	
-	private static class ActionDetectedException extends RuntimeException {
+	public static class ActionDetectedException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
 	}
 	

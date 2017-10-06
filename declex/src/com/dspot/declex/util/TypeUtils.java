@@ -39,6 +39,7 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.helper.TargetAnnotationHelper;
 
 import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.wrapper.element.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
@@ -229,8 +230,11 @@ public class TypeUtils {
 					final StringBuilder resultBuilder = new StringBuilder();
 					
 					//Try to get the value using Compiler API Tree
-					Trees trees = Trees.instance(environment.getProcessingEnvironment());
-		        	TreePath treePath = trees.getPath(element);
+					final Trees trees = Trees.instance(environment.getProcessingEnvironment());
+					final TreePath treePath = trees.getPath(
+			    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+					);
+					
 		        	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
 		        		
 		        		private Pattern pattern = Pattern.compile("value\\s*=\\s*([a-zA-Z_][a-zA-Z_0-9.]+)\\.class$");
@@ -288,12 +292,24 @@ public class TypeUtils {
 		return false;
 	}
 	
-	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
+	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {		
 		
 		//This is because isSubtype is failing with generic classes in gradle
 		return isSubTypeRecusive(potentialSubtype, potentialSupertype, processingEnv);
 	}
 
+	public static boolean isSubtype(TypeMirror t1, String t2, ProcessingEnvironment processingEnv) {
+		if (t2.contains("<")) t2 = t2.substring(0, t2.indexOf('<'));
+		
+		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(t2);
+		if (typeElement != null) {
+			TypeMirror expectedType = typeElement.asType();
+			return isSubtype(t1, expectedType, processingEnv);
+		}
+		
+		return false;
+	}
+	
 	public static boolean isSubtype(TypeElement t1, TypeElement t2, ProcessingEnvironment processingEnv) {
 		return isSubtype(t1.asType(), t2.asType(), processingEnv);
 	}
@@ -339,6 +355,21 @@ public class TypeUtils {
 		return false;
 	}
 	
+	public static Element fieldElementInElement(String fieldName, Element element) {
+		List<? extends Element> elems = element.getEnclosedElements();
+		for (Element elem : elems)
+			if (elem.getKind() == ElementKind.FIELD) {
+				if (elem.getSimpleName().toString().equals(fieldName)) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					return elem;
+				}
+				
+			}
+		
+		return null;
+	}
+	
 	public static boolean isClassAnnotatedWith(String className, Class<? extends Annotation> annotation, AndroidAnnotationsEnvironment environment) {
 		ADIHelper adiHelper = new ADIHelper(environment);
 		
@@ -363,10 +394,16 @@ public class TypeUtils {
 	}
 	
 	public static ClassInformation getClassInformation(Element element, AndroidAnnotationsEnvironment environment, boolean getElement) {
-		String className = element.asType().toString();
 		
-		//Detect when the method is a List, in order to generate all the Adapters structures
-		final boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
+		TypeMirror elementTypeMirror;
+		if (element instanceof ExecutableElement) {
+			elementTypeMirror = ((ExecutableElement) element).getReturnType();			
+		} else {
+			elementTypeMirror = element.asType();
+		}
+		String className = elementTypeMirror.toString();
+		
+		final boolean isList = TypeUtils.isSubtype(elementTypeMirror, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
 		if (isList) {
 			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 			if (matcher.find()) {

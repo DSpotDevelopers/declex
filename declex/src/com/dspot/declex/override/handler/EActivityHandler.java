@@ -43,8 +43,10 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 	public void process(Element element, EActivityHolder holder) {
 		super.process(element, holder);
 		
-		ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
-		actionHolder.getActivityAction();
+		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+			ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
+			actionHolder.getActivityAction();
+		}
 	}
 
 }
