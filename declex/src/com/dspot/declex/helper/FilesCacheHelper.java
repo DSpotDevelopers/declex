@@ -933,6 +933,9 @@ public class FilesCacheHelper {
     }
 	
 	public void addAncestor(Element ancestor, Element subClass) {
+		
+		System.out.println("DD: " + ancestor + " : " + subClass);
+		
 		//Do not accept ancestors of generated elements
 		if (generatedClassesDependencies.containsKey(subClass.asType().toString())) {
 			return;
@@ -1263,6 +1266,9 @@ public class FilesCacheHelper {
 		}
 		
 		private static void initialization() {
+			
+			if (!isCacheFilesEnabled()) return;
+			
 			initializing = true;
 			cacheExecutor.execute(new Runnable() {
 				

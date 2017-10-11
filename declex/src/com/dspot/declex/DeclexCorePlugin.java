@@ -29,7 +29,6 @@ import org.androidannotations.internal.core.handler.AfterPreferencesHandler;
 import org.androidannotations.internal.core.handler.AfterTextChangeHandler;
 import org.androidannotations.internal.core.handler.AnimationResHandler;
 import org.androidannotations.internal.core.handler.AppHandler;
-import org.androidannotations.internal.core.handler.BackgroundHandler;
 import org.androidannotations.internal.core.handler.BeanHandler;
 import org.androidannotations.internal.core.handler.BeforeTextChangeHandler;
 import org.androidannotations.internal.core.handler.ColorResHandler;
@@ -54,7 +53,6 @@ import org.androidannotations.internal.core.handler.HtmlResHandler;
 import org.androidannotations.internal.core.handler.HttpsClientHandler;
 import org.androidannotations.internal.core.handler.IgnoreWhenHandler;
 import org.androidannotations.internal.core.handler.InjectMenuHandler;
-import org.androidannotations.internal.core.handler.InstanceStateHandler;
 import org.androidannotations.internal.core.handler.ItemSelectHandler;
 import org.androidannotations.internal.core.handler.KeyDownHandler;
 import org.androidannotations.internal.core.handler.KeyLongPressHandler;
@@ -80,7 +78,6 @@ import org.androidannotations.internal.core.handler.RootContextHandler;
 import org.androidannotations.internal.core.handler.SeekBarProgressChangeHandler;
 import org.androidannotations.internal.core.handler.SeekBarTouchStartHandler;
 import org.androidannotations.internal.core.handler.SeekBarTouchStopHandler;
-import org.androidannotations.internal.core.handler.ServiceActionHandler;
 import org.androidannotations.internal.core.handler.SharedPrefHandler;
 import org.androidannotations.internal.core.handler.SupposeBackgroundHandler;
 import org.androidannotations.internal.core.handler.SupposeThreadHandler;
@@ -90,7 +87,6 @@ import org.androidannotations.internal.core.handler.TextChangeHandler;
 import org.androidannotations.internal.core.handler.TouchHandler;
 import org.androidannotations.internal.core.handler.TraceHandler;
 import org.androidannotations.internal.core.handler.TransactionalHandler;
-import org.androidannotations.internal.core.handler.UiThreadHandler;
 import org.androidannotations.internal.core.handler.ViewByIdHandler;
 import org.androidannotations.internal.core.handler.ViewsByIdHandler;
 import org.androidannotations.internal.core.handler.WakeLockHandler;
@@ -98,26 +94,39 @@ import org.androidannotations.internal.core.handler.WindowFeatureHandler;
 import org.androidannotations.internal.core.model.AndroidRes;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
-import com.dspot.declex.action.ActionForHandler;
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.eventbus.EventHandler;
-import com.dspot.declex.eventbus.UseEventBusHandler;
-import com.dspot.declex.eventbus.UseEventsHandler;
-import com.dspot.declex.eventbus.oneventhandler.LoadOnEventHandler;
-import com.dspot.declex.eventbus.oneventhandler.PutOnActionHandler;
-import com.dspot.declex.eventbus.oneventhandler.PutOnEventHandler;
-import com.dspot.declex.eventbus.oneventhandler.UpdateOnEventHandler;
+import com.dspot.declex.adapter.plugin.JClassPlugin;
+import com.dspot.declex.handler.ActionForHandler;
+import com.dspot.declex.handler.AdapterClassHandler;
+import com.dspot.declex.handler.AfterLoadHandler;
+import com.dspot.declex.handler.AfterPutHandler;
+import com.dspot.declex.handler.EventHandler;
+import com.dspot.declex.handler.ExportHandler;
+import com.dspot.declex.handler.ExternalHandler;
+import com.dspot.declex.handler.ExternalPopulateHandler;
+import com.dspot.declex.handler.ExternalRecollectHandler;
+import com.dspot.declex.handler.ImportHandler;
+import com.dspot.declex.handler.JsonModelHandler;
+import com.dspot.declex.handler.LoadOnEventHandler;
+import com.dspot.declex.handler.LocalDBModelHandler;
+import com.dspot.declex.handler.LocalDBTransactionHandler;
+import com.dspot.declex.handler.ModelHandler;
+import com.dspot.declex.handler.OnEventHandler;
+import com.dspot.declex.handler.PopulateHandler;
+import com.dspot.declex.handler.PutOnActionHandler;
+import com.dspot.declex.handler.PutOnEventHandler;
+import com.dspot.declex.handler.RecollectHandler;
+import com.dspot.declex.handler.RunWithHandler;
+import com.dspot.declex.handler.ServerModelHandler;
+import com.dspot.declex.handler.UpdateOnEventHandler;
+import com.dspot.declex.handler.UseEventsHandler;
+import com.dspot.declex.handler.UseLocalDBHandler;
+import com.dspot.declex.handler.UseModelHandler;
 import com.dspot.declex.helper.FilesCacheHelper;
-import com.dspot.declex.json.JsonModelHandler;
-import com.dspot.declex.localdb.LocalDBModelHandler;
-import com.dspot.declex.localdb.LocalDBTransactionHandler;
-import com.dspot.declex.localdb.UseLocalDBHandler;
-import com.dspot.declex.model.AfterLoadHandler;
-import com.dspot.declex.model.AfterPutHandler;
-import com.dspot.declex.model.ModelHandler;
-import com.dspot.declex.model.UseModelHandler;
+import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.override.handler.AfterInjectHandler;
 import com.dspot.declex.override.handler.AfterViewsHandler;
+import com.dspot.declex.override.handler.BackgroundHandler;
 import com.dspot.declex.override.handler.CheckedChangeHandler;
 import com.dspot.declex.override.handler.ClickHandler;
 import com.dspot.declex.override.handler.EActivityHandler;
@@ -126,16 +135,13 @@ import com.dspot.declex.override.handler.EditorActionHandler;
 import com.dspot.declex.override.handler.ExtraHandler;
 import com.dspot.declex.override.handler.FocusChangeHandler;
 import com.dspot.declex.override.handler.FragmentArgHandler;
+import com.dspot.declex.override.handler.InstanceStateHandler;
 import com.dspot.declex.override.handler.ItemClickHandler;
 import com.dspot.declex.override.handler.ItemLongClickHandler;
 import com.dspot.declex.override.handler.LongClickHandler;
-import com.dspot.declex.plugin.JClassPlugin;
-import com.dspot.declex.runwith.RunWithHandler;
-import com.dspot.declex.server.ServerModelHandler;
+import com.dspot.declex.override.handler.ServiceActionHandler;
+import com.dspot.declex.override.handler.UiThreadHandler;
 import com.dspot.declex.util.SharedRecords;
-import com.dspot.declex.viewsinjection.AdapterClassHandler;
-import com.dspot.declex.viewsinjection.PopulateHandler;
-import com.dspot.declex.viewsinjection.RecollectHandler;
 
 public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 
@@ -168,6 +174,8 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 			FilesCacheHelper.OPTION_DEBUG_CACHE,
 			FilesCacheHelper.OPTION_CACHE_FILES_IN_PROCESS,
 			
+			UseModelHolder.OPTION_GENERATE_IS_GETTERS,
+			
 			Actions.OPTION_DEBUG_ACTIONS
 		);
 	}
@@ -189,11 +197,12 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new EViewGroupHandler(androidAnnotationEnv));
 		annotationHandlers.add(new EViewHandler(androidAnnotationEnv));
 		annotationHandlers.add(new SharedPrefHandler(androidAnnotationEnv));
-
+		
 		annotationHandlers.add(new ActionForHandler(androidAnnotationEnv));
 
 		//Events Handlers
 		annotationHandlers.add(new EventHandler(androidAnnotationEnv));
+		annotationHandlers.add(new OnEventHandler(androidAnnotationEnv));
 		annotationHandlers.add(new UpdateOnEventHandler(androidAnnotationEnv));
 		annotationHandlers.add(new LoadOnEventHandler(androidAnnotationEnv));
 		annotationHandlers.add(new PutOnEventHandler(androidAnnotationEnv));
@@ -210,7 +219,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new UseLocalDBHandler(androidAnnotationEnv));
 		
 		annotationHandlers.add(new LocalDBTransactionHandler(androidAnnotationEnv));
-		annotationHandlers.add(new UseEventBusHandler(androidAnnotationEnv));
 
 		//Main Injection Handlers
 		annotationHandlers.add(new PrefHandler(androidAnnotationEnv));
@@ -219,6 +227,9 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new FragmentByIdHandler(androidAnnotationEnv));
 		annotationHandlers.add(new FragmentByTagHandler(androidAnnotationEnv));
 		annotationHandlers.add(new FromHtmlHandler(androidAnnotationEnv));
+		
+		annotationHandlers.add(new AppHandler(androidAnnotationEnv));
+		annotationHandlers.add(new BeanHandler(androidAnnotationEnv));
 		
 		//Parameters Injection Handler
 		annotationHandlers.add(new FragmentArgHandler(androidAnnotationEnv));
@@ -258,8 +269,6 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new SystemServiceHandler(androidAnnotationEnv));
 
 		annotationHandlers.add(new NonConfigurationInstanceHandler(androidAnnotationEnv));
-		annotationHandlers.add(new AppHandler(androidAnnotationEnv));
-		annotationHandlers.add(new BeanHandler(androidAnnotationEnv));
 		annotationHandlers.add(new InjectMenuHandler(androidAnnotationEnv));
 		annotationHandlers.add(new OptionsMenuHandler(androidAnnotationEnv));
 		annotationHandlers.add(new OptionsMenuItemHandler(androidAnnotationEnv));
@@ -343,6 +352,14 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new SupposeUiThreadHandler(androidAnnotationEnv));
 		annotationHandlers.add(new SupposeBackgroundHandler(androidAnnotationEnv));
 
+		//DependencyHandler should be one of the last, in order to permit
+		//the generation of all the methods which would be generated
+		annotationHandlers.add(new ImportHandler(androidAnnotationEnv));
+		annotationHandlers.add(new ExportHandler(androidAnnotationEnv));		
+		annotationHandlers.add(new ExternalHandler(androidAnnotationEnv));
+		annotationHandlers.add(new ExternalPopulateHandler(androidAnnotationEnv));
+		annotationHandlers.add(new ExternalRecollectHandler(androidAnnotationEnv));
+		
 		return annotationHandlers;		
 	}
 

@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.api.action.processor;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -22,6 +23,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import com.dspot.declex.api.action.process.ActionInfo;
@@ -39,11 +41,14 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 	
 	private JVar action;
 	private Object holder;
+	private Object element;
+	private Object adi;
 	private Object env;
 	
 	private void reset() {
 		action = null;
 		holder = null;
+		element = null;
 		env = null;		
 	}
 	
@@ -137,6 +142,13 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 		return holder;
 	}
 	
+	protected Element getElement() {
+		if (element == null) {
+			element = actionInfo.metaData.get("element");
+		}
+		return (Element) element;
+	}
+	
 	
 	protected JDefinedClass getGeneratedClass() {
 		return getMethodInHolder("getGeneratedClass");
@@ -183,6 +195,23 @@ public abstract class BaseActionProcessor implements ActionProcessor {
 		}
 		
 		return null;
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <T extends Annotation> T getAnnotation(Element element, Class<T> annotation) {
+		if (adi == null) {
+			adi = actionInfo.metaData.get("adi");
+		}
+		
+		try {
+			Method method = adi.getClass().getMethod("getAnnotation", Element.class, Class.class);
+			return (T) method.invoke(adi, element, annotation);
+		} catch (NoSuchMethodException | SecurityException | IllegalAccessException 
+				 | IllegalArgumentException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
+		
+		return null;		
 	}
 		
 	

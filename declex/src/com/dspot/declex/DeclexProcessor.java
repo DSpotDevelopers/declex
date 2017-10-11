@@ -23,15 +23,22 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
+import org.androidannotations.annotations.Bean;
+import org.androidannotations.handler.AnnotationHandler;
+import org.androidannotations.helper.AndroidManifest;
 import org.androidannotations.internal.generation.CodeModelGenerator;
+import org.androidannotations.internal.helper.AndroidManifestFinder;
 import org.androidannotations.internal.model.AnnotationElements;
 import org.androidannotations.internal.model.AnnotationElements.AnnotatedAndRootElements;
 import org.androidannotations.internal.model.AnnotationElementsHolder;
@@ -42,17 +49,36 @@ import org.androidannotations.logger.LoggerContext;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
-import com.dspot.declex.action.ActionHelper;
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.generate.DeclexCodeModelGenerator;
+import com.dspot.declex.annotation.Export;
+import com.dspot.declex.annotation.External;
+import com.dspot.declex.annotation.Import;
+import com.dspot.declex.annotation.JsonModel;
+import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.ServerModel;
+import com.dspot.declex.annotation.UseEvents;
+import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.ActionHelper;
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
+import com.dspot.declex.parser.LayoutsParser;
+import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.LayoutsParser;
-import com.dspot.declex.util.MenuParser;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;
+import com.dspot.declex.wrapper.element.VirtualElement;
+import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
+import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.JExpr;
+import com.helger.jcodemodel.JFieldRef;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.ImportTree;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.Trees;
 
 public class DeclexProcessor extends org.androidannotations.internal.AndroidAnnotationProcessor {
 	
@@ -84,9 +110,9 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		
 		try {
 			timeStats.start("Helpers Initialization");
-			
-			layoutsParser = new LayoutsParser(processingEnv, LOGGER);
-			menuParser = new MenuParser(processingEnv, LOGGER);
+						
+			layoutsParser = new LayoutsParser(androidAnnotationsEnv, LOGGER);
+			menuParser = new MenuParser(androidAnnotationsEnv, LOGGER);
 			
 			actions = new Actions(androidAnnotationsEnv);	
 			
@@ -121,7 +147,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			RoundEnvironment roundEnv) {
 		
 		LOGGER.info("Executing Declex");
-				
+						
 		try {
 
 			return super.process(annotations, roundEnv);
@@ -176,6 +202,18 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			
 			return true;
 		} else {
+
+			try {
+				boolean libraryOption = androidAnnotationsEnv.getOptionBooleanValue(AndroidManifestFinder.OPTION_LIBRARY);
+				if (libraryOption) {
+					final AndroidManifest androidManifest = new AndroidManifestFinder(androidAnnotationsEnv).extractAndroidManifest();
+					final String libraryPackage = androidManifest.getApplicationPackage(); 
+					
+					DeclexConstant.ACTION = libraryPackage + ".Action";
+					DeclexConstant.EVENT_PATH = libraryPackage + ".event.";
+				}
+			} catch (Exception e) {}
+			
 			//Update actions information in each round
 			timeStats.start("Update Actions");
 			actions.getActionsInformation();		
@@ -189,8 +227,64 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected AnnotationElementsHolder extractAnnotations(
 			Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 		
-		if (!FilesCacheHelper.isCacheFilesEnabled())
-			return super.extractAnnotations(annotations, roundEnv);
+		if (!FilesCacheHelper.isCacheFilesEnabled()) {
+			timeStats.start("Scan for Exports");
+			Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements = new HashMap<>();
+			scanForExports(roundEnv, annotations, virtualAnnotatedElements);
+			timeStats.stop("Scan for Exports");
+			
+			timeStats.start("Extract Annotations");
+			
+			final ModelExtractor modelExtractor = new ModelExtractor();
+			final AnnotationElementsHolder extractedModel;
+			
+			if (!virtualAnnotatedElements.isEmpty()) {				
+				
+				Set<TypeElement> completeAnnotations = new HashSet<>(annotations);
+				completeAnnotations.addAll(virtualAnnotatedElements.keySet());
+				
+				for (TypeElement annotation : annotations) {
+					Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
+					if (virtualAnnotatedElements.containsKey(annotation)) {
+						
+						Set virtualElements = virtualAnnotatedElements.get(annotation);						
+						for (Element element : elements) {
+							virtualElements.add(element);	
+						}
+						
+					} else {
+						virtualAnnotatedElements.put(annotation, elements);
+					}
+				}
+				
+				
+				extractedModel = modelExtractor.extract(
+						completeAnnotations, 
+					getSupportedAnnotationTypes(), 
+					new RoundEnvironmentByCache(roundEnv, virtualAnnotatedElements)
+				);
+				
+			} else {
+				extractedModel = modelExtractor.extract(annotations, getSupportedAnnotationTypes(), roundEnv);
+			}
+			
+			Set<AnnotatedAndRootElements> ancestorAnnotatedElements = extractedModel.getAllAncestors();
+			for (AnnotatedAndRootElements elements : ancestorAnnotatedElements) {
+				
+				//Add ancestors to File Cache Service
+				Element rootElement = elements.annotatedElement;
+				if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {					
+					FilesCacheHelper.getInstance().addAncestor(rootElement, elements.rootTypeElement);
+				}
+			}
+			
+			timeStats.stop("Extract Annotations");
+			
+			return extractedModel;
+									
+		}
+		
+		//TODO The Cache service is not prepared for Exports and Externals
 		
 		timeStats.start("Extract Annotations");
 		
@@ -202,7 +296,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		
 		for (TypeElement annotation : annotations) {
 			Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-						
+									
 			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();			
 			
 			annotationElements: for (Element element : elements) {
@@ -297,20 +391,212 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			}
 		}
 		
-		//Mark for generation the Action object is it is in cached,
-		//this will ensure that if the object is invalidated, it can be generated again
-		try {
-			FileDetails actionDetails = filesCacheHelper.getFileDetails(DeclexConstant.ACTION);
-			if (cachedFiles.contains(actionDetails)) {
-				Actions.getInstance().generateInRound = true;
-			}
-		} catch (Exception e) {
-			//Action object hasn't be registered yet
-		}
-		
 		timeStats.stop("Extract Annotations");
 				
 		return extractedModel;
+	}
+	
+	/**
+	 * This method scans all the compilation units of generating annotations searching 
+	 * for Actions and Beans which export methods. It creates Virtual Elements for these
+	 * exported methods
+	 * @param roundEnv
+	 * @param annotations 
+	 * @param virtualAnnotatedElements 
+	 */
+	private void scanForExports(RoundEnvironment roundEnv, Set<? extends TypeElement> annotations, 
+			final Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements) {
+	
+		//TODO find the best way to call the annotation dependency injection, the method below is a simple hack
+		Set<String> generatingTargets = new HashSet<>();
+		Set<Element> processedElements = new HashSet<>();
+		{
+			for (AnnotationHandler<?> annotationHandler : androidAnnotationsEnv.getGeneratingHandlers()) {
+				generatingTargets.add(annotationHandler.getTarget());
+			}
+			
+			generatingTargets.add(External.class.getCanonicalName());
+			generatingTargets.add(UseModel.class.getCanonicalName());
+			generatingTargets.add(UseEvents.class.getCanonicalName());
+			generatingTargets.add(LocalDBModel.class.getCanonicalName());
+			generatingTargets.add(JsonModel.class.getCanonicalName());
+			generatingTargets.add(ServerModel.class.getCanonicalName());
+		}
+		
+		//Import exported methods
+		for (String generatingTarget : generatingTargets) {
+			
+			final TypeElement annotation = processingEnv.getElementUtils().getTypeElement(generatingTarget);
+			final Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
+						
+			//Check all the actions
+			for (final Element element : elements) {
+				
+				if (!element.getKind().isClass()) continue;
+				
+				if (processedElements.contains(element)) continue;
+				processedElements.add(element);
+				
+				final Trees trees = Trees.instance(processingEnv);
+		    	final TreePath treePath = trees.getPath(element);	
+		    	
+		    	boolean actionScanNeeded = false;
+		    	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
+		    	
+		            if (Actions.isAction(importTree.getQualifiedIdentifier().toString())) {
+		            	actionScanNeeded = true;
+		            	
+		            	//The loop continues in order to check different libraries actions  
+		            } 
+		            
+		    	}		    	
+		    			    	
+		    	if (actionScanNeeded) {
+		    		
+	            	for (Element elem : element.getEnclosedElements()) {
+	            		
+	            		final TreePath elemTreePath = trees.getPath(elem);
+	            		
+    	            	TreePathScanner<Boolean, Trees> scanner = new TreePathScanner<Boolean, Trees>() {
+    	            		@Override
+    	            		public Boolean visitIdentifier(IdentifierTree id, Trees trees) {
+    	            			
+    	            			String name = id.getName().toString();
+    	            			
+    	            			if (Actions.getInstance().hasActionNamed(name)) {
+    	            				TypeElement actionHolderElement = Actions.getInstance().getActionHolderForAction(name);
+    	            				final ActionFor actionForAnnotation = actionHolderElement.getAnnotation(ActionFor.class);
+    	            				
+    	            				//Only global actions can export methods
+    	            				if (actionForAnnotation.global()) {
+    	            					
+    	            					final int position = (int) trees.getSourcePositions()
+    	            							                        .getStartPosition(treePath.getCompilationUnit(), id);				
+    	            					final String actionName = name.substring(0, 1).toLowerCase() + name.substring(1) + position;	
+    	            					
+    	            					scanForExports(
+    	            							actionHolderElement, 
+    	            							(TypeElement)element, 
+    	            							null,
+    	            							JExpr.ref(actionName),
+    	            							JExpr.ref(actionName), 
+    	            							virtualAnnotatedElements,
+    	            							false);
+    	            				}
+    	            			}
+    	            			
+    	            			return super.visitIdentifier(id, trees);
+    	            		}
+    	            	};
+    	            	scanner.scan(elemTreePath, trees);
+	            				            		
+	            	} //for
+		    	} //if (actionScanNeeded)
+		    	
+		    	//Scan all the Beans used
+            	for (Element elem : element.getEnclosedElements()) {
+            		if (elem.getKind().isField() && elem.getAnnotation(Bean.class) != null) {
+	            		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
+	            		
+	            		if (typeElement != null) {
+
+	            			JFieldRef beanReference = JExpr.ref(elem.getSimpleName().toString());
+	            			IJExpression castedBeanReference = JExpr.cast(
+	            					androidAnnotationsEnv.getJClass(TypeUtils.getGeneratedClassName(typeElement, androidAnnotationsEnv)), beanReference);
+	            			
+        					scanForExports(
+        							typeElement, (TypeElement)element, elem,
+        							beanReference, castedBeanReference, virtualAnnotatedElements, true);
+	            		}
+	            	}
+            	}
+			}
+		}
+	}
+	
+	private void scanForExports(
+			TypeElement element, TypeElement enclosingElement, Element referenceElement,
+			IJExpression referenceExpression,  IJExpression castedReferenceExpression,
+			Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements,
+			boolean castToForward) {
+		
+		for (Element elem : element.getEnclosedElements()) {
+
+			Export exportAnnotation = elem.getAnnotation(Export.class);
+			Import importAnnotation = elem.getAnnotation(Import.class);
+			if (exportAnnotation != null || importAnnotation != null) {
+				
+				if (elem.getKind() == ElementKind.METHOD) {
+						
+					//This element should be exported
+					VirtualElement virtualElement = VirtualElement.from(elem);
+					virtualElement.setEnclosingElement(enclosingElement);
+					virtualElement.setReference(referenceElement);
+					
+					if (importAnnotation != null) {
+						virtualElement.setReferenceExpression(castedReferenceExpression);
+					} else {
+						virtualElement.setReferenceExpression(referenceExpression);	
+					}					
+					
+					for (AnnotationMirror annotation : virtualElement.getAnnotationMirrors()) {
+						
+						if (androidAnnotationsEnv.getSupportedAnnotationTypes().contains(annotation.getAnnotationType().toString())) {
+							TypeElement annotationType = (TypeElement) annotation.getAnnotationType().asElement();
+								
+							Set elements = virtualAnnotatedElements.get(annotationType);							
+							if (elements == null) {
+								elements = new HashSet<>();
+								virtualAnnotatedElements.put(annotationType, elements);
+							}
+							
+							elements.add(virtualElement);
+						}	
+						
+					}						
+				}
+				
+				//Scan exported subfields beans
+				if (elem.getKind().isField() && elem.getAnnotation(Bean.class) != null) {
+					TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
+            		
+					IJExpression forwardExpression;
+					if (castToForward) {
+						forwardExpression = 
+								JExpr.cast(androidAnnotationsEnv.getJClass(TypeUtils.getGeneratedClassName(element, androidAnnotationsEnv)), referenceExpression)
+								     .invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString()));
+					} else {
+						forwardExpression = referenceExpression.invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString()));
+					}
+					
+            		if (typeElement != null) {
+    					scanForExports(
+    							typeElement, 
+    							enclosingElement, 
+    							referenceElement,
+    							forwardExpression,
+    							castedReferenceExpression.invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString())),
+    							virtualAnnotatedElements, 
+    							true);
+            		}
+				}
+			}
+
+		}
+		
+		List<? extends TypeMirror> superTypes = processingEnv.getTypeUtils().directSupertypes(element.asType());
+		for (TypeMirror type : superTypes) {
+			TypeElement superElement = processingEnv.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
+			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) break;
+			
+			scanForExports(
+					superElement, enclosingElement, referenceElement,
+					referenceExpression, castedReferenceExpression, 
+					virtualAnnotatedElements, castToForward);
+		}
+		
 	}
 	
 	@Override

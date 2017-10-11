@@ -23,16 +23,14 @@ import java.lang.reflect.Field;
 import javax.lang.model.element.Element;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
 
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.ActivityActionHolder;
-import com.dspot.declex.override.util.DeclexAPTCodeModelHelper;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
@@ -44,13 +42,6 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		super(environment);
 		
 		codeModelHelper = new DeclexAPTCodeModelHelper(getEnvironment());
-	}
-
-	@Override
-	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasEActivity(element, valid);
-
-		validatorHelper.isNotPrivate(element, valid);
 	}
 	
 	@Override
@@ -77,12 +68,11 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
 		JDefinedClass ActivityAction = actionHolder.getActivityAction();
 		
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
-		final String className = classInformation.originalClassName;
-		final String fieldName = element.getSimpleName().toString();
+		final String fieldName = element.getSimpleName().toString();		
+		final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
 		
 		JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
-		JVar fieldMethodParam = fieldMethod.param(getJClass(className), fieldName);
+		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
 		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
 		fieldMethod.body()._return(_this());
 	}
