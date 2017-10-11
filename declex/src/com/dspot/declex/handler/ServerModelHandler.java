@@ -609,8 +609,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		for (String header : headers) {
 			if (!header.equals("")) {
-				String key = header.substring(0, header.indexOf('='));
-				String value = header.substring(header.indexOf('=')+1);
+				String separator = (header.contains(":"))  ?  ":"  :  "=";
+				String key = header.substring(0, header.indexOf(separator));
+				String value = header.substring(header.indexOf(separator)+1);
 				
 				formatSyntaxMatcher = Pattern.compile(FormatsUtils.FORMAT_SYNTAX_REGX).matcher(value);
 				while (formatSyntaxMatcher.find()) {
