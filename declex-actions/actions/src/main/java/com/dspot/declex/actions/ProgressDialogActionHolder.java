@@ -23,7 +23,9 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
+import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
+import android.view.View;
 
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.annotation.action.Assignable;
@@ -97,7 +99,8 @@ public class ProgressDialogActionHolder {
     }
 
     public ProgressDialogActionHolder title(@StringRes int titleRes) {
-    	return title(context.getString(titleRes));
+        dialog.setTitle(context.getString(titleRes));
+    	return this;
     }
     
     public ProgressDialogActionHolder title(@FormattedExpression String title) {
@@ -105,13 +108,18 @@ public class ProgressDialogActionHolder {
         return this;
     }
 
+    public ProgressDialogActionHolder customTitle(@Nullable View customTitleView){
+        dialog.setCustomTitle(customTitleView)   ;
+        return this;
+    }
+
     public ProgressDialogActionHolder message(@StringRes int messageRes) {
-    	return message(context.getString(messageRes));
+    	dialog.setMessage(context.getString(messageRes));
+        return this;
     }
     
     public ProgressDialogActionHolder message(@FormattedExpression String message) {
         dialog.setMessage(message);
         return this;
     }
-
 }

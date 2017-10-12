@@ -38,6 +38,7 @@ See our example projects in [Examples](https://github.com/smaugho/declex/wiki/Ex
 ## Articles
 
  * About Populating and Recollecting in the framework: [Dependency Injection Into Views in Android with DecleX](https://medium.com/@smaugho/dependency-injection-into-views-in-android-with-declex-5e7b6537c3a2)
+ * Using Action Syntax: [Action Syntax in DecleX, an elegant code, easier to read and write](https://medium.com/@smaugho/action-syntax-in-declex-an-elegant-code-easier-to-read-and-write-3985a5bd9145)
  * Article written by one of our users in Medium, really nice as a quick introduction to the framework: [The Ultimate Android Development Framework](https://android.jlelse.eu/the-ultimate-android-development-framework-f4382677e0c6#.hgzs2jiqs)
 
 -----------
