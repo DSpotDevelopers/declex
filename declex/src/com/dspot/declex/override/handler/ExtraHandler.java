@@ -19,17 +19,27 @@ import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.reflect.Field;
+import java.util.Set;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
 
+import com.dspot.declex.action.Actions;
+import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.ActivityActionHolder;
+import com.dspot.declex.override.holder.FragmentActionHolder;
+import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
@@ -42,6 +52,44 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		super(environment);
 		
 		codeModelHelper = new DeclexAPTCodeModelHelper(getEnvironment());
+	}
+	
+	@Override
+	public void validate(Element element, ElementValidation validation) {
+		
+		super.validate(element, validation);
+		if (!validation.isValid()) return;
+		
+		final Element rootElement = TypeUtils.getRootElement(element);
+		final String rootElementClass = rootElement.asType().toString();
+		
+		if (filesCacheHelper.isAncestor(rootElementClass)) {
+						
+			Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElementClass);
+			
+			for (String subClass : subClasses) {
+				if (filesCacheHelper.isAncestor(subClass)) continue;
+				
+				ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
+				
+				if (element.getKind() == ElementKind.PARAMETER) {
+					FragmentActionHolder.addFragmentArg(activityActionInfo, element.getEnclosingElement(), getEnvironment());
+				} else {
+					FragmentActionHolder.addFragmentArg(activityActionInfo, element, getEnvironment());
+				}			
+
+			}
+			
+		} else {
+			ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(rootElementClass + "ActionHolder");
+			
+			if (element.getKind() == ElementKind.PARAMETER) {
+				FragmentActionHolder.addFragmentArg(activityActionInfo, element.getEnclosingElement(), getEnvironment());
+			} else {
+				FragmentActionHolder.addFragmentArg(activityActionInfo, element, getEnvironment());
+			}			
+		}
+		
 	}
 	
 	@Override
@@ -65,15 +113,30 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 				
 		super.process(element, holder);
 		
-		ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
-		JDefinedClass ActivityAction = actionHolder.getActivityAction();
-		
-		final String fieldName = element.getSimpleName().toString();		
-		final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
-		
-		JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
-		JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
-		fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
-		fieldMethod.body()._return(_this());
+		if (element.getKind() != ElementKind.PARAMETER) {
+			ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
+			JDefinedClass ActivityAction = actionHolder.getActivityAction();
+			
+			final String fieldName = element.getSimpleName().toString();		
+			
+			final String paramName;
+			final TypeMirror paramType;
+			if (element.getKind() == ElementKind.METHOD) {
+				VariableElement param = ((ExecutableElement)element).getParameters().get(0); 
+				paramType = param.asType();
+				paramName = param.getSimpleName().toString();
+			} else {
+				paramType = element.asType();
+				paramName = fieldName;
+			}
+			
+			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(paramType);
+			
+			JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
+			JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
+			fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
+			fieldMethod.body()._return(_this());
+		}
+				
 	}
 }
