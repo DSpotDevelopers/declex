@@ -47,17 +47,25 @@ public class ModelBean {
     /**
      *  Read Posts
      * **/
-    @Model(async = true, query = "{post_id}", orderBy = "read")
+    @Model(async = true,  orderBy = "read")
     List<ModelPlaceHolder> readPost;
 
-    @Model(async = true, query = "{post_id}", orderBy = "read")
+    @Model(async = true,  orderBy = "read")
     List<ModelPlaceHolder_> enhancedReadPost;
 
     public void downloadListPosts() {
         $LoadModel(listPosts);
     }
 
-    public int getSizeListPosts() {
-        return listPosts.size();
+    public void downloadEnhancedListPosts() {
+        $LoadModel(enhancedListPosts);
+    }
+
+    public  void downloadReadPosts() {
+        $LoadModel(readPost).query("{post_id}");
+    }
+
+    public void downloadEnhancedReadPost() {
+        $LoadModel(enhancedReadPost).query("{post_id}");
     }
 }
