@@ -19,6 +19,7 @@ import static com.dspot.declex.Action.*;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Populate;
+import com.dspot.declex.annotation.ServerModel;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
 

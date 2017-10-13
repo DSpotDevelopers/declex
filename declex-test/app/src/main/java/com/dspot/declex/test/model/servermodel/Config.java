@@ -8,7 +8,9 @@ import javax.net.ssl.SSLSession;
 import okhttp3.OkHttpClient;
 
 /**
- * Here are the configurations use all throughout the program.
+ *  http://jsonplaceholder.typicode.com/ is a free online REST service that you can use whenever you need some fake data.
+ *
+ *  Here are the configurations use all throughout the program.
  */
 public class Config {
     /**
