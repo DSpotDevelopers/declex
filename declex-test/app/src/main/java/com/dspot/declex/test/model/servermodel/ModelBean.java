@@ -18,6 +18,7 @@ package com.dspot.declex.test.model.servermodel;
 import static com.dspot.declex.Action.*;
 
 import com.dspot.declex.annotation.Model;
+import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
 
@@ -37,10 +38,10 @@ public class ModelBean {
     /**
      *  List Posts
      * **/
-    @Model(async = true)
+    @Model(async = true, orderBy = "list")
     List<ModelPlaceHolder> listPosts;
 
-    @Model(async = true)
+    @Model(async = true, orderBy = "list")
     List<ModelPlaceHolder_> enhancedListPosts;
 
     /**
@@ -52,10 +53,11 @@ public class ModelBean {
     @Model(async = true, query = "{post_id}", orderBy = "read")
     List<ModelPlaceHolder_> enhancedReadPost;
 
-    public void downloadListPosts()  {
+    public void downloadListPosts() {
         $LoadModel(listPosts);
-        if($LoadModel.Failed) {
-            throw new IllegalArgumentException("Error downloading posts");
-        }
+    }
+
+    public int getSizeListPosts() {
+        return listPosts.size();
     }
 }

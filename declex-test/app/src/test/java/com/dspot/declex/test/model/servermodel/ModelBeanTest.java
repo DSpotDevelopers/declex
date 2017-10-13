@@ -3,6 +3,8 @@ package com.dspot.declex.test.model.servermodel;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -14,7 +16,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 
 @RunWith(RobolectricTestRunner.class)
 @org.robolectric.annotation.Config(
@@ -22,22 +23,20 @@ import org.robolectric.RuntimeEnvironment;
         sdk = 25
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*", "javax.net.ssl.*"})
-@PrepareForTest({ModelPlaceHolder_.class})
+@PrepareForTest({ModelBean_.class})
 public class ModelBeanTest {
+    private ModelBean_ bean;
+
     @Rule
     public PowerMockRule rule = new PowerMockRule();
 
-    private ModelBean_ bean;
-
     @Before
-    public void loadObject() {
-        bean = ModelBean_.getInstance_(RuntimeEnvironment.application);
+    public void setUp() {
+        bean = mock(ModelBean_.class);
     }
 
     @Test
-    public void downloadListPostsAction() throws IllegalArgumentException {
-        {
-            bean.downloadListPosts();
-        }
+    public void testDownloadListPosts() {
+        when(bean.getSizeListPosts()).thenReturn(0);
     }
 }
