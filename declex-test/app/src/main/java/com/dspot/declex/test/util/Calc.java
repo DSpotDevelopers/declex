@@ -5,6 +5,10 @@ public class Calc {
 
     private int numberSecond;
 
+    public static  String SUM = "Sum";
+
+    public static  String REST = "Rest";
+
     public Calc(int numberFirst, int numberSecond) {
         this.numberFirst = numberFirst;
         this.numberSecond = numberSecond;
@@ -26,5 +30,13 @@ public class Calc {
 
     public void setNumberSecond(int numberSecond) {
         this.numberSecond = numberSecond;
+    }
+
+    public int getNumberFirst() {
+        return this.numberFirst;
+    }
+
+    public int getNumberSecond() {
+        return this.numberSecond;
     }
 }

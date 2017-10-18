@@ -23,22 +23,20 @@ public class CalcBasicActionHolder {
         new Runnable() {
             @Override
             public void run() {
-                if (operation.equals("Sum")) {
+                if (operation.equals(Calc.SUM)) {
                     calc.Sum();
-                } else if (operation.equals("Rest")) {
+                } else if (operation.equals(Calc.REST)) {
                     calc.Rest();
                 }
             }
         };
     }
 
-    public CalcBasicActionHolder setNumberFirst(int numberFirst) {
-        calc.setNumberFirst(numberFirst);
-        return this;
+    public int getNumberFirst() {
+        return calc.getNumberFirst();
     }
 
-    public CalcBasicActionHolder setNumberSecond(int numberSecond) {
-        calc.setNumberSecond(numberSecond);
-        return this;
+    public int getNumberSecond() {
+        return calc.getNumberSecond();
     }
 }
