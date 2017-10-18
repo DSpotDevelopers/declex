@@ -36,7 +36,7 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasEnhancedViewSupportAnnotation(element, valid);
+		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
 
 		ExecutableElement executableElement = (ExecutableElement) element;
 
