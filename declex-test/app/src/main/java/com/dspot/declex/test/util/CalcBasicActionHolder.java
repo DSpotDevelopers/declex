@@ -1,6 +1,8 @@
 package com.dspot.declex.test.util;
 
 import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.StopOn;
 
 @ActionFor(value = "CalcBasic")
 public class CalcBasicActionHolder {
@@ -8,11 +10,11 @@ public class CalcBasicActionHolder {
 
     protected Runnable Done;
 
-    private String operation;
+    protected int variable;
 
-    void init(String operation, int numberFirst, int numberSecond) {
-        this.operation = operation;
-        this.calc = new Calc(numberFirst, numberSecond);
+    void init(int field) {
+        this.calc = new Calc();
+        this.variable = field;
     }
 
     void build(Runnable Done) {
@@ -23,20 +25,29 @@ public class CalcBasicActionHolder {
         new Runnable() {
             @Override
             public void run() {
-                if (operation.equals(Calc.SUM)) {
-                    calc.Sum();
-                } else if (operation.equals(Calc.REST)) {
-                    calc.Rest();
-                }
+                calc.createOperation();
+                variable = calc.getResultOperation();
             }
         };
     }
 
-    public int getNumberFirst() {
-        return calc.getNumberFirst();
+    @StopOn("create")
+    public Calc calc() {
+        return this.calc;
     }
 
-    public int getNumberSecond() {
-        return calc.getNumberSecond();
+    public CalcBasicActionHolder operation(@FormattedExpression String operation) {
+        this.calc.setOperation(operation);
+        return this;
+    }
+
+    public CalcBasicActionHolder numberFirst (int numberFirst) {
+        this.calc.setNumberFirst(numberFirst);
+        return this;
+    }
+
+    public CalcBasicActionHolder numberSecond(int numberSecond) {
+        this.calc.setNumberSecond(numberSecond);
+        return this;
     }
 }

@@ -10,6 +10,7 @@ import org.junit.runner.RunWith;
 
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -31,7 +32,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
         manifest = "app/src/main/AndroidManifest.xml",
         sdk = 25
 )
-@PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
+@PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
 @PrepareForTest({CalcBasicActionHolder_.class})
 public class ActionDetailsTest {
     @Rule
@@ -39,20 +40,26 @@ public class ActionDetailsTest {
 
     private ActionDetails_ bean;
 
+    private int first;
+
+    private int second;
+
+    private int result;
+
     @Before
     public void setUp() throws Exception {
         bean = ActionDetails_.getInstance_(RuntimeEnvironment.application);
+        first = 4;
+        second = 5;
+        result = 9;
     }
 
     @Test
     public void testCalBasicActionIsAction() {
-        int first = 4;
-        int second = 5;
-
         CalcBasicActionHolder_ holder = mock(CalcBasicActionHolder_.class);
-        doNothing().when(holder); holder.init(Calc.SUM,  first,  second);
-        doNothing().when(holder); holder.build(isNull(Runnable.class));
-        doNothing().when(holder); holder.execute();
+        doNothing().when(holder);holder.init(result);
+        doNothing().when(holder);holder.build(isNull(Runnable.class));
+        doNothing().when(holder);holder.execute();
 
         mockStatic(CalcBasicActionHolder_.class);
         when(CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application)).thenReturn(holder);
@@ -66,8 +73,13 @@ public class ActionDetailsTest {
         CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
 
         InOrder inOrder = inOrder(holder);
-        inOrder.verify(holder).init(Calc.SUM,  first,  second);
+        inOrder.verify(holder).init(result);
         inOrder.verify(holder).build(isNull(Runnable.class));
         inOrder.verify(holder).execute();
+    }
+
+    @Test
+    public void testCalBasicActionInBeanClass() {
+
     }
 }
