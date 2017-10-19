@@ -8,9 +8,9 @@ import com.dspot.declex.annotation.action.StopOn;
 public class CalcBasicActionHolder {
     protected Calc calc;
 
-    protected Runnable Done;
-
     protected int variable;
+
+    protected Runnable Done;
 
     void init(int field) {
         this.calc = new Calc();
@@ -26,7 +26,7 @@ public class CalcBasicActionHolder {
             @Override
             public void run() {
                 calc.createOperation();
-                variable = calc.getResultOperation();
+                if(Done != null) Done.run();
             }
         };
     }

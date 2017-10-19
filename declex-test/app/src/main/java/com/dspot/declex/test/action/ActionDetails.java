@@ -8,10 +8,16 @@ import static com.dspot.declex.Action.*;
 
 @EBean
 public class ActionDetails {
-    public int result;
+    public int result = 0;
 
     public void calcSumValues(int first, int second) {
         $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
-        if($CalcBasic.Done) { }
+        if($CalcBasic.Done) {
+            result = 9;
+        }
+    }
+
+    public int getResult() {
+        return result;
     }
 }

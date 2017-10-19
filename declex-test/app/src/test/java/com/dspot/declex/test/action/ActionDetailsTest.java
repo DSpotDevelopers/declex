@@ -1,5 +1,6 @@
 package com.dspot.declex.test.action;
 
+import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.test.util.Calc;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
@@ -51,7 +52,7 @@ public class ActionDetailsTest {
         bean = ActionDetails_.getInstance_(RuntimeEnvironment.application);
         first = 4;
         second = 5;
-        result = 9;
+        result = 0;
     }
 
     @Test
@@ -80,6 +81,9 @@ public class ActionDetailsTest {
 
     @Test
     public void testCalBasicActionInBeanClass() {
-
+        {
+            bean.calcSumValues(first, second);
+            assertEquals(bean.getResult(), 0);
+        }
     }
 }
