@@ -52,7 +52,7 @@ public class ActionDetailsTest {
         bean = ActionDetails_.getInstance_(RuntimeEnvironment.application);
         first = 4;
         second = 5;
-        result = 0;
+        result = 9;
     }
 
     @Test
@@ -83,7 +83,7 @@ public class ActionDetailsTest {
     public void testCalBasicActionInBeanClass() {
         {
             bean.calcSumValues(first, second);
-            assertEquals(bean.getResult(), 0);
+            assertEquals(bean.getResult(), result);
         }
     }
 }

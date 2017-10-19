@@ -1,5 +1,8 @@
 package com.dspot.declex.test.util;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.annotation.action.FormattedExpression;
 import com.dspot.declex.annotation.action.StopOn;
@@ -22,13 +25,15 @@ public class CalcBasicActionHolder {
     }
 
     void execute() {
-        new Runnable() {
+        final Runnable execute  = new Runnable() {
             @Override
             public void run() {
                 calc.createOperation();
-                if(Done != null) Done.run();
+                if (Done != null) Done.run();
             }
         };
+
+        execute.run();
     }
 
     @StopOn("create")
@@ -41,7 +46,7 @@ public class CalcBasicActionHolder {
         return this;
     }
 
-    public CalcBasicActionHolder numberFirst (int numberFirst) {
+    public CalcBasicActionHolder numberFirst(int numberFirst) {
         this.calc.setNumberFirst(numberFirst);
         return this;
     }
