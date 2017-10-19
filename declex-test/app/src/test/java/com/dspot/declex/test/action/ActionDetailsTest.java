@@ -86,4 +86,40 @@ public class ActionDetailsTest {
             assertEquals(bean.getResult(), result);
         }
     }
+
+    @Test
+    public void testCalBasicActionBackground() {
+        final CalcBasicActionHolder_ holder = mock(CalcBasicActionHolder_.class);
+        doNothing().when(holder);holder.init(result);
+        doNothing().when(holder);holder.build(isNull(Runnable.class));
+        doNothing().when(holder);holder.execute();
+
+        mockStatic(CalcBasicActionHolder_.class);
+        when(CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application)).thenReturn(holder);
+
+        org.androidannotations.api.BackgroundExecutor.execute(new org.androidannotations.api.BackgroundExecutor.Task("", 0L, "") {
+            @java.lang.Override
+            public void execute() {
+                Runnable shared = new Runnable() {
+                    @Override
+                    public void run() {
+                        Runnable Done = new Runnable() {
+                            @Override
+                            public void run() {
+                                result = 9;
+                            }
+                        };
+
+                        holder.init((result));
+                        holder.operation((Calc.SUM));
+                        holder.numberFirst((first));
+                        holder.numberSecond((second));
+                        holder.build(Done);
+                        holder.execute();
+                    }
+                };
+                shared.run();
+            }
+        });
+    }
 }
