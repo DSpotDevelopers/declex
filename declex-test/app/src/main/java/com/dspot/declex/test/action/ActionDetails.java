@@ -29,6 +29,10 @@ public class ActionDetails {
         }
     }
 
+    public void callMainFragment() {
+        $ActionMainFragment();
+    }
+
     @Background
     public void calcSumBackground(int first, int second) {
         $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);

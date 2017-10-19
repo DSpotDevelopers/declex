@@ -15,13 +15,44 @@
  */
 package com.dspot.declex.test.action;
 
+import android.content.Context;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 
 import com.dspot.declex.test.R;
+import com.dspot.declex.test.util.Calc;
+
+import static com.dspot.declex.Action.*;
 
 import org.androidannotations.annotations.EFragment;
 
 @EFragment(R.layout.fragment_main)
 public class ActionMainFragment extends Fragment {
 
+    protected int result = 0;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+    }
+
+    public void $onResume() {
+        super.onResume();
+
+        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
+        if($CalcBasic.Done) {
+            result = 9;
+        }
+    }
+
+    public int first() {
+        return 5;
+    }
+
+    public int second() {
+        return 4;
+    }
+
+    public int getResult() { return result; }
 }

@@ -1,9 +1,8 @@
 package com.dspot.declex.test.action;
 
-import com.dspot.declex.api.action.runnable.OnFailedRunnable;
-import com.dspot.declex.test.util.Calc;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
+import org.androidannotations.api.BackgroundExecutor;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -11,6 +10,8 @@ import org.junit.runner.RunWith;
 
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
+
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -23,6 +24,8 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.junit.Assert.*;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.verifyStatic;
@@ -34,7 +37,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
         sdk = 25
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
-@PrepareForTest({CalcBasicActionHolder_.class})
+@PrepareForTest({CalcBasicActionHolder_.class, ActionMainFragment_.class})
 public class ActionDetailsTest {
     @Rule
     public PowerMockRule rule = new PowerMockRule();
@@ -58,9 +61,12 @@ public class ActionDetailsTest {
     @Test
     public void testCalBasicActionIsAction() {
         CalcBasicActionHolder_ holder = mock(CalcBasicActionHolder_.class);
-        doNothing().when(holder);holder.init(result);
-        doNothing().when(holder);holder.build(isNull(Runnable.class));
-        doNothing().when(holder);holder.execute();
+        doNothing().when(holder);
+        holder.init(result);
+        doNothing().when(holder);
+        holder.build(isNull(Runnable.class));
+        doNothing().when(holder);
+        holder.execute();
 
         mockStatic(CalcBasicActionHolder_.class);
         when(CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application)).thenReturn(holder);
@@ -90,36 +96,44 @@ public class ActionDetailsTest {
     @Test
     public void testCalBasicActionBackground() {
         final CalcBasicActionHolder_ holder = mock(CalcBasicActionHolder_.class);
-        doNothing().when(holder);holder.init(result);
-        doNothing().when(holder);holder.build(isNull(Runnable.class));
-        doNothing().when(holder);holder.execute();
 
-        mockStatic(CalcBasicActionHolder_.class);
-        when(CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application)).thenReturn(holder);
+        final AtomicBoolean resultOperation = new AtomicBoolean(false);
 
-        org.androidannotations.api.BackgroundExecutor.execute(new org.androidannotations.api.BackgroundExecutor.Task("", 0L, "") {
-            @java.lang.Override
+        BackgroundExecutor.execute(new BackgroundExecutor.Task("", 0L, "") {
+            @Override
             public void execute() {
-                Runnable shared = new Runnable() {
+                Runnable runnable = new Runnable() {
                     @Override
                     public void run() {
-                        Runnable Done = new Runnable() {
+                        holder.init(result);
+                        holder.build(new Runnable() {
                             @Override
                             public void run() {
-                                result = 9;
+                            resultOperation.set(true);
                             }
-                        };
-
-                        holder.init((result));
-                        holder.operation((Calc.SUM));
-                        holder.numberFirst((first));
-                        holder.numberSecond((second));
-                        holder.build(Done);
+                        });
                         holder.execute();
                     }
                 };
-                shared.run();
+
+                runnable.run();
             }
         });
+
+        assertFalse(resultOperation.get());
+    }
+
+    @Test
+    public void testCalBasicActionInFragment() {
+        ActionMainFragment_ fragment = mock(ActionMainFragment_.class);
+        when(fragment.first()).thenReturn(first);
+        when(fragment.second()).thenReturn(second);
+        when(fragment.getResult()).thenReturn(result);
+
+        {
+            fragment.onResume();
+        }
+
+        assertEquals (fragment.getResult(), result);
     }
 }
