@@ -38,6 +38,18 @@ public class ActionDetails {
         $GenerateResult();
     }
 
+    // What happens if two actions are called in the same method
+    public void callTwoActions(int first, int second) {
+        $GenerateResult();
+
+        {
+            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            if($CalcBasic.Done) {
+                result = result * 2;
+            }
+        }
+    }
+
     @Background
     public void calcSumBackground(int first, int second) {
         $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);

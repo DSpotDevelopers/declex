@@ -2,6 +2,7 @@ package com.dspot.declex.test.action;
 
 import com.dspot.declex.event.GenerateResult;
 import com.dspot.declex.event.GenerateResult_;
+import com.dspot.declex.test.util.Calc;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
 import org.androidannotations.api.BackgroundExecutor;
@@ -115,7 +116,7 @@ public class ActionDetailsTest {
                         holder.build(new Runnable() {
                             @Override
                             public void run() {
-                            resultOperation.set(true);
+                                resultOperation.set(true);
                             }
                         });
                         holder.execute();
@@ -140,13 +141,13 @@ public class ActionDetailsTest {
             fragment.onResume();
         }
 
-        assertEquals (fragment.getResult(), result);
+        assertEquals(fragment.getResult(), result);
     }
 
     @Test
     public void testResumeOverrideInFragment() {
         ActionMainFragment_ fragment = spy(new ActionMainFragment_());
-        doNothing().when((ActionMainFragment)fragment).onResume();
+        doNothing().when((ActionMainFragment) fragment).onResume();
         fragment.$onResume();
         verify(fragment).calcBasic();
     }
@@ -175,7 +176,47 @@ public class ActionDetailsTest {
     public void testActionInEvent() {
         {
             bean.callEvent();
-            assertEquals(bean.getResult(), first*second);
+            assertEquals(bean.getResult(), first * second);
+        }
+    }
+
+    @Test
+    public void testCallTwoActionsResume() {
+        final GenerateResult_ event = GenerateResult_.getInstance_(RuntimeEnvironment.application);
+        final CalcBasicActionHolder_ holder = CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
+        final AtomicBoolean executeHolder = new AtomicBoolean(false);
+
+        {
+            event.init();
+            event.build(new GenerateResult.EventFinishedRunnable() {
+                @Override
+                public void run() {
+                    holder.init((result));
+                    holder.operation((Calc.SUBT));
+                    holder.numberFirst((first));
+                    holder.numberSecond((second));
+                    holder.build(new java.lang.Runnable() {
+
+                                     @java.lang.Override
+                                     public void run() {
+                                         executeHolder.set(true);
+                                     }
+                                 }
+                    );
+                    holder.execute();
+                }
+            }, null);
+            event.execute();
+        }
+
+        assertTrue(executeHolder.get());
+    }
+
+    @Test
+    public void testCallTwoActions() {
+        {
+            bean.callTwoActions(first, second);
+            assertEquals(bean.getResult(), 40);
         }
     }
 }
