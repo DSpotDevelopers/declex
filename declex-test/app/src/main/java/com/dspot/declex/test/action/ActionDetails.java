@@ -1,5 +1,6 @@
 package com.dspot.declex.test.action;
 
+import com.dspot.declex.annotation.Event;
 import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Background;
@@ -33,11 +34,20 @@ public class ActionDetails {
         $ActionMainFragment();
     }
 
+    public void callEvent() {
+        $GenerateResult();
+    }
+
     @Background
     public void calcSumBackground(int first, int second) {
         $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             result = 9;
         }
+    }
+
+    @Event
+    void onGenerateResult() {
+        result = 4 * 5;
     }
 }

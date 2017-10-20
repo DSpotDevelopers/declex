@@ -40,16 +40,12 @@ public class ActionMainFragment extends Fragment {
 //    @Override
 //    public void onResume() {
 //        super.onResume();
-//
 //        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
-//        if($CalcBasic.Done) {
-//            result = 9;
-//        }
 //    }
 
-        public void $onResume() {
-            super.onResume();
-            calcBasic();
+    public void $onResume() {
+        super.onResume();
+        calcBasic();
     }
 
     public int first() {

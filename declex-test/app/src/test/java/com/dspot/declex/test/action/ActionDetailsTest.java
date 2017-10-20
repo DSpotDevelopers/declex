@@ -1,8 +1,12 @@
 package com.dspot.declex.test.action;
 
+import com.dspot.declex.event.GenerateResult;
+import com.dspot.declex.event.GenerateResult_;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
 import org.androidannotations.api.BackgroundExecutor;
+import org.hamcrest.core.IsEqual;
+import org.hamcrest.core.IsNot;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,6 +22,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import org.mockito.InOrder;
+import org.mockito.internal.matchers.Not;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
@@ -144,5 +149,33 @@ public class ActionDetailsTest {
         doNothing().when((ActionMainFragment)fragment).onResume();
         fragment.$onResume();
         verify(fragment).calcBasic();
+    }
+
+    @Test
+    public void testActionEvent() {
+        final GenerateResult_ event = GenerateResult_.getInstance_(RuntimeEnvironment.application);
+
+        final AtomicBoolean executeEvent = new AtomicBoolean(false);
+
+        {
+            event.init();
+            event.build(new GenerateResult.EventFinishedRunnable() {
+                @Override
+                public void run() {
+                    executeEvent.set(true);
+                }
+            }, null);
+            event.execute();
+        }
+
+        assertTrue(executeEvent.get());
+    }
+
+    @Test
+    public void testActionInEvent() {
+        {
+            bean.callEvent();
+            assertEquals(bean.getResult(), first*second);
+        }
     }
 }
