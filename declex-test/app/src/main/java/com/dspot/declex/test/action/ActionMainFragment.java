@@ -37,13 +37,19 @@ public class ActionMainFragment extends Fragment {
         super.onCreate(savedInstanceState);
     }
 
-    public void $onResume() {
-        super.onResume();
+//    @Override
+//    public void onResume() {
+//        super.onResume();
+//
+//        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
+//        if($CalcBasic.Done) {
+//            result = 9;
+//        }
+//    }
 
-        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
-        if($CalcBasic.Done) {
-            result = 9;
-        }
+        public void $onResume() {
+            super.onResume();
+            calcBasic();
     }
 
     public int first() {
@@ -55,4 +61,11 @@ public class ActionMainFragment extends Fragment {
     }
 
     public int getResult() { return result; }
+
+    public void calcBasic() {
+        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
+        if($CalcBasic.Done) {
+            result = 9;
+        }
+    }
 }

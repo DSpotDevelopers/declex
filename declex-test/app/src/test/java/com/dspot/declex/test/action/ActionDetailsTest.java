@@ -11,6 +11,7 @@ import org.junit.runner.RunWith;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
@@ -135,5 +136,13 @@ public class ActionDetailsTest {
         }
 
         assertEquals (fragment.getResult(), result);
+    }
+
+    @Test
+    public void testResumeOverrideInFragment() {
+        ActionMainFragment_ fragment = spy(new ActionMainFragment_());
+        doNothing().when((ActionMainFragment)fragment).onResume();
+        fragment.$onResume();
+        verify(fragment).calcBasic();
     }
 }
