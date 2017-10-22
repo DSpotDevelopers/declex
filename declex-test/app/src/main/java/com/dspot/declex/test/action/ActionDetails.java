@@ -5,6 +5,7 @@ import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Background;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.UiThread;
 
 import static com.dspot.declex.Action.*;
 
@@ -14,6 +15,10 @@ public class ActionDetails {
 
     public int getResult() {
         return result;
+    }
+
+    public void setResult(int result) {
+        this.result = result;
     }
 
     public void calcSumValues(int first, int second) {
@@ -48,6 +53,44 @@ public class ActionDetails {
                 result = result * 2;
             }
         }
+    }
+
+    // What happens if two actions are executed in parallel
+    public void callActionsInParallel(int first, int second) {
+        {
+            $Background();
+            $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+            if($CalcBasic.Done) {
+                result = 9;
+            }
+        }
+
+        {
+            $Background();
+            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            if($CalcBasic.Done) {
+                result = 1;
+            }
+        }
+    }
+
+    // What happens if two actions are executed in parallel with only background
+    public void callActionsInParallelOnlyBackground(int first, int second) {
+        $Background();
+        {
+            $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+            if($CalcBasic.Done) {
+                result = 9;
+            }
+
+            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            if($CalcBasic.Done) {
+                result = 1;
+            }
+        }
+
+        $UIThread();
+        setResult(result);
     }
 
     @Background

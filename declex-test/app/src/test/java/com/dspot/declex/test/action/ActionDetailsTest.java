@@ -1,13 +1,13 @@
 package com.dspot.declex.test.action;
 
+import com.dspot.declex.action.builtin.BackgroundThreadActionHolder_;
 import com.dspot.declex.event.GenerateResult;
 import com.dspot.declex.event.GenerateResult_;
 import com.dspot.declex.test.util.Calc;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
 import org.androidannotations.api.BackgroundExecutor;
-import org.hamcrest.core.IsEqual;
-import org.hamcrest.core.IsNot;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -17,13 +17,11 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import org.mockito.InOrder;
-import org.mockito.internal.matchers.Not;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
@@ -38,13 +36,14 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.verifyStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+
 @RunWith(RobolectricTestRunner.class)
 @Config(
         manifest = "app/src/main/AndroidManifest.xml",
         sdk = 25
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
-@PrepareForTest({CalcBasicActionHolder_.class, ActionMainFragment_.class})
+@PrepareForTest({CalcBasicActionHolder_.class, ActionMainFragment_.class, BackgroundThreadActionHolder_.class})
 public class ActionDetailsTest {
     @Rule
     public PowerMockRule rule = new PowerMockRule();
@@ -217,6 +216,82 @@ public class ActionDetailsTest {
         {
             bean.callTwoActions(first, second);
             assertEquals(bean.getResult(), 40);
+        }
+    }
+
+    @Test
+    public void testActionMethod() throws NoSuchMethodException {
+        ActionMainFragment_ fragment = mock(ActionMainFragment_.class);
+        assertTrue(fragment.getClass().getMethod("$onResume", null).getName().startsWith("$"));
+    }
+
+    @Test
+    public void testCallTwoActionsInParallel() {
+        {
+            bean.callActionsInParallel(first, second);
+            assertEquals(bean.getResult(), 0);
+        }
+    }
+
+    @Test
+    public void testCallTwoActionsInParallelResume() {
+        final BackgroundThreadActionHolder_ backgroundSUM = mock(BackgroundThreadActionHolder_.class);
+        final AtomicBoolean executeSUM = new AtomicBoolean(false);
+        {
+            backgroundSUM.init();
+            backgroundSUM.build(new Runnable() {
+                @Override
+                public void run() {
+                    final CalcBasicActionHolder_ holderSUM = CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
+                    holderSUM .init((result));
+                    holderSUM .operation((Calc.SUM));
+                    holderSUM .numberFirst((first));
+                    holderSUM .numberSecond((second));
+                    holderSUM .build(new Runnable() {
+                        @Override
+                        public void run() {
+                            executeSUM.set(true);
+                        }
+                    });
+                    holderSUM .execute();
+                }
+            });
+            backgroundSUM.execute();
+        }
+
+        final BackgroundThreadActionHolder_ backgroundSUBT = mock(BackgroundThreadActionHolder_.class);
+        final AtomicBoolean executeSUBT = new AtomicBoolean(false);
+        {
+            backgroundSUBT.init();
+            backgroundSUBT.build(new Runnable() {
+                @Override
+                public void run() {
+                    final CalcBasicActionHolder_ holderSUBT = CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
+                    holderSUBT .init((result));
+                    holderSUBT .operation((Calc.SUBT));
+                    holderSUBT .numberFirst((first));
+                    holderSUBT .numberSecond((second));
+                    holderSUBT .build(new Runnable() {
+                        @Override
+                        public void run() {
+                            executeSUBT.set(true);
+                        }
+                    });
+                    holderSUBT .execute();
+                }
+            });
+            backgroundSUBT.execute();
+        }
+
+        verify(backgroundSUM).execute();
+        verify(backgroundSUBT).execute();
+    }
+
+    @Test
+    public void testCallTwoActionsInParallelOnlyBackground() {
+        {
+            bean.callActionsInParallelOnlyBackground(first, second);
+            assertEquals(bean.getResult(), 0);
         }
     }
 }
