@@ -33,6 +33,7 @@ public class Calc {
         return resultOperation;
     }
 
+    // Getters
     public int getNumberFirst() {
         return this.numberFirst;
     }
@@ -45,6 +46,11 @@ public class Calc {
         return this.resultOperation;
     }
 
+    public String getOperation() {
+        return this.operation;
+    }
+
+    // Setters
     public void setOperation(String operation) {
         this.operation = operation;
     }
@@ -57,6 +63,11 @@ public class Calc {
         this.numberSecond = numberSecond;
     }
 
+    public void setResultOperation(int resultOperation) {
+        this.resultOperation = resultOperation;
+    }
+
+    // Functions
     public boolean isSum() {
         return this.operation.equals(SUM);
     }

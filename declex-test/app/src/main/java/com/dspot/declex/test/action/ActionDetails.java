@@ -5,7 +5,6 @@ import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Background;
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.annotations.UiThread;
 
 import static com.dspot.declex.Action.*;
 
