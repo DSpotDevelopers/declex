@@ -84,6 +84,19 @@ public class ModelBean {
         }
     }
 
+    public  void updatePost(boolean fields) {
+        if(fields) {
+            post.setUserId(1);
+            post.setBody("Hello Body!!!");
+            post.setTitle("Hello Title!!!");
+        }
+
+        $PutModel(post).orderBy("update").query("{post_id}");
+        if($PutModel.Done) {
+            downloadListPosts();
+        }
+    }
+
     @Event
     void onCalculateBasic(int first, int second) {
         $CalcBasic(0).operation(Calc.SUM).numberFirst(first).numberSecond(second);

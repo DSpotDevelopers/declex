@@ -72,4 +72,20 @@ public class ModelBeanTest {
             assertNotNull(bean.getListPosts());
         }
     }
+
+    @Test
+    public void testPutRequestNotParameters() {
+        {
+            bean.updatePost(false);
+            assertNotNull(bean.getListPosts());
+        }
+    }
+
+    @Test
+    public void testPutRequestWithParameters() {
+        {
+            bean.updatePost(true);
+            assertNotNull(bean.getListPosts());
+        }
+    }
 }
