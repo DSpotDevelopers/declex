@@ -1,10 +1,6 @@
 package com.dspot.declex.test.model.servermodel.model;
 
-import com.dspot.declex.annotation.ServerModel;
-
-import org.junit.Before;
 import org.junit.Rule;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -14,10 +10,9 @@ import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import org.robolectric.annotation.Config;
+
 
 @RunWith(RobolectricTestRunner.class)
 @Config(

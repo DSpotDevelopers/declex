@@ -1,12 +1,7 @@
 package com.dspot.declex.test.model.servermodel;
 
-import com.dspot.declex.Action;
-import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder;
-import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
-
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -19,7 +14,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
 
-import java.util.List;
 
 @RunWith(RobolectricTestRunner.class)
 @org.robolectric.annotation.Config(
@@ -68,6 +62,14 @@ public class ModelBeanTest {
         {
             bean.downloadEnhancedReadPost();
             assertNotNull(bean.getEnhancedReadPost());
+        }
+    }
+
+    @Test
+    public void testPostsRequest() {
+        {
+            bean.createPost();
+            assertNotNull(bean.getListPosts());
         }
     }
 }

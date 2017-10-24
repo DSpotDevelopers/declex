@@ -17,11 +17,12 @@ package com.dspot.declex.test.model.servermodel;
 
 import static com.dspot.declex.Action.*;
 
+import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.Model;
-import com.dspot.declex.annotation.Populate;
-import com.dspot.declex.annotation.ServerModel;
+
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder;
 import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
+import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EBean;
@@ -54,6 +55,12 @@ public class ModelBean {
     @Model(async = true,  orderBy = "read")
     List<ModelPlaceHolder_> enhancedReadPost;
 
+    /**
+     *  Posts
+     * **/
+    @Model(async = true, orderBy = "create")
+    ModelPlaceHolder_ post;
+
     public void downloadListPosts() {
         $LoadModel(listPosts);
     }
@@ -68,5 +75,20 @@ public class ModelBean {
 
     public void downloadEnhancedReadPost() {
         $LoadModel(enhancedReadPost).query("{post_id}");
+    }
+
+    public void createPost() {
+        $PutModel(post);
+        if ($PutModel.Done) {
+            $CalculateBasic(4, 5);
+        }
+    }
+
+    @Event
+    void onCalculateBasic(int first, int second) {
+        $CalcBasic(0).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+        if ($CalcBasic.Done) {
+            downloadListPosts();
+        }
     }
 }
