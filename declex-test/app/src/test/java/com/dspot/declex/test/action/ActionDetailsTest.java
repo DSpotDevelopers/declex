@@ -1,5 +1,7 @@
 package com.dspot.declex.test.action;
 
+import android.os.Bundle;
+
 import com.dspot.declex.action.builtin.BackgroundThreadActionHolder_;
 import com.dspot.declex.event.GenerateResult;
 import com.dspot.declex.event.GenerateResult_;
@@ -22,6 +24,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
@@ -292,6 +295,17 @@ public class ActionDetailsTest {
         {
             bean.callActionsInParallelOnlyBackground(first, second);
             assertEquals(bean.getResult(), 0);
+        }
+    }
+
+    @Test
+    public void testAfterInjectInFragment() {
+        ActionMainFragment_ fragment = Mockito.mock(ActionMainFragment_.class);
+        Bundle savedInstanceState = Mockito.mock(Bundle.class);
+
+        {
+            fragment.onCreate(savedInstanceState);
+            assertNotNull(fragment.getListPosts());
         }
     }
 }
