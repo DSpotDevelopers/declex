@@ -38,8 +38,6 @@ public class CalcManagerTest {
 
     private int second;
 
-    private int result;
-
     CalcManager_ mockCalcManager;
 
     @Before
@@ -47,11 +45,10 @@ public class CalcManagerTest {
         mockCalcManager = mock(CalcManager_.class);
         first = 4;
         second = 5;
-        result = 9;
     }
 
     @Test
-    public void calculateSumVirtual() throws Exception {
+    public void testCalculateSumVirtual() throws Exception {
         doThrow(new RuntimeException()).when(mockCalcManager, "calculateSubtVirtual",  first, second);
         final AtomicBoolean executeSum = new AtomicBoolean(false);
         final AtomicBoolean executeFailSum = new AtomicBoolean(false);
@@ -76,7 +73,7 @@ public class CalcManagerTest {
     }
 
     @Test
-    public void calculateSubtVirtual() throws Exception {
+    public void testCalculateSubtVirtual() throws Exception {
         doThrow(new RuntimeException()).when(mockCalcManager, "calculateSubtVirtual",  first, second);
         final AtomicBoolean executeSubt = new AtomicBoolean(false);
         final AtomicBoolean executeFailSubt = new AtomicBoolean(false);
