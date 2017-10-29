@@ -308,4 +308,24 @@ public class ActionDetailsTest {
             assertNotNull(fragment.getListPosts());
         }
     }
+
+    @Test
+    public void testServiceCalSum() {
+        {
+            bean.callServiceCalSum(first, second);
+            assertEquals(result, 9);
+        }
+
+        assertNotEquals(result, -1);
+    }
+
+    @Test
+    public void testServiceCalSubt() {
+        {
+            bean.callServiceCalSubt(first, second);
+            assertEquals(result, 1);
+        }
+
+        assertNotEquals(result, -1);
+    }
 }
