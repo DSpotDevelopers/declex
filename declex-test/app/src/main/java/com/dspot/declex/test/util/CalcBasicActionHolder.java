@@ -1,8 +1,5 @@
 package com.dspot.declex.test.util;
 
-import android.os.Handler;
-import android.os.Looper;
-
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.annotation.action.FormattedExpression;
 import com.dspot.declex.annotation.action.StopOn;
