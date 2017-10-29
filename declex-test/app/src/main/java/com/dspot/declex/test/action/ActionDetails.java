@@ -1,15 +1,25 @@
 package com.dspot.declex.test.action;
 
+import android.content.Context;
+
 import com.dspot.declex.annotation.Event;
+import com.dspot.declex.annotation.OnEvent;
+import com.dspot.declex.event.CalcError;
+import com.dspot.declex.event.CalcSum;
+import com.dspot.declex.test.manager.CalcService_;
 import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Background;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.RootContext;
 
 import static com.dspot.declex.Action.*;
 
 @EBean
 public class ActionDetails {
+    @RootContext
+    Context context;
+
     public int result = 0;
 
     public int getResult() {
@@ -90,6 +100,34 @@ public class ActionDetails {
 
         $UIThread();
         setResult(result);
+    }
+
+    // What happens with the services
+    public void callServiceCalSum(int first, int second) {
+        CalcService_.intent(context)
+                .calculateSumFromService(first, second)
+                .start();
+    }
+
+    public void callServiceCalSubt(int first, int second) {
+        CalcService_.intent(context)
+                .calculateSubtFromService(first, second)
+                .start();
+    }
+
+    @OnEvent(CalcSum.class)
+    public void serviceCalSumCorrect() {
+        result = 9;
+    }
+
+    @OnEvent(CalcSum.class)
+    public void serviceCalSubtCorrect() {
+        result = 1;
+    }
+
+    @OnEvent(CalcError.class)
+    public void serviceCalError() {
+        result = -1;
     }
 
     @Background
