@@ -30,6 +30,7 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.helper.InjectHelper;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.HasIntentBuilder;
 import org.androidannotations.internal.core.helper.IntentBuilder;
@@ -97,6 +98,7 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		try {
 			
 			if (holder instanceof HasIntentBuilder) {
+				
 				APTCodeModelHelper helper = new DeclexAPTCodeModelHelper(getEnvironment());
 				helper.getActualType(element, holder);
 				
@@ -105,6 +107,10 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 			    Field helperField = IntentBuilder.class.getDeclaredField("codeModelHelper");
 			    helperField.setAccessible(true);
 			    helperField.set(builder, helper);
+			    
+			    helperField = InjectHelper.class.getDeclaredField("codeModelHelper");
+			    helperField.setAccessible(true);
+			    helperField.set(injectHelper, helper);
 			}
 			
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
