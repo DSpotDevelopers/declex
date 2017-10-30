@@ -20,14 +20,14 @@ import org.robolectric.annotation.Config;
         sdk = 25
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*", "javax.net.ssl.*"})
-@PrepareForTest({ModelPlaceHolder_.class})
-public class ModelPlaceHolderTest {
+@PrepareForTest({ServerModelEntity_.class})
+public class ServerModelEntityTest {
     @Rule
     public PowerMockRule rule = new PowerMockRule();
 
     @Test
     public void testGettersAndSetters() {
-        ModelPlaceHolder_ model = new ModelPlaceHolder_();
+        ServerModelEntity_ model = new ServerModelEntity_();
 
         model.setTitle("Test Title");
         assertEquals("Test Title", model.getTitle());

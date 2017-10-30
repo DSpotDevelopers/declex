@@ -13,6 +13,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
 
 @RunWith(RobolectricTestRunner.class)
@@ -21,16 +22,16 @@ import org.robolectric.RobolectricTestRunner;
         sdk = 25
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*", "javax.net.ssl.*"})
-@PrepareForTest({ModelBean_.class})
-public class ModelBeanTest {
-    private ModelBean_ bean;
+@PrepareForTest({ServerModelBean_.class})
+public class ServerModelBeanTest {
+    private ServerModelBean_ bean;
 
     @Rule
     public PowerMockRule rule = new PowerMockRule();
 
     @Before
     public void setUp() {
-        bean = mock(ModelBean_.class);
+        bean =  ServerModelBean_.getInstance_(RuntimeEnvironment.application);
     }
 
     @Test

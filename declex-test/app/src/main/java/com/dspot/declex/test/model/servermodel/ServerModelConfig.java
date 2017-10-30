@@ -12,7 +12,7 @@ import okhttp3.OkHttpClient;
  *
  *  Here are the configurations use all throughout the program.
  */
-public class Config {
+public class ServerModelConfig {
     /**
      * The constant SERVER.
      */

@@ -18,12 +18,12 @@ package com.dspot.declex.test.model.servermodel.model;
 import com.dspot.declex.annotation.ServerModel;
 import com.dspot.declex.annotation.ServerRequest;
 import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.test.model.servermodel.Config;
+import com.dspot.declex.test.model.servermodel.ServerModelConfig;
 
 import okhttp3.OkHttpClient;
 
 @ServerModel (
-        baseUrl = Config.SERVER,
+        baseUrl = ServerModelConfig.SERVER,
         getHeaders = "Accept=*/*",
 
         load = {
@@ -67,12 +67,12 @@ import okhttp3.OkHttpClient;
 )
 
 @UseModel
-public class ModelPlaceHolder {
+public class ServerModelEntity {
     int id;
     int userId;
     String title;
     String body;
 
     @ServerModel
-    static OkHttpClient okHttpClient = Config.OK_HTTP_CLIENT;
+    static OkHttpClient okHttpClient = ServerModelConfig.OK_HTTP_CLIENT;
 }

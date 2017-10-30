@@ -22,7 +22,7 @@ import android.support.v4.app.Fragment;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.test.R;
-import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
+import com.dspot.declex.test.model.servermodel.model.ServerModelEntity_;
 import com.dspot.declex.test.util.Calc;
 
 import static com.dspot.declex.Action.*;
@@ -38,7 +38,7 @@ public class ActionMainFragment extends Fragment {
     protected int result = 0;
 
     @Model(async = true, orderBy = "list")
-    List<ModelPlaceHolder_> listPosts;
+    List<ServerModelEntity_> listPosts;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {

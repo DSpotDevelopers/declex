@@ -20,8 +20,8 @@ import static com.dspot.declex.Action.*;
 import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.Model;
 
-import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder;
-import com.dspot.declex.test.model.servermodel.model.ModelPlaceHolder_;
+import com.dspot.declex.test.model.servermodel.model.ServerModelEntity;
+import com.dspot.declex.test.model.servermodel.model.ServerModelEntity_;
 import com.dspot.declex.test.util.Calc;
 
 import org.androidannotations.annotations.Bean;
@@ -30,36 +30,36 @@ import org.androidannotations.annotations.EBean;
 import java.util.List;
 
 @EBean
-public class ModelBean {
+public class ServerModelBean {
 
     int post_id = 1;
 
     @Bean
-    ModelPlaceHolder beanModelPlaceHolder;
+    ServerModelEntity beanModelPlaceHolder;
 
     /**
      *  List Posts
      * **/
     @Model(async = true, orderBy = "list")
-    List<ModelPlaceHolder> listPosts;
+    List<ServerModelEntity> listPosts;
 
     @Model(async = true, orderBy = "list")
-    List<ModelPlaceHolder_> enhancedListPosts;
+    List<ServerModelBean_> enhancedListPosts;
 
     /**
      *  Read Posts
      * **/
     @Model(async = true,  orderBy = "read")
-    List<ModelPlaceHolder> readPost;
+    List<ServerModelEntity> readPost;
 
     @Model(async = true,  orderBy = "read")
-    List<ModelPlaceHolder_> enhancedReadPost;
+    List<ServerModelBean_> enhancedReadPost;
 
     /**
      *  Posts
      * **/
     @Model(async = true, orderBy = "create")
-    ModelPlaceHolder_ post;
+    ServerModelEntity_ post;
 
     public void downloadListPosts() {
         $LoadModel(listPosts);
