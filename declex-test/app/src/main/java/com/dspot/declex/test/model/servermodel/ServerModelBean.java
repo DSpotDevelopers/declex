@@ -20,6 +20,7 @@ import static com.dspot.declex.Action.*;
 import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.Model;
 
+import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.test.model.servermodel.model.ServerModelEntity;
 import com.dspot.declex.test.model.servermodel.model.ServerModelEntity_;
 import com.dspot.declex.test.util.CalcHelper;
@@ -40,10 +41,10 @@ public class ServerModelBean {
     /**
      *  List Posts
      * **/
-    @Model(async = true, orderBy = "list", lazy = true)
+    @Model(async = true, lazy = true)
     List<ServerModelEntity> listPosts;
 
-    @Model(async = true, orderBy = "list", lazy = true)
+    @Model(async = true, lazy = true)
     List<ServerModelBean_> enhancedListPosts;
 
     /**
