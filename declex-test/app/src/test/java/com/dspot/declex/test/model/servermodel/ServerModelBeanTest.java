@@ -1,7 +1,7 @@
 package com.dspot.declex.test.model.servermodel;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
+import static com.jayway.awaitility.Awaitility.await;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -15,6 +15,8 @@ import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
+import java.util.concurrent.TimeUnit;
+
 
 @RunWith(RobolectricTestRunner.class)
 @org.robolectric.annotation.Config(
@@ -24,6 +26,7 @@ import org.robolectric.RuntimeEnvironment;
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*", "javax.net.ssl.*"})
 @PrepareForTest({ServerModelBean_.class})
 public class ServerModelBeanTest {
+
     private ServerModelBean_ bean;
 
     @Rule
@@ -35,10 +38,10 @@ public class ServerModelBeanTest {
     }
 
     @Test
-    public void testDownloadListPosts() {
+    public void testDownloadListPosts() throws Exception {
         {
             bean.downloadListPosts();
-            assertNotNull(bean.getListPosts());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -46,7 +49,7 @@ public class ServerModelBeanTest {
     public  void testDownloadEnhancedListPosts() {
         {
             bean.downloadEnhancedListPosts();
-            assertNotNull(bean.getEnhancedListPosts());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -54,7 +57,7 @@ public class ServerModelBeanTest {
     public void testDownloadReadPosts() {
         {
             bean.downloadReadPosts();
-            assertNotNull(bean.getReadPost());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -62,7 +65,7 @@ public class ServerModelBeanTest {
     public void testDownloadEnhancedReadPost() {
         {
             bean.downloadEnhancedReadPost();
-            assertNotNull(bean.getEnhancedReadPost());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -70,7 +73,7 @@ public class ServerModelBeanTest {
     public void testPostsRequest() {
         {
             bean.createPost();
-            assertNotNull(bean.getListPosts());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -78,7 +81,7 @@ public class ServerModelBeanTest {
     public void testPutRequestNotParameters() {
         {
             bean.updatePost(false);
-            assertNotNull(bean.getListPosts());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 
@@ -86,7 +89,7 @@ public class ServerModelBeanTest {
     public void testPutRequestWithParameters() {
         {
             bean.updatePost(true);
-            assertNotNull(bean.getListPosts());
+            await().atMost(5, TimeUnit.SECONDS);
         }
     }
 }

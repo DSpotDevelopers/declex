@@ -45,12 +45,6 @@ public class ActionMainFragment extends Fragment {
         super.onCreate(savedInstanceState);
     }
 
-//    @Override
-//    public void onResume() {
-//        super.onResume();
-//        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
-//    }
-
     public void $onResume() {
         super.onResume();
         calcBasic();

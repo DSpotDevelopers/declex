@@ -22,6 +22,10 @@ import com.dspot.declex.test.model.servermodel.ServerModelConfig;
 
 import okhttp3.OkHttpClient;
 
+/**
+ *  http://jsonplaceholder.typicode.com/ is a free online REST service that you can use whenever you need some fake data. *
+ **/
+
 @ServerModel (
         baseUrl = ServerModelConfig.SERVER,
         getHeaders = "Accept=*/*",
