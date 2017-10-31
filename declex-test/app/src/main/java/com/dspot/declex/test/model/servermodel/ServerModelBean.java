@@ -22,7 +22,7 @@ import com.dspot.declex.annotation.Model;
 
 import com.dspot.declex.test.model.servermodel.model.ServerModelEntity;
 import com.dspot.declex.test.model.servermodel.model.ServerModelEntity_;
-import com.dspot.declex.test.util.Calc;
+import com.dspot.declex.test.util.CalcHelper;
 
 import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EBean;
@@ -132,14 +132,6 @@ public class ServerModelBean {
         $PutModel(post).orderBy("update").query("{post_id}");
         if($PutModel.Done) {
             System.out.print("Post successfully updated!!!");
-        }
-    }
-
-    @Event
-    void onCalculateBasic(int first, int second) {
-        $CalcBasic(0).operation(Calc.SUM).numberFirst(first).numberSecond(second);
-        if ($CalcBasic.Done) {
-            System.out.print("Calculation performed satisfactorily!!!");
         }
     }
 }

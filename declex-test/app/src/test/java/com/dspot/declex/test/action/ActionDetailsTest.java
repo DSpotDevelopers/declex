@@ -5,7 +5,7 @@ import android.os.Bundle;
 import com.dspot.declex.action.builtin.BackgroundThreadActionHolder_;
 import com.dspot.declex.event.GenerateResult;
 import com.dspot.declex.event.GenerateResult_;
-import com.dspot.declex.test.util.Calc;
+import com.dspot.declex.test.util.CalcHelper;
 import com.dspot.declex.test.util.CalcBasicActionHolder_;
 
 import org.androidannotations.api.BackgroundExecutor;
@@ -194,7 +194,7 @@ public class ActionDetailsTest {
                 @Override
                 public void run() {
                     holder.init((result));
-                    holder.operation((Calc.SUBT));
+                    holder.operation((CalcHelper.SUBT));
                     holder.numberFirst((first));
                     holder.numberSecond((second));
                     holder.build(new java.lang.Runnable() {
@@ -225,7 +225,9 @@ public class ActionDetailsTest {
     @Test
     public void testActionMethod() throws NoSuchMethodException {
         ActionMainFragment_ fragment = mock(ActionMainFragment_.class);
-        assertTrue(fragment.getClass().getMethod("$onResume", null).getName().startsWith("$"));
+
+        Class[] parameterTypes = null;
+        assertTrue(fragment.getClass().getMethod("$onResume", parameterTypes).getName().startsWith("$"));
     }
 
     @Test
@@ -247,7 +249,7 @@ public class ActionDetailsTest {
                 public void run() {
                     final CalcBasicActionHolder_ holderSUM = CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
                     holderSUM .init((result));
-                    holderSUM .operation((Calc.SUM));
+                    holderSUM .operation((CalcHelper.SUM));
                     holderSUM .numberFirst((first));
                     holderSUM .numberSecond((second));
                     holderSUM .build(new Runnable() {
@@ -271,7 +273,7 @@ public class ActionDetailsTest {
                 public void run() {
                     final CalcBasicActionHolder_ holderSUBT = CalcBasicActionHolder_.getInstance_(RuntimeEnvironment.application);
                     holderSUBT .init((result));
-                    holderSUBT .operation((Calc.SUBT));
+                    holderSUBT .operation((CalcHelper.SUBT));
                     holderSUBT .numberFirst((first));
                     holderSUBT .numberSecond((second));
                     holderSUBT .build(new Runnable() {

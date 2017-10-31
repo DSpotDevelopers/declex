@@ -23,7 +23,7 @@ import android.support.v4.app.Fragment;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.test.R;
 import com.dspot.declex.test.model.servermodel.model.ServerModelEntity_;
-import com.dspot.declex.test.util.Calc;
+import com.dspot.declex.test.util.CalcHelper;
 
 import static com.dspot.declex.Action.*;
 
@@ -61,7 +61,7 @@ public class ActionMainFragment extends Fragment {
     public int getResult() { return result; }
 
     public void calcBasic() {
-        $CalcBasic(result).operation(Calc.SUM).numberFirst(first()).numberSecond(second());
+        $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first()).numberSecond(second());
         if($CalcBasic.Done) {
             result = 9;
         }

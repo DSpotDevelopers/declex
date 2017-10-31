@@ -5,7 +5,7 @@ import org.androidannotations.annotations.EBean;
 import static com.dspot.declex.Action.*;
 
 @EBean
-public class CalcStandard extends Calc {
+public class CalcStandard extends CalcHelper {
     public CalcStandard() {
         super();
     }
@@ -32,7 +32,7 @@ public class CalcStandard extends Calc {
 //        super.createOperation();
 //
 //        {
-//            $CalcBasic(0).operation(Calc.SUM).numberFirst(getNumberFirst()).numberSecond(getNumberSecond());
+//            $CalcBasic(0).operation(CalcHelper.SUM).numberFirst(getNumberFirst()).numberSecond(getNumberSecond());
 //            if($CalcBasic.Done) {
 //                setResultOperation(9);
 //            }

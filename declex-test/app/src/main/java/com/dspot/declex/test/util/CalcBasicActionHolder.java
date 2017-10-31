@@ -6,14 +6,14 @@ import com.dspot.declex.annotation.action.StopOn;
 
 @ActionFor(value = "CalcBasic")
 public class CalcBasicActionHolder {
-    protected Calc calc;
+    protected CalcHelper calc;
 
     protected int variable;
 
     protected Runnable Done;
 
     void init(int field) {
-        this.calc = new Calc();
+        this.calc = new CalcHelper();
         this.variable = field;
     }
 
@@ -34,7 +34,7 @@ public class CalcBasicActionHolder {
     }
 
     @StopOn("create")
-    public Calc calc() {
+    public CalcHelper calc() {
         return this.calc;
     }
 

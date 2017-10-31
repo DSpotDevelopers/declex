@@ -10,7 +10,10 @@
         android:theme="@style/AppTheme">
 
         <activity android:name=".action.ActionMainActivity_"/>
-        <activity android:name=".action.ActionSecondActivity_"/>
+
+        <activity android:name=".injection.property.PropertyInjectionActivity_"/>
+
+        <service android:name=".manager.CalcService_" />
 
     </application>
 

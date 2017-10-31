@@ -41,8 +41,8 @@ public class CalcStandardTest {
     @Test
     public void testSum() throws Exception {
         CalcStandard calcStandard = spy(new CalcStandard());
-        doNothing().when((Calc) calcStandard).createOperation();
-        calcStandard.setOperation(Calc.SUM);
+        doNothing().when((CalcHelper) calcStandard).createOperation();
+        calcStandard.setOperation(CalcHelper.SUM);
         calcStandard.setNumberFirst(first);
         calcStandard.setNumberSecond(second);
         calcStandard.$createOperation();
@@ -53,8 +53,8 @@ public class CalcStandardTest {
     @Test
     public void testSubt() throws Exception {
         CalcStandard calcStandard = spy(new CalcStandard());
-        doNothing().when((Calc) calcStandard).createOperation();
-        calcStandard.setOperation(Calc.SUBT);
+        doNothing().when((CalcHelper) calcStandard).createOperation();
+        calcStandard.setOperation(CalcHelper.SUBT);
         calcStandard.setNumberFirst(first);
         calcStandard.setNumberSecond(second);
         calcStandard.$createOperation();

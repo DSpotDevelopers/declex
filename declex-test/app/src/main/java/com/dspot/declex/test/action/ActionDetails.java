@@ -7,7 +7,7 @@ import com.dspot.declex.annotation.OnEvent;
 import com.dspot.declex.event.CalcError;
 import com.dspot.declex.event.CalcSum;
 import com.dspot.declex.test.manager.CalcService_;
-import com.dspot.declex.test.util.Calc;
+import com.dspot.declex.test.util.CalcHelper;
 
 import org.androidannotations.annotations.Background;
 import org.androidannotations.annotations.EBean;
@@ -31,14 +31,14 @@ public class ActionDetails {
     }
 
     public void calcSumValues(int first, int second) {
-        $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+        $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             result = 9;
         }
     }
 
     public void calcSubtValues(int first, int second) {
-        $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+        $CalcBasic(result).operation(CalcHelper.SUBT).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             result = 1;
         }
@@ -57,7 +57,7 @@ public class ActionDetails {
         $GenerateResult();
 
         {
-            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            $CalcBasic(result).operation(CalcHelper.SUBT).numberFirst(first).numberSecond(second);
             if($CalcBasic.Done) {
                 result = result * 2;
             }
@@ -68,7 +68,7 @@ public class ActionDetails {
     public void callActionsInParallel(int first, int second) {
         {
             $Background();
-            $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+            $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first).numberSecond(second);
             if($CalcBasic.Done) {
                 result = 9;
             }
@@ -76,7 +76,7 @@ public class ActionDetails {
 
         {
             $Background();
-            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            $CalcBasic(result).operation(CalcHelper.SUBT).numberFirst(first).numberSecond(second);
             if($CalcBasic.Done) {
                 result = 1;
             }
@@ -87,12 +87,12 @@ public class ActionDetails {
     public void callActionsInParallelOnlyBackground(int first, int second) {
         $Background();
         {
-            $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+            $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first).numberSecond(second);
             if($CalcBasic.Done) {
                 result = 9;
             }
 
-            $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+            $CalcBasic(result).operation(CalcHelper.SUBT).numberFirst(first).numberSecond(second);
             if($CalcBasic.Done) {
                 result = 1;
             }
@@ -132,7 +132,7 @@ public class ActionDetails {
 
     @Background
     public void calcSumBackground(int first, int second) {
-        $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+        $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             result = 9;
         }

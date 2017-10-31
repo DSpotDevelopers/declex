@@ -4,7 +4,7 @@ import android.content.Context;
 
 import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.Populate;
-import com.dspot.declex.test.util.Calc;
+import com.dspot.declex.test.util.CalcHelper;
 
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.annotations.RootContext;
@@ -30,7 +30,7 @@ public class CalcManager
     int result = 0;
 
     public  void calculateSumVirtual(int first, int second) {
-        $CalcBasic(result).operation(Calc.SUM).numberFirst(first).numberSecond(second);
+        $CalcBasic(result).operation(CalcHelper.SUM).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             {$CalcSum("Calc operation correct");}
         }
@@ -39,7 +39,7 @@ public class CalcManager
     }
 
     public  void calculateSubtVirtual(int first, int second) {
-        $CalcBasic(result).operation(Calc.SUBT).numberFirst(first).numberSecond(second);
+        $CalcBasic(result).operation(CalcHelper.SUBT).numberFirst(first).numberSecond(second);
         if($CalcBasic.Done) {
             {$CalcSubt("Calc operation correct");}
         }

@@ -1,6 +1,6 @@
 package com.dspot.declex.test.util;
 
-public class Calc {
+public class CalcHelper {
     private String operation;
 
     private int numberFirst;
@@ -13,7 +13,7 @@ public class Calc {
 
     public static  String SUBT = "Subt";
 
-    public Calc() {
+    public CalcHelper() {
         this.operation = null;
         this.numberFirst = 0;
         this.numberSecond = 0;
