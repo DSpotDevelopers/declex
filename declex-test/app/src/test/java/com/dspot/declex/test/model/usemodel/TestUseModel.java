@@ -36,9 +36,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.*;
+
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.support.membermodification.MemberMatcher.method;
 import static org.powermock.api.support.membermodification.MemberModifier.stub;
@@ -156,5 +156,16 @@ public class TestUseModel {
     @Test
     public void testSerializationInSubclass() {
         //TODO
+    }
+
+    @Test
+    public void testGetModelListInjectList() {
+        List<ModelUser_> listModelUser = ModelUser_.getModelList_(RuntimeEnvironment.application, null, null);
+        assertNotNull(listModelUser);
+    }
+
+    @Test
+    public void testGettersAndSettersNotStatic() {
+        
     }
 }

@@ -26,7 +26,7 @@ import org.androidannotations.annotations.EBean;
 import java.util.List;
 
 @EBean
-public class ModelBean {
+public class UseModelBean {
 
     @Bean
     ModelUser beanUser;

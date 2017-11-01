@@ -42,6 +42,8 @@ public class ModelUser {
 
     List<ModelUser> contacts;
 
+    private String sex;
+
     public String getPropertyToGet() {
         return propertyToGet;
     }
