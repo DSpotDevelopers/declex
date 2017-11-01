@@ -38,6 +38,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.support.membermodification.MemberMatcher.method;
@@ -156,5 +157,11 @@ public class TestUseModel {
     @Test
     public void testSerializationInSubclass() {
         //TODO
+    }
+
+    @Test
+    public void testGetModelListInjectList() {
+        List<ModelUser_> listModelUser = ModelUser_.getModelList_(RuntimeEnvironment.application, null, null);
+        assertNotNull(listModelUser);
     }
 }
