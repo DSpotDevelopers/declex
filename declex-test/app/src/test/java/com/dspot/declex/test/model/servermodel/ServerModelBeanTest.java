@@ -18,10 +18,9 @@ import org.robolectric.RuntimeEnvironment;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.Matchers.containsString;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(RobolectricTestRunner.class)
 @org.robolectric.annotation.Config(
@@ -33,9 +32,7 @@ import static org.hamcrest.Matchers.containsString;
 public class ServerModelBeanTest {
 
     private ServerModelBean_ bean;
-    private CountDownLatch lock = new CountDownLatch(1);
-    private PrintStream outPrintStream;
-    private final ByteArrayOutputStream outContentStream = new ByteArrayOutputStream();
+    private AtomicBoolean executePosts;
 
     @Rule
     public PowerMockRule rule = new PowerMockRule();
@@ -43,75 +40,67 @@ public class ServerModelBeanTest {
     @Before
     public void setUp() {
         bean =  ServerModelBean_.getInstance_(RuntimeEnvironment.application);
-        outPrintStream = System.out;
-        System.setOut(new PrintStream(outContentStream));
+        executePosts= new AtomicBoolean(false);
     }
 
-    @After
-    public void revertStreams() {
-        System.setOut(outPrintStream);
+    private void waitRestService() {
+        await().atMost(500, TimeUnit.MILLISECONDS).until(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return executePosts.get();
+            }
+        });
     }
-
-    @Test
-    public void testDownloadListPosts() throws Exception {
-        {
-            bean.downloadListPosts();
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
-        }
-    }
-
-    @Test
-    public  void testDownloadEnhancedListPosts() throws Exception  {
-        {
-            bean.downloadEnhancedListPosts();
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
-        }
+    
+    private Callable<Boolean> waitService() {
+        return new Callable<Boolean>() {
+            public Boolean call() throws Exception {
+                return executePosts.get();
+            }
+        };
     }
 
     @Test
-    public void testDownloadReadPosts() throws Exception {
+    public void testDownloadListPosts()  {
         {
-            bean.downloadReadPosts();
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
+            bean.downloadListPosts(new Runnable() {
+                @Override
+                public void run() {
+                    // Done
+                    executePosts.set(true);
+                }
+            }, new Runnable() {
+                @Override
+                public void run() {
+                    // Failed
+                    executePosts.set(false);
+                }
+            });
         }
+
+        waitRestService();
+        assertTrue(executePosts.get());
     }
 
     @Test
-    public void testDownloadEnhancedReadPost() throws Exception  {
+    public void testDownloadEnhancedListPosts() {
         {
-            bean.downloadEnhancedReadPost();
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
+            bean.downloadEnhancedListPosts(new Runnable() {
+                @Override
+                public void run() {
+                    // Done
+                    executePosts.set(true);
+                }
+            }, new Runnable() {
+                @Override
+                public void run() {
+                    // Failed
+                    executePosts.set(false);
+                }
+            });
         }
-    }
 
-    @Test
-    public void testPostsRequest() throws Exception  {
-        {
-            bean.createPost();
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
-        }
-    }
-
-    @Test
-    public void testPutRequestNotParameters() throws Exception  {
-        {
-            bean.updatePost(false);
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
-        }
-    }
-
-    @Test
-    public void testPutRequestWithParameters() throws Exception  {
-        {
-            bean.updatePost(true);
-            lock.await(30, TimeUnit.SECONDS);
-            assertThat(outContentStream.toString(), containsString("successfully"));
-        }
+        waitRestService();
+        assertTrue(executePosts.get());
     }
 }
