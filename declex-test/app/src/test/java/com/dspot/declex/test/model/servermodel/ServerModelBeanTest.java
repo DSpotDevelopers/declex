@@ -16,8 +16,8 @@ import org.powermock.modules.junit4.rule.PowerMockRule;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import static org.hamcrest.Matchers.equalTo;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -102,5 +102,24 @@ public class ServerModelBeanTest {
 
         waitRestService();
         assertTrue(executePosts.get());
+    }
+
+    @Test
+    public void testDownloadReadPosts() {
+        {
+            bean.downloadReadPosts(new Runnable() {
+                @Override
+                public void run() {
+                    executePosts.set(true);
+                }
+            }, new Runnable() {
+                @Override
+                public void run() {
+                    executePosts.set(false);
+                }
+            });
+
+            await().atMost(500, TimeUnit.MILLISECONDS).untilAtomic(executePosts, equalTo(false));
+        }
     }
 }
