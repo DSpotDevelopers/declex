@@ -16,7 +16,12 @@
 package com.dspot.declex.test.model.usemodel;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 
+import com.dspot.declex.action.builtin.PutModelActionHolder_;
+import com.dspot.declex.annotation.Model;
+import com.dspot.declex.annotation.PutOnAction;
+import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
 import com.dspot.declex.test.model.usemodel.model.ModelClient_;
 import com.dspot.declex.test.model.usemodel.model.ModelUser;
@@ -32,10 +37,15 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -157,4 +167,21 @@ public class TestUseModel {
     public void testSerializationInSubclass() {
         //TODO
     }
+
+    @Test
+    public void testGetModelListInjectList() {
+        List<ModelUser_> listModelUser = new ArrayList<>();
+
+        List<Class<? extends Annotation>> useModels = new ArrayList<>();
+        useModels.add(UseModel.class);
+        stub(method(ModelUser_.class, "getModelList_", Context.class, Map.class, useModels.getClass())).toReturn(listModelUser);
+
+        {
+            ArrayList<ModelUser_> result = new ArrayList<ModelUser_>();
+            assertEquals(result, listModelUser);
+        }
+    }
+
+    @Test
+    public void testGettersAndSettersNotStatic() {}
 }
