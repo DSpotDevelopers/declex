@@ -1,12 +1,14 @@
 package com.dspot.declex.test.model.jsonmodel.model;
 
 import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
+import com.google.gson.JsonElement;
 
 import static org.hamcrest.Matchers.*;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import static org.mockito.Mockito.*;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
@@ -127,5 +129,17 @@ public class TestJsonModel {
 
         String jsonGenerated = socialWorker.toJson("work_place, professional_functions");
         assertEquals(modelJson, jsonGenerated);
+    }
+
+    @Test
+    public void testGetModelFromJsonFormat() {
+        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\",\"study_university\":true,\"address\":null}";
+        ModelSocialWorker_ socialWorker = ModelSocialWorker_.fromJson(modelJson);
+        assertNotNull(socialWorker);
+        assertEquals("Schools", socialWorker.getWorkPlace());
+        assertEquals("Supervision", socialWorker.getProfessionalFunctions());
+        assertTrue(socialWorker.getStudyUniversity());
+        assertTrue(socialWorker.isStudyUniversity());
+        assertNull(socialWorker.getAddress());
     }
 }
