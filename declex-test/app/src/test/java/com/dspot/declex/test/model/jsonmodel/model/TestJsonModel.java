@@ -68,4 +68,38 @@ public class TestJsonModel {
         socialWorker.setAddress(address);
         assertEquals(address, socialWorker.getAddress());
     }
+
+    @Test
+    public void testSerializableEnhancedClass() throws IOException, ClassNotFoundException {
+        ModelSocialWorker_ workerSocialSerialize = ModelSocialWorker_.getInstance_(RuntimeEnvironment.application);
+
+        // Save the attributes in the object
+        workerSocialSerialize.setWorkPlace("Schools");
+        workerSocialSerialize.setProfessionalFunctions("Supervision");
+        workerSocialSerialize.setStudyUniversity(true);
+
+        {
+            // Serialize ModelUser class [implement writeObject]
+            ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteOutputStream);
+            objectOutputStream.writeObject(workerSocialSerialize);
+            objectOutputStream.close();
+
+            // Deserialize ModelUser class [implement readObject]
+            ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteOutputStream.toByteArray());
+            ObjectInputStream objectInputStream = new ObjectInputStream(byteInputStream);
+            ModelSocialWorker_ workerSocialDeserialize = (ModelSocialWorker_) objectInputStream.readObject();
+            objectInputStream.close();
+
+            // Check result test
+            assertThat(byteOutputStream.size(), greaterThan(0));
+            assertNotNull(workerSocialDeserialize);
+
+            // Check class model
+            assertEquals("Supervision", workerSocialDeserialize.getProfessionalFunctions());
+            assertEquals("Schools", workerSocialDeserialize.getWorkPlace());
+            assertEquals(true, workerSocialDeserialize.getStudyUniversity());
+            assertEquals(true, workerSocialDeserialize.isStudyUniversity());
+        }
+    }
 }
