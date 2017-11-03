@@ -49,4 +49,23 @@ public class TestJsonModel {
         user = ModelSocialWorker_.getModel_(RuntimeEnvironment.application, null, null);
         assertFalse(user.exists()); //A model only using UseModel will be always created
     }
+
+    @Test
+    public void testGettersAndSetters() {
+        ModelSocialWorker_ socialWorker = new ModelSocialWorker_();
+
+        socialWorker.setProfessionalFunctions("Supervision");
+        assertEquals("Supervision", socialWorker.getProfessionalFunctions());
+
+        socialWorker.setWorkPlace("Schools");
+        assertEquals("Schools", socialWorker.getWorkPlace());
+
+        socialWorker.setStudyUniversity(true);
+        assertEquals(true, socialWorker.getStudyUniversity());
+        assertEquals(true, socialWorker.isStudyUniversity());
+
+        ModelAddress_ address = new ModelAddress_();
+        socialWorker.setAddress(address);
+        assertEquals(address, socialWorker.getAddress());
+    }
 }
