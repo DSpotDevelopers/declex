@@ -2,6 +2,7 @@ package com.dspot.declex.test.model.jsonmodel.model;
 
 import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import static org.hamcrest.Matchers.*;
 import org.junit.Before;
@@ -141,5 +142,20 @@ public class TestJsonModel {
         assertTrue(socialWorker.getStudyUniversity());
         assertTrue(socialWorker.isStudyUniversity());
         assertNull(socialWorker.getAddress());
+    }
+
+    @Test
+    public void testGetModelFromJsonElement() {
+        final JsonObject elementJson = new JsonObject();
+        elementJson.addProperty("work_place", "Schools");
+        elementJson.addProperty("professional_functions", "Supervision");
+        elementJson.addProperty("study_university", true);
+
+        ModelSocialWorker_ socialWorker = ModelSocialWorker_.fromJson(elementJson);
+        assertNotNull(socialWorker);
+        assertEquals("Schools", socialWorker.getWorkPlace());
+        assertEquals("Supervision", socialWorker.getProfessionalFunctions());
+        assertTrue(socialWorker.getStudyUniversity());
+        assertTrue(socialWorker.isStudyUniversity());
     }
 }
