@@ -6,9 +6,9 @@ import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
 
 @JsonModel
 public class ModelSocialWorker {
-    String work_place;
-    String professional_functions;
-    boolean study_university;
+    String workPlace;
+    String professionalFunctions;
+    boolean studyUniversity;
 
     ModelAddress_ address;
 }

@@ -22,6 +22,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -157,5 +158,13 @@ public class TestJsonModel {
         assertEquals("Supervision", socialWorker.getProfessionalFunctions());
         assertTrue(socialWorker.getStudyUniversity());
         assertTrue(socialWorker.isStudyUniversity());
+    }
+
+    @Test
+    public void testListModelFormJsonFormat() {
+        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\",\"study_university\":true,\"address\":null}";
+        List<ModelSocialWorker_> listSocialModel = ModelSocialWorker_.listFromJson(modelJson);
+        assertNotNull(listSocialModel);
+        assertThat(listSocialModel.size(), greaterThan(0));
     }
 }
