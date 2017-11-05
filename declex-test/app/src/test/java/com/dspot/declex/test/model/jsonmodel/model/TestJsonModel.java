@@ -1,10 +1,14 @@
 package com.dspot.declex.test.model.jsonmodel.model;
 
 import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import static org.hamcrest.Matchers.*;
+
+import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -22,7 +26,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+
+import com.google.gson.Gson;
 
 import static org.junit.Assert.*;
 
@@ -161,10 +170,40 @@ public class TestJsonModel {
     }
 
     @Test
-    public void testListModelFormJsonFormat() {
-        final String modelJson = "{\"workPlace\":\"Schools\",\"professionalFunctions\":\"Supervision\",\"studyUniversity\":true,\"address\":null}";
-        List<ModelSocialWorker_> listSocialModel = ModelSocialWorker_.listFromJson(modelJson);
-        assertNotNull(listSocialModel);
-        assertThat(listSocialModel.size(), greaterThan(0));
+    public void testListModelFromJsonFormat() {
+        ModelSocialWorker_ socialWorker = new ModelSocialWorker_();
+        socialWorker.setWorkPlace("Schools");
+        socialWorker.setProfessionalFunctions("Supervision");
+        socialWorker.setStudyUniversity(true);
+
+        List<ModelSocialWorker_> listModelSocialWorker = new ArrayList<>();
+        listModelSocialWorker.add(socialWorker);
+
+        // [{"workPlace":"Schools","professionalFunctions":"Supervision","studyUniversity":true}]
+        String jsonGenerated = new Gson().toJson(listModelSocialWorker);
+        listModelSocialWorker = ModelSocialWorker_.listFromJson(jsonGenerated);
+        assertNotNull(listModelSocialWorker);
+        assertEquals("Schools", listModelSocialWorker.get(0).getWorkPlace());
+        assertEquals("Supervision", listModelSocialWorker.get(0).getProfessionalFunctions());
+        assertTrue(listModelSocialWorker.get(0).getStudyUniversity());
+        assertTrue(listModelSocialWorker.get(0).isStudyUniversity());
+    }
+
+    @Test
+    public void testListModelFromJsonElement() {
+        final JsonObject elementJson = new JsonObject();
+        elementJson.addProperty("workPlace", "Schools");
+        elementJson.addProperty("professionalFunctions", "Supervision");
+        elementJson.addProperty("studyUniversity", true);
+
+        final JsonArray arrayElementJson = new JsonArray();
+        arrayElementJson.add(elementJson);
+
+        List<ModelSocialWorker_> listModelSocialWorker = ModelSocialWorker_.listFromJson(arrayElementJson);
+        assertNotNull(listModelSocialWorker);
+        assertEquals("Schools", listModelSocialWorker.get(0).getWorkPlace());
+        assertEquals("Supervision", listModelSocialWorker.get(0).getProfessionalFunctions());
+        assertTrue(listModelSocialWorker.get(0).getStudyUniversity());
+        assertTrue(listModelSocialWorker.get(0).isStudyUniversity());
     }
 }
