@@ -109,7 +109,7 @@ public class TestJsonModel {
 
     @Test
     public void testConvertToJsonModel() {
-        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\",\"study_university\":true,\"address\":null}";
+        final String modelJson = "{\"workPlace\":\"Schools\",\"professionalFunctions\":\"Supervision\",\"studyUniversity\":true,\"address\":null}";
 
         ModelSocialWorker_ socialWorker = new ModelSocialWorker_();
         socialWorker.setWorkPlace("Schools");
@@ -122,20 +122,20 @@ public class TestJsonModel {
 
     @Test
     public void testConvertToJsonModelSomeAttributes() {
-        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\"}";
+        final String modelJson = "{\"workPlace\":\"Schools\",\"professionalFunctions\":\"Supervision\"}";
 
         ModelSocialWorker_ socialWorker = new ModelSocialWorker_();
         socialWorker.setWorkPlace("Schools");
         socialWorker.setProfessionalFunctions("Supervision");
         socialWorker.setStudyUniversity(true);
 
-        String jsonGenerated = socialWorker.toJson("work_place, professional_functions");
+        String jsonGenerated = socialWorker.toJson("workPlace, professionalFunctions");
         assertEquals(modelJson, jsonGenerated);
     }
 
     @Test
     public void testGetModelFromJsonFormat() {
-        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\",\"study_university\":true,\"address\":null}";
+        final String modelJson = "{\"workPlace\":\"Schools\",\"professionalFunctions\":\"Supervision\",\"studyUniversity\":true,\"address\":null}";
         ModelSocialWorker_ socialWorker = ModelSocialWorker_.fromJson(modelJson);
         assertNotNull(socialWorker);
         assertEquals("Schools", socialWorker.getWorkPlace());
@@ -148,9 +148,9 @@ public class TestJsonModel {
     @Test
     public void testGetModelFromJsonElement() {
         final JsonObject elementJson = new JsonObject();
-        elementJson.addProperty("work_place", "Schools");
-        elementJson.addProperty("professional_functions", "Supervision");
-        elementJson.addProperty("study_university", true);
+        elementJson.addProperty("workPlace", "Schools");
+        elementJson.addProperty("professionalFunctions", "Supervision");
+        elementJson.addProperty("studyUniversity", true);
 
         ModelSocialWorker_ socialWorker = ModelSocialWorker_.fromJson(elementJson);
         assertNotNull(socialWorker);
@@ -162,7 +162,7 @@ public class TestJsonModel {
 
     @Test
     public void testListModelFormJsonFormat() {
-        final String modelJson = "{\"work_place\":\"Schools\",\"professional_functions\":\"Supervision\",\"study_university\":true,\"address\":null}";
+        final String modelJson = "{\"workPlace\":\"Schools\",\"professionalFunctions\":\"Supervision\",\"studyUniversity\":true,\"address\":null}";
         List<ModelSocialWorker_> listSocialModel = ModelSocialWorker_.listFromJson(modelJson);
         assertNotNull(listSocialModel);
         assertThat(listSocialModel.size(), greaterThan(0));
