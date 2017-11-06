@@ -13,51 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.test.model.usemodel;
+package com.dspot.declex.test.model.localdbmodel;
 
 import com.dspot.declex.annotation.Model;
-import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.test.model.usemodel.model.ModelUser;
-import com.dspot.declex.test.model.usemodel.model.ModelUser_;
+import com.dspot.declex.annotation.Populate;
+
+import com.dspot.declex.test.model.localdbmodel.model.ModelSocialWorker_;
+import com.dspot.declex.test.util.DatabaseSeeder;
 
 import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EBean;
 
-import java.util.List;
-
 @EBean
 public class ModelBean {
-
     @Bean
-    ModelUser beanUser;
+    DatabaseSeeder seeder;
 
     @Model
-    ModelUser user;
-
-    @Model(lazy = true)
-    ModelUser lazyUser;
-
-    @Model(async = true)
-    ModelUser asyncUser;
-
-    @Model(asyncPut = false)
-    ModelUser asyncPutUser;
-
-    @Model(handleExceptions = false)
-    ModelUser wihtoutExceptionUser;
-
-    @UseModel
-    ModelUser forcedUseModelUser;
-
-//    @Model
-//    ModelUser_ enhancedUser;
-
-    @Model
-    List<ModelUser> userList;
-
-//    @Model
-//    List<ModelUser_> enhancedUserList;
-
-    @UseModel
-    List<ModelUser> forcedUseModelUserList;
+    @Populate
+    ModelSocialWorker_ socialWorker;
 }
