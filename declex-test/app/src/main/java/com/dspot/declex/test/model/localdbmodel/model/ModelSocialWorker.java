@@ -20,7 +20,4 @@ public class ModelSocialWorker extends Model {
     @NotEmpty
     @Column
     float salary;
-
-    @Column
-    ModelAddress_ address;
 }
