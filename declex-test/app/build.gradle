@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "com.dspot.declex.test"
-        minSdkVersion 9
+        minSdkVersion 14
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -19,8 +19,9 @@ android {
 }
 
 dependencies {
-    annotationProcessor 'com.dspot:declex:2.0.a.4'
-    compile 'com.dspot:declex-api:2.0.a.4'
+    annotationProcessor 'com.dspot:declex:2.0.a.16'
+    compile 'com.dspot:declex-api:2.0.a.16'
+    compile 'com.dspot:declex-actions:2.0.a.8'
 }
 
 dependencies {
