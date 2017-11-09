@@ -15,6 +15,8 @@
  */
 package com.dspot.declex.test.model.usemodel.model;
 
+import com.dspot.declex.annotation.AfterLoad;
+import com.dspot.declex.annotation.AfterPut;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
@@ -42,6 +44,12 @@ public class ModelUser {
 
     List<ModelUser> contacts;
 
+    private String privateField;
+
+    transient String transientField;
+
+    static String staticField;
+
     public String getPropertyToGet() {
         return propertyToGet;
     }
@@ -50,4 +58,21 @@ public class ModelUser {
         this.propertyToSet = propertyToSet;
     }
 
+    public String getEmail() {
+        return  this.email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    @AfterLoad
+    void saveLoadData() {
+        setEmail("email@after.load");
+    }
+
+    @AfterPut
+    void savePutData() {
+        setEmail("email@after.put");
+    }
 }
