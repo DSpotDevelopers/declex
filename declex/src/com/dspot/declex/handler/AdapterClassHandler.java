@@ -134,9 +134,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 					}
 				}
 				
-				if (elemName.equals("getItemViewType") 
-					&& ((params.size() == 1 && !params.get(0).asType().toString().equals("int"))
-					    || params.size() != 1)) {
+				if (elemName.equals("getItemViewType")) {
 					
 					//TODO validate getItemViewType parameter
 					

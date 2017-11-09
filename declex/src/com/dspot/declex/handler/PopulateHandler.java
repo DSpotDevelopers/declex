@@ -900,9 +900,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			
 			if (node != null && node.hasAttribute("android:src")) {
 				String src = node.getAttribute("android:src");
-				String srcId = src.substring(src.lastIndexOf('/')+1);
-				PicassoBuilder = PicassoBuilder.invoke("placeholder")
-						.arg(getEnvironment().getRClass().get(Res.DRAWABLE).getIdStaticRef(srcId, getEnvironment()));
+				
+				if (src.contains("@drawable")) {
+					String srcId = src.substring(src.lastIndexOf('/')+1);
+					PicassoBuilder = PicassoBuilder.invoke("placeholder")
+							.arg(getEnvironment().getRClass().get(Res.DRAWABLE).getIdStaticRef(srcId, getEnvironment()));
+				} else {
+					//TODO support @mipmap or Android drawables
+				}
 			}
 		
 			JBlock ifBlock = block;

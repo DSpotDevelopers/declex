@@ -286,4 +286,15 @@ public class TestUseModel {
         user.putModel_(args);
         assertEquals("email@after.put", user.getEmail());
     }
+
+    @Test
+    public void testGetModelListInjectList() {
+        List<ModelUser_> listModelUser = ModelUser_.getModelList_(RuntimeEnvironment.application, null, null);
+        assertNotNull(listModelUser);
+    }
+
+    @Test
+    public void testGettersAndSettersNotPrivate() {
+        
+    }
 }

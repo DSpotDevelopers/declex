@@ -126,6 +126,10 @@ public class LayoutsParser {
 				}
 				
 				String layoutName = node.getAttribute("layout");
+				if (layoutName == null || "".equals(layoutName)) {
+					layoutName = node.getAttribute("android:layout");
+				}
+				
 				layoutName = layoutName.substring(layoutName.lastIndexOf('/') + 1);
 				
 				foundObjects.putAll(getLayoutObjects(layoutName, id));
