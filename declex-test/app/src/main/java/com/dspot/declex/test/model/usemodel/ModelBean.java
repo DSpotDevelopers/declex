@@ -49,14 +49,14 @@ public class ModelBean {
     @UseModel
     ModelUser forcedUseModelUser;
 
-    @Model
-    ModelUser_ enhancedUser;
+//    @Model
+//    ModelUser_ enhancedUser;
 
     @Model
     List<ModelUser> userList;
 
-    @Model
-    List<ModelUser_> enhancedUserList;
+//    @Model
+//    List<ModelUser_> enhancedUserList;
 
     @UseModel
     List<ModelUser> forcedUseModelUserList;
