@@ -37,8 +37,14 @@ public class ActionInfo {
 	public boolean isGlobal;
 	public boolean isTimeConsuming;
 	
+	public boolean isExternal;
+	
 	public boolean handleViewChanges;
 	
+	/**
+	 * This flag controls to include the action in the Action object.<br>
+	 * The default value is "true"
+	 */
 	public boolean generated;
 	
 	public ActionInfo(String holderClass) {

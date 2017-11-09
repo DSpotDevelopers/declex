@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.dspot.declex.api.util.annotation.CopyIgnore;
-import com.dspot.declex.api.util.annotation.CopyName;
+import com.dspot.declex.annotation.CopyIgnore;
+import com.dspot.declex.annotation.CopyName;
 
 public class CastUtility {
 	

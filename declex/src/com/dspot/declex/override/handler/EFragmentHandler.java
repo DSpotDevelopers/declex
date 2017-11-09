@@ -43,8 +43,10 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	public void process(Element element, EFragmentHolder holder) {
 		super.process(element, holder);
 		
-		FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
-		actionHolder.getFragmentAction();
+		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+			FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
+			actionHolder.getFragmentAction();
+		}
 	}
 
 }

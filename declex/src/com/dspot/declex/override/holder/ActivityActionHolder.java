@@ -35,9 +35,9 @@ import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.api.action.annotation.ActionFor;
-import com.dspot.declex.api.action.annotation.StopOn;
-import com.dspot.declex.api.action.builtin.base.BaseActivityActionHolder;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.StopOn;
+import com.dspot.declex.api.action.base.BaseActivityActionHolder;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.processor.ActivityActionProcessor;
@@ -133,20 +133,25 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String className = classInformation.originalClassName;
 		final String fieldName = element.getSimpleName().toString();
 		
+		AbstractJClass clazz = env.getJClass(className);
+		if (classInformation.isList) {
+			clazz = env.getClasses().LIST.narrow(clazz);
+		}
+		
 		actionInfo.addMethod(
 				fieldName, 
 				actionName, 
-				Arrays.asList(new ActionMethodParam(fieldName, env.getJClass(className)))
+				Arrays.asList(new ActionMethodParam(fieldName, clazz))
 			);
 	}
 	
-	private static void findExtraFields(Element element, List<Element> fragmentArgFields, ProcessingEnvironment env) {
+	private static void findExtraFields(Element element, List<Element> fields, ProcessingEnvironment env) {
 		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			if (elem.getKind() == ElementKind.FIELD) {
 				if (elem.getAnnotation(Extra.class) != null) {
-					fragmentArgFields.add(elem);
+					fields.add(elem);
 				}
 			}
 		}
@@ -154,8 +159,9 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
+			if (superElement == null) continue;
 			
-			findExtraFields(superElement, fragmentArgFields, env);
+			findExtraFields(superElement, fields, env);
 		}
 
 	}
@@ -173,6 +179,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 			ActivityAction.annotate(EBean.class);
 			
 			JAnnotationUse actionFor = ActivityAction.annotate(ActionFor.class);
+			actionFor.param("global", true);
 			actionFor.param("value", activityName);
 			actionFor.param("timeConsuming", false);	
 			actionFor.param("processors", ActivityActionProcessor.class);

@@ -25,9 +25,9 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.CheckedChange;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.event.holder.CheckedChangeHolder;
-import com.dspot.declex.event.holder.ViewListenerHolder;
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.view_listener.CheckedChangeHolder;
+import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 
