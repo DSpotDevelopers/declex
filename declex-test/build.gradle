@@ -17,6 +17,8 @@ allprojects {
         jcenter()
         mavenCentral()
         mavenLocal()
+
+        maven {url 'https://dl.bintray.com/dspot-developers/declex'}
     }
 }
 
