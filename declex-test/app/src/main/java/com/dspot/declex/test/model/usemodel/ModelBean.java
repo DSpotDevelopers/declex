@@ -60,4 +60,11 @@ public class ModelBean {
 
     @UseModel
     List<ModelUser> forcedUseModelUserList;
+
+    @Model(query = "age=45")
+    List<ModelUser_> enhancedQueryUserList;
+
+    String yourName = "Lisa";
+    @Model(query = "name={yourName}", async = true)
+    List<ModelUser_> enhancedQueryAsyncUserList;
 }
