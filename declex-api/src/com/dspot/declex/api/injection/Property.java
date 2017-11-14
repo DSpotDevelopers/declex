@@ -1,6 +1,6 @@
 package com.dspot.declex.api.injection;
 
-import android.support.annotation.Nullable;
+import javax.annotation.Nullable;
 
 public interface Property<T> {
 	

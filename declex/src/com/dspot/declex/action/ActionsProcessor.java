@@ -2333,6 +2333,11 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		public Tree getType() {
 			return variableTree.getType();
 		}
+
+		@Override
+		public ExpressionTree getNameExpression() {
+			return variableTree.getNameExpression();
+		}
 		
 	}
 	
