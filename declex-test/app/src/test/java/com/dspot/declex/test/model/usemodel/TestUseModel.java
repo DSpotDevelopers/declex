@@ -32,17 +32,31 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.support.membermodification.MemberMatcher.method;
 import static org.powermock.api.support.membermodification.MemberModifier.stub;
+
+import static org.hamcrest.Matchers.*;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(
@@ -150,23 +164,126 @@ public class TestUseModel {
     }
 
     @Test
-    public void testSerialization() {
-        //TODO
-    }
-
-    @Test
-    public void testSerializationInSubclass() {
-        //TODO
-    }
-
-    @Test
     public void testGetModelListInjectList() {
         List<ModelUser_> listModelUser = ModelUser_.getModelList_(RuntimeEnvironment.application, null, null);
         assertNotNull(listModelUser);
     }
 
+    @Test(expected = NoSuchMethodException.class)
+    public void testGettersAndSettersNotPrivate() throws NoSuchMethodException {
+        ModelUser_.class.getMethod("getPrivateField");
+        ModelUser_.class.getMethod("setPrivateField", String.class);
+    }
+
+    @Test(expected = NoSuchMethodException.class)
+    public void testGettersAndSettersNotTransient() throws NoSuchMethodException {
+        ModelUser_.class.getMethod("getTransientField");
+        ModelUser_.class.getMethod("setTransientField", String.class);
+    }
+
+    @Test(expected = NoSuchMethodException.class)
+    public void testGettersAndSettersNotStatic() throws NoSuchMethodException {
+        ModelUser_.class.getMethod("getStaticField");
+        ModelUser_.class.getMethod("setStaticField", String.class);
+    }
+
+    @Test(expected = NoSuchMethodException.class)
+    public void testGetterCreatedManually()  throws NoSuchMethodException {
+        ModelUser_.class.getDeclaredMethod("getEmail");
+    }
+
     @Test
-    public void testGettersAndSettersNotPrivate() {
-        
+    public void testSetterCreatedManually()  throws NoSuchMethodException {
+        ModelUser_.class.getDeclaredMethod("setEmail", String.class);
+    }
+
+    @Test
+    public void testSerializableEnhancedClass() throws IOException, ClassNotFoundException {
+        ModelUser_ userSerialize = ModelUser_.getInstance_(RuntimeEnvironment.application);
+
+        // Save the attributes in the object
+        userSerialize.setName("Some Name");
+        userSerialize.setEmail("email@example.com");
+        userSerialize.setAge(50);
+        userSerialize.setSpecial(true);
+
+        List<ModelUser> contacts = new ArrayList<>();
+        userSerialize.setContacts(contacts);
+
+        {
+            // Serialize ModelUser class [implement writeObject]
+            ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream (byteOutputStream);
+            objectOutputStream.writeObject(userSerialize);
+            objectOutputStream.close();
+
+            // Deserialize ModelUser class [implement readObject]
+            ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteOutputStream.toByteArray());
+            ObjectInputStream objectInputStream = new ObjectInputStream(byteInputStream);
+            ModelUser_ userDeserialize = (ModelUser_) objectInputStream.readObject();
+            objectInputStream.close();
+
+            // Check result test
+            assertThat(byteOutputStream.size(), greaterThan(0));
+            assertNotNull(userDeserialize);
+
+            // Check class model
+            assertEquals("Some Name", userDeserialize.getName());
+            assertEquals("email@example.com", userDeserialize.getEmail());
+
+            assertThat(userDeserialize.getAge(), greaterThan(40));
+            assertEquals(50, userDeserialize.getAge());
+
+            assertEquals(true, userDeserialize.getSpecial());
+            assertEquals(true, userDeserialize.isSpecial());
+
+            assertEquals(contacts, userDeserialize.getContacts());
+        }
+    }
+
+    /**
+     * Declex does not serialize the fields that are objects
+     * **/
+    @Test
+    public void testSerializableEnhancedSubClass() throws IOException, ClassNotFoundException {
+        ModelUser_ userSerialize = ModelUser_.getInstance_(RuntimeEnvironment.application);
+
+        ModelAddress_ address = new ModelAddress_();
+        userSerialize.setAddress(address);
+
+        {
+            // Serialize ModelUser class [implement writeObject]
+            ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream (byteOutputStream);
+            objectOutputStream.writeObject(userSerialize);
+            objectOutputStream.close();
+
+            // Deserialize ModelUser class [implement readObject]
+            ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteOutputStream.toByteArray());
+            ObjectInputStream objectInputStream = new ObjectInputStream(byteInputStream);
+            ModelUser_ userDeserialize = (ModelUser_) objectInputStream.readObject();
+            objectInputStream.close();
+
+            // Check class model
+            // Declex does not serialize the fields that are objects
+            assertNull(userDeserialize.getAddress());
+            assertNotEquals(address, userDeserialize.getAddress());
+        }
+    }
+
+    @Test
+    public void testAfterLoad() {
+        ModelUser_ user = ModelUser_.getModel_(RuntimeEnvironment.application, null, null);
+        Map<String, Object> args = new HashMap<String, Object>();
+        user.modelInit_(args);
+        assertEquals("email@after.load", user.getEmail());
+    }
+
+    @Test
+    public void testAfterPut() {
+        ModelUser_ user = ModelUser_.getModel_(RuntimeEnvironment.application, null, null);
+        Map<String, Object> args = new HashMap<String, Object>();
+        user.putModel_(args);
+        assertEquals("email@after.put", user.getEmail());
     }
 }

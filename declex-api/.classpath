@@ -14,9 +14,6 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="libs/android-support-v4.jar"/>
-	<classpathentry kind="lib" path="libs/android.jar"/>
-	<classpathentry kind="lib" path="libs/support-annotations-24.0.0.jar"/>
 	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
@@ -27,5 +24,6 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="libs/support-annotations-24.0.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

@@ -1,6 +1,7 @@
 package com.dspot.declex.api.injection;
 
-import android.support.annotation.Nullable;
+import javax.annotation.Nullable;
+
 import android.util.Log;
 
 public class NotFoundProperty<T> implements Property<T> {
