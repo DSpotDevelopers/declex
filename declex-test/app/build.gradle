@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "com.dspot.declex.test"
-        minSdkVersion 9
+        minSdkVersion 14
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -19,13 +19,15 @@ android {
 }
 
 dependencies {
-    annotationProcessor 'com.dspot:declex:2.0.a.4'
-    compile 'com.dspot:declex-api:2.0.a.4'
+    annotationProcessor 'com.dspot:declex:2.0.a.16'
+    compile 'com.dspot:declex-api:2.0.a.16'
+    compile 'com.dspot:declex-actions:2.0.a.8'
 }
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
+    compile 'com.jayway.awaitility:awaitility:1.4.0'
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support:support-v4:25.+'
 
@@ -35,6 +37,8 @@ dependencies {
     testCompile 'org.powermock:powermock-module-junit4-rule:1.7.0RC4'
     testCompile 'org.powermock:powermock-api-mockito2:1.7.0RC4'
     testCompile "org.powermock:powermock-classloading-xstream:1.7.0RC4"
+
+    configurations.all { resolutionStrategy { force 'org.objenesis:objenesis:2.1' } }
 
     testCompile 'junit:junit:4.12'
 }
