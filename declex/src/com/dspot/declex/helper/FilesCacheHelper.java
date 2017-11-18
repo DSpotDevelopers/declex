@@ -325,13 +325,17 @@ public class FilesCacheHelper {
 						
 						//If the generator was modified, remove this FileDetails
 						for (FileDependency dependency : details.dependencies) {
+							
 							try {
 								if (!isFileDependencyValid(dependency, environment, trees)) {
-									LOGGER.debug(
-										"Removing Cached file because its dependency changed: " + details.className 
-										+ ", dependency : " + dependency 
-										+ (dependency.isAncestor? ". This is an ancestor dependency, all current cached file dependencies will be invalidated." : "")
-									);							
+									
+									if (isCacheFilesEnabled()) {
+										LOGGER.debug(
+											"Removing Cached file because its dependency changed: " + details.className 
+											+ ", dependency : " + dependency 
+											+ (dependency.isAncestor? ". This is an ancestor dependency, all current cached file dependencies will be invalidated." : "")
+										);					
+									}
 									details.invalidate();
 									
 									//If the dependency is an ancestor all the dependencies should be invalidated
@@ -357,11 +361,14 @@ public class FilesCacheHelper {
 								}
 								
 								for (FileDetails details2 : detailsToInvalidate) {
-									LOGGER.debug(
-										"Removing Cached file because its dependency was removed: " + details2.className 
-										+ ", dependency : " + dependency 
-										+ ". All current cached file dependencies will be invalidated."
-									);							
+									
+									if (isCacheFilesEnabled()) {
+										LOGGER.debug(
+											"Removing Cached file because its dependency was removed: " + details2.className 
+											+ ", dependency : " + dependency 
+											+ ". All current cached file dependencies will be invalidated."
+										);				
+									}
 									details2.invalidate();
 									details2.dependencies.remove(dependency);		
 									
@@ -933,8 +940,6 @@ public class FilesCacheHelper {
     }
 	
 	public void addAncestor(Element ancestor, Element subClass) {
-		
-		System.out.println("DD: " + ancestor + " : " + subClass);
 		
 		//Do not accept ancestors of generated elements
 		if (generatedClassesDependencies.containsKey(subClass.asType().toString())) {
