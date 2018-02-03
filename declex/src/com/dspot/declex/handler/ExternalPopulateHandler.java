@@ -99,7 +99,7 @@ public class ExternalPopulateHandler extends ExternalHandler {
 					
 					JMethod getter = holder.getGeneratedClass().method(
 							JMod.PUBLIC, 
-							codeModelHelper.typeMirrorToJClass(element.asType()), 
+							codeModelHelper.elementTypeToJClass(element), 
 							fieldGetter
 						);
 					
@@ -178,7 +178,7 @@ public class ExternalPopulateHandler extends ExternalHandler {
 		final String fieldGetter = FormatsUtils.fieldToGetter(elementName);
 		JMethod getter = holder.getGeneratedClass().method(
 				JMod.PUBLIC, 
-				codeModelHelper.typeMirrorToJClass(element.asType()), 
+				codeModelHelper.elementTypeToJClass(element), 
 				fieldGetter
 			);
 		getter.body()._return(ref(elementName));

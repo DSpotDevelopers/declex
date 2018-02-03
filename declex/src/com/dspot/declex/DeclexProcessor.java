@@ -322,7 +322,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 						//Only direct generated classes are checked for cache, but there's others generated classes
 						//which are not checked, for instance the Events and Actions Holders, even if their cache
 						//is invalid this mechanism doesn't guarantee to regenerate them
-						final String generatedSubClassName = TypeUtils.getGeneratedClassName(subClass, androidAnnotationsEnv, false);
+						final String generatedSubClassName = TypeUtils.getGeneratedClassName(subClass, rootElement, androidAnnotationsEnv, false);
 						
 						if (!filesCacheHelper.hasCachedFile(generatedSubClassName)) {
 							annotatedElementsWithAnnotation.add(element);

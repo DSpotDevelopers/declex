@@ -238,7 +238,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			
 			try {
 				JDefinedClass ActionGate = getCodeModel()._class(JMod.PUBLIC, actionGateClassName);
-				ActionGate._extends(codeModelHelper.typeMirrorToJClass(element.asType()));
+				ActionGate._extends(codeModelHelper.elementTypeToJClass(element));
 				filesCacheHelper.addGeneratedClass(actionGateClassName, element);
 				
 				if (javaDoc != null) {
@@ -287,7 +287,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 						//Create all the events for the action
 						for (VariableElement param : element.getParameters()) {
 							final String paramName = param.getSimpleName().toString();
-							final AbstractJClass paramClass = codeModelHelper.typeMirrorToJClass(param.asType());
+							final AbstractJClass paramClass = codeModelHelper.elementTypeToJClass(param);
 							
 							JFieldVar field = ActionGate.field(
 									JMod.PUBLIC | JMod.STATIC, 
@@ -347,7 +347,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 							}
 							
 							JVar paramVar = method.param(
-								codeModelHelper.typeMirrorToJClass(param.asType()), 
+								codeModelHelper.elementTypeToJClass(param), 
 								param.getSimpleName().toString()
 							);	
 							

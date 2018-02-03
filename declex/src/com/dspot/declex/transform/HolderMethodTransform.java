@@ -27,6 +27,8 @@ import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JMethod;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+
 public class HolderMethodTransform<T extends GeneratedClassHolder> extends BaseTemplateTransform<T> {
 	
 	public HolderMethodTransform(T holder) {
@@ -48,7 +50,7 @@ public class HolderMethodTransform<T extends GeneratedClassHolder> extends BaseT
 
         @Override
         public void close() {
-        	final String methodName = "get" + name.substring(0, 1).toUpperCase() + name.substring(1);
+        	final String methodName = fieldToGetter(name);
         	
         	//Try to find the method using reflection
         	Method method = null;

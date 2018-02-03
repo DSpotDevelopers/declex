@@ -125,18 +125,15 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 			
 			final String fieldName = element.getSimpleName().toString();		
 			
-			final String paramName;
-			final TypeMirror paramType;
+			final Element paramElement;
 			if (element.getKind() == ElementKind.METHOD) {
-				VariableElement param = ((ExecutableElement)element).getParameters().get(0); 
-				paramType = param.asType();
-				paramName = param.getSimpleName().toString();
+				VariableElement param = ((ExecutableElement)element).getParameters().get(0);
+				paramElement = param;
 			} else {
-				paramType = element.asType();
-				paramName = fieldName;
+				paramElement = element;
 			}
 			
-			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(paramType);
+			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(paramElement);
 			
 			JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
 			JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);

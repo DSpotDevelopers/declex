@@ -565,9 +565,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		final JFieldRef fields = ref("fields");
 		final JFieldRef inst = ref("inst");
 		
-		final Map<String, TypeMirror> methodsType = new HashMap<>();
-		final Map<String, TypeMirror> fieldsType = new HashMap<>();
-		getFieldsAndMethods((TypeElement) element, fieldsType, methodsType);
+		final Map<String, Element> methodsElement = new HashMap<>();
+		final Map<String, Element> fieldsElement = new HashMap<>();
+		getFieldsAndMethods((TypeElement) element, fieldsElement, methodsElement);
 		
 		JBlock newBlock = getRequestMethod.body().block();		
 		IJExpression check = orderBy.invoke("equals").arg(request.name())
@@ -583,7 +583,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		while (formatSyntaxMatcher.find()) {
 			String match = formatSyntaxMatcher.group(0);
 			
-			for (String clsField : fieldsType.keySet()) {
+			for (String clsField : fieldsElement.keySet()) {
 				match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 			}
 			
@@ -617,7 +617,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				while (formatSyntaxMatcher.find()) {
 					String match = formatSyntaxMatcher.group(0);
 					
-					for (String clsField : fieldsType.keySet()) {
+					for (String clsField : fieldsElement.keySet()) {
 						match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 					}
 					
@@ -773,7 +773,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		newBlock._return(requestBuilder.invoke("build"));
 
-		newBlock = processModel(newBlock, isLoad, request, fieldsType, methodsType, holder);
+		newBlock = processModel(newBlock, isLoad, request, fieldsElement, methodsElement, holder);
 
 		if (hasMock(serverModel)) {
 			JMethod getMockMethod = holder.getGeneratedClass().getMethod(
@@ -801,7 +801,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				while (formatSyntaxMatcher.find()) {
 					String match = formatSyntaxMatcher.group(0);
 					
-					for (String clsField : fieldsType.keySet()) {
+					for (String clsField : fieldsElement.keySet()) {
 						match = match.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 					}
 					
@@ -817,7 +817,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 	
 
 	private JBlock processModel(JBlock newBlock, boolean isLoad, ServerRequest request, 
-			Map<String, TypeMirror> fieldsType, Map<String, TypeMirror> methodsType,
+			Map<String, Element> fieldsElement, Map<String, Element> methodsElement,
 			UseModelHolder holder) {
 		
 		final JFieldRef json = ref("json");
@@ -865,24 +865,26 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				
 			} else {
 				
-				TypeMirror modelType = fieldsType.get(request.model());	
+				Element modelElement = fieldsElement.get(request.model());
 				boolean isMethod = false;
-				if (modelType == null) {
-					modelType = methodsType.get(request.model());
+				if (modelElement == null) {
+					modelElement = methodsElement.get(request.model());
 					isMethod = true;
 				}
-				
-				if (modelType == null) return newBlock;
-					
-				final boolean modelIsList = TypeUtils.isSubtype(modelType, CanonicalNameConstants.LIST, getProcessingEnvironment()); 
+
+				if (modelElement == null) return newBlock;
+
+				TypeMirror modelType = modelElement.asType();
+
+				final boolean modelIsList = TypeUtils.isSubtype(modelElement, CanonicalNameConstants.LIST, getProcessingEnvironment());
 				if (modelIsList && modelType instanceof DeclaredType && ((DeclaredType) modelType).getTypeArguments().size() == 1) {
-					
+
 					modelType = ((DeclaredType) modelType).getTypeArguments().get(0);
 					
 					Element originalClassElement = null;					
 					String originalClass = modelType.toString();
 					if (originalClass.endsWith(ModelConstants.generationSuffix())) {
-						originalClass = TypeUtils.typeFromTypeString(originalClass, getEnvironment());
+						originalClass = codeModelHelper.typeStringToClassName(originalClass, modelElement);
 						originalClass = originalClass.substring(0, originalClass.length()-1); 							
 					}
 					originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);					
@@ -946,7 +948,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					Element originalClassElement = null;					
 					String originalClass = modelType.toString();
 					if (originalClass.endsWith(ModelConstants.generationSuffix())) {
-						originalClass = TypeUtils.typeFromTypeString(originalClass, getEnvironment());
+						originalClass = codeModelHelper.typeStringToClassName(originalClass, modelElement);
 						originalClass = originalClass.substring(0, originalClass.length()-1); 							
 					}
 					originalClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(originalClass);					
@@ -990,13 +992,13 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 								newBlock.invoke(request.model())
 								 .arg(gson.invoke("fromJson")
 									      .arg(ref("elem"))
-									      .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+									      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())
 							     );
 							} else {
 								newBlock.invoke(inst, request.model())
 										 .arg(gson.invoke("fromJson")
 											      .arg(ref("elem"))
-											      .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+											      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())
 									     );
 							}
 						} else {
@@ -1004,7 +1006,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 									inst.ref(request.model()), 
 									gson.invoke("fromJson")
 	 							        .arg(ref("elem"))
-								        .arg(codeModelHelper.typeMirrorToJClass(modelType).dotclass())
+								        .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())
 								);						
 						}
 					}
@@ -1020,14 +1022,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 	}
 	
-	private void getFieldsAndMethods(TypeElement element, Map<String, TypeMirror> fieldsType, Map<String, TypeMirror> methodsType) {
+	private void getFieldsAndMethods(TypeElement element, Map<String, Element> fieldsElement, Map<String, Element> methodsElement) {
+
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			
 			final String elemName = elem.getSimpleName().toString();
 			
 			//Static methods are included
-			if (methodsType != null) {
+			if (methodsElement != null) {
 				if (elem.getKind() == ElementKind.METHOD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
@@ -1036,18 +1039,18 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					//One parameter means that the method can be used to update the model
 					if (executableElement.getParameters().size() == 1) {
 						VariableElement param = executableElement.getParameters().get(0);
-						methodsType.put(elemName, param.asType());	
+						methodsElement.put(elemName, param);
 					}
 				}	
 			}
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			
-			if (fieldsType != null) {
+			if (fieldsElement != null) {
 				if (elem.getKind() == ElementKind.FIELD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
-					fieldsType.put(elemName, elem.asType());
+					fieldsElement.put(elemName, elem);
 				}					
 			}
 		}
@@ -1059,7 +1062,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			if (superElement == null) continue;
 			
 			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
-				getFieldsAndMethods(superElement, fieldsType, methodsType);
+				getFieldsAndMethods(superElement, fieldsElement, methodsElement);
 			}
 			
 			break;

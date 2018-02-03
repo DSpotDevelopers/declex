@@ -42,15 +42,17 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 	protected abstract Class<?> getDefaultModelClass();
 	
 	@Override
-	protected void setTemplateDataModel(Map<String, Object> rootDataModel,
-			Element element, T holder) {
+	protected void setTemplateDataModel(Map<String, Object> rootDataModel, Element element, T holder) {
 		super.setTemplateDataModel(rootDataModel, element, holder);
 		
 		final DeclaredType modelClassType = annotationHelper.extractAnnotationClassParameter(element, getTarget(), "modelClass");
 		
-		String modelClass = modelClassType == null || modelClassType.toString().equals(getDefaultModelClass().getCanonicalName()) ? 
-				             	"" : modelClassType.toString();
-		modelClass = TypeUtils.getGeneratedClassName(modelClass, getEnvironment());		
+		String modelClass = "";
+		if (modelClassType != null && !modelClassType.toString().equals(getDefaultModelClass().getCanonicalName())) {
+			modelClass = modelClassType.toString();
+		}
+
+		modelClass = TypeUtils.getGeneratedClassName(modelClass, element, getEnvironment());
 		rootDataModel.put("modelClass", modelClass);
 		
 		try {
@@ -63,8 +65,8 @@ public abstract class BaseModelAndModelClassHandler<T extends BaseGeneratedClass
 			for (Element elem : elems)
 				if (elem.getKind() == ElementKind.FIELD) {
 					if (elem.getSimpleName().toString().equals(model)) {
-						String elemClassName = TypeUtils.getGeneratedClassName(elem, getEnvironment());						
-						rootDataModel.put("modelType", TypeUtils.typeFromTypeString(elemClassName, getEnvironment()));
+						String elemClassName =  TypeUtils.getGeneratedClassName(elem, getEnvironment());
+						rootDataModel.put("modelType",  elemClassName);
 						
 						Model annotation = adiHelper.getAnnotation(elem, Model.class);
 						rootDataModel.put("modelQuery", annotation.query());

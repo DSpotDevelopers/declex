@@ -86,7 +86,7 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
 		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
 		FilesCacheHelper.getInstance().addGeneratedClass(
-				TypeUtils.getGeneratedClassName(actionName, env, false), 
+				TypeUtils.getGeneratedClassName(actionName, env, false),
 				null
 			);
 		

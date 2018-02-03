@@ -118,7 +118,7 @@ public class ExportHandler extends BaseAnnotationHandler<EComponentHolder> {
 			//Create getter
 			JMethod getterMethod = holder.getGeneratedClass().method(
 					JMod.PUBLIC, 
-					codeModelHelper.typeMirrorToJClass(element.asType()), 
+					codeModelHelper.elementTypeToJClass(element), 
 					FormatsUtils.fieldToGetter(fieldName)
 				);
 			getterMethod.body()._return(_this().ref(fieldName));

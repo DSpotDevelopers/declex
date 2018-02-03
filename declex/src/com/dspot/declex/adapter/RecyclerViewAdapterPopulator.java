@@ -290,10 +290,8 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 				TypeElement stringElement = environment
 						.getProcessingEnvironment().getElementUtils()
 						.getTypeElement(String.class.getCanonicalName());
-				IdInfoHolder info = new IdInfoHolder("text", stringElement,
-						stringElement.asType(), viewClass);
-				JFieldRef view = viewHolder.ref(info.idName
-						+ DeclexConstant.VIEW);
+				IdInfoHolder info = new IdInfoHolder("text", stringElement, viewClass);
+				JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 
 				handler.putAssignInBlock(info, onBindMethodBody, view, model,
 						element, viewsHolder, null,

@@ -48,6 +48,7 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.Option;
 import org.androidannotations.helper.ADIHelper;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
@@ -56,7 +57,6 @@ import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.RunWith;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
-import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JDefinedClass;
@@ -112,11 +112,13 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 	private ExecutableElement afterPutMethod;
 	
 	private ADIHelper adiHelper;
+	private APTCodeModelHelper codeModelHelper;
 	
 	public UseModelHolder(BaseGeneratedClassHolder holder) {
 		super(holder);
 		
 		this.adiHelper = new ADIHelper(environment());
+		this.codeModelHelper = new APTCodeModelHelper(environment());
 		
 		STRING = environment().getClasses().STRING;
 		MAP = environment().getClasses().MAP.narrow(String.class, Object.class);
@@ -236,7 +238,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readLong"));
 				} 
 			} else {
-				AbstractJClass fieldJClass = TypeUtils.classFromTypeString(fieldClass, environment());
+				AbstractJClass fieldJClass = codeModelHelper.elementTypeToJClass(field.getValue());
 				writeObjectMethod.body().invoke(oos, "writeObject").arg(fieldRef);
 				readObjectMethod.body().assign(fieldRef, cast(fieldJClass, ois.invoke("readObject")));
 			}
@@ -310,7 +312,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			if (createGetter) {
 				JMethod getterMethod = getGeneratedClass().method(
 						JMod.PUBLIC, 
-						TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment()), 
+						codeModelHelper.elementTypeToJClass(fieldElement),
 						getterName
 					);
 				getterMethod.body()._return(_this().ref(fieldName));
@@ -328,7 +330,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			}
 			
 			if (createSetter) {
-				final AbstractJClass fieldClass = TypeUtils.classFromTypeString(fieldElement.asType().toString(), environment());
+				final AbstractJClass fieldClass = codeModelHelper.elementTypeToJClass(fieldElement);
 				JMethod setterMethod = getGeneratedClass().method(JMod.PUBLIC, getCodeModel().VOID, setterName);
 				JVar setterParam = setterMethod.param(fieldClass, fieldName);
 				setterMethod.body().assign(_this().ref(fieldName), setterParam);				

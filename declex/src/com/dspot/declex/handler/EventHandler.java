@@ -15,30 +15,6 @@
  */
 package com.dspot.declex.handler;
 
-import static com.helger.jcodemodel.JExpr.ref;
-
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
-import org.androidannotations.annotations.EBean;
-import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.holder.EComponentHolder;
-import org.androidannotations.holder.EComponentWithViewSupportHolder;
-
 import com.dspot.declex.annotation.Event;
 import com.dspot.declex.annotation.Export;
 import com.dspot.declex.annotation.External;
@@ -48,11 +24,24 @@ import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.element.VirtualElement;
-import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.AbstractJType;
-import com.helger.jcodemodel.JDefinedClass;
-import com.helger.jcodemodel.JMethod;
-import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.*;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
+import org.androidannotations.annotations.EBean;
+import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
+
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static com.helger.jcodemodel.JExpr.ref;
 
 public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {	
 	
@@ -82,7 +71,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         	className = className.substring(0, className.length()-1);
         }
         
-		if (element.getKind() == ElementKind.METHOD) {
+		if (element instanceof ExecutableElement) {
 			ExecutableElement executableElement = (ExecutableElement) element;
 			
 			if (!executableElement.getReturnType().getKind().equals(TypeKind.VOID)) {
@@ -170,7 +159,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         AbstractJClass EventClass = eventsHelper.createEvent(className, element, true);
         
         //Get all the fields configured by this Event
-        final Map<String, String> eventFields = new LinkedHashMap<>();
+        final Map<String, Element> eventFields = new LinkedHashMap<>();
         if (element instanceof ExecutableElement) {
         	
         	List<? extends VariableElement> parameters = ((ExecutableElement)element).getParameters();				
@@ -183,7 +172,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 						|| paramType.equals(TypeUtils.getGeneratedClassName(className, getEnvironment()))) continue;
 					if (!paramType.contains(".") && className.endsWith("." + paramType)) continue;
 					
-					eventFields.put(paramName, paramType);
+					eventFields.put(paramName, param);
 				}	
 			}
 			
@@ -195,9 +184,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
         		 for (Element elem : elems) {
         			 if (elem.getKind().isField()) {
      					final String paramName = elem.getSimpleName().toString();
-    					final String paramType = elem.asType().toString();
-    					
-    					eventFields.put(paramName, paramType);        				 
+    					eventFields.put(paramName, elem);        				 
         			 }
         		 }
         		 
@@ -220,11 +207,10 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			if (parameters.size() != 0) {
 				for (VariableElement param : parameters) {
 					final String paramName = param.getSimpleName().toString();
-					String paramType = param.asType().toString();
+					String paramType = codeModelHelper.typeStringToClassName(param.asType().toString(), param);
 					
 					//Remove references to the same event
-					paramType = TypeUtils.typeFromTypeString(paramType, getEnvironment());
-					if (paramType.equals(EventClass.fullName() + ModelConstants.generationSuffix()) 
+					if (paramType.equals(EventClass.fullName() + ModelConstants.generationSuffix())
 						|| paramType.equals(EventClass.fullName())) {
 						eventFields.remove(paramName);
 						eventsHelper.removeParameterReference(EventClass.fullName(), paramName);
@@ -249,8 +235,8 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 		if (EventClass instanceof JDefinedClass) {
 
 			List<AbstractJType> paramsList = new LinkedList<>();			
-			for (Entry<String, String> field : eventFields.entrySet()) {
-				AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
+			for (Entry<String, Element> field : eventFields.entrySet()) {
+				AbstractJClass fieldClass = codeModelHelper.elementTypeToJClass(field.getValue());
 				paramsList.add(fieldClass);
 			}
 			AbstractJType[] paramsArray = new AbstractJType[paramsList.size()];
@@ -261,10 +247,10 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 			JMethod initMethod = ((JDefinedClass) EventClass).getMethod("init", paramsArray);
 			if (initMethod == null) {
 				
-				for (Entry<String, String> field : eventFields.entrySet()) {
+				for (Entry<String, Element> field : eventFields.entrySet()) {
 				
 					final String fieldName = field.getKey();
-					final AbstractJClass fieldClass = TypeUtils.classFromTypeString(field.getValue(), getEnvironment());
+					final AbstractJClass fieldClass = codeModelHelper.elementTypeToJClass(field.getValue());
 					
 					try {						
 						((JDefinedClass) EventClass).field(JMod.NONE, fieldClass, fieldName);

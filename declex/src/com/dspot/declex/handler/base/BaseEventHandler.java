@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.handler.base;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr._super;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -165,7 +166,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	private boolean methodHandler(String elementClass, String elementName, Element element, ViewsHolder viewsHolder, T holder) {
 		
 		//See if the method exists in the holder
-		final String methodName = "get" + elementName.substring(0, 1).toUpperCase() + elementName.substring(1);
+		final String methodName = fieldToGetter(elementName);
     			
     	//Try to find the method using reflection
 		//TODO This search by method name in the holder should be improve, one approach is to 
@@ -262,7 +263,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     					
     					final List<AbstractJType> parametersType = new ArrayList<>(parameters.size());
     					for (VariableElement param : parameters) {
-    						parametersType.add(codeModelHelper.typeMirrorToJClass(param.asType()));
+    						parametersType.add(codeModelHelper.elementTypeToJClass(param));
     					}
     					
     					JMethod method = holder.getGeneratedClass().getMethod(
@@ -270,11 +271,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     							
     					if (method == null) {
     						method = holder.getGeneratedClass().method(
-        							JMod.PUBLIC, codeModelHelper.typeMirrorToJClass(resultType), elementName);
+        							JMod.PUBLIC, codeModelHelper.elementTypeToJClass(executableElement), elementName);
 	    					method.annotate(Override.class);
 	    					
 	    					for (VariableElement param : parameters) {
-	    						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
+	    						method.param(codeModelHelper.elementTypeToJClass(param), param.getSimpleName().toString());
 	    					}
     					}    							
     					
@@ -327,7 +328,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 					
 					JInvocation superInvoke = invoke(_super(), elementName);
 					for (VariableElement param : parameters) {
-						method.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
+						method.param(codeModelHelper.elementTypeToJClass(param), param.getSimpleName().toString());
 						superInvoke = superInvoke.arg(ref(param.getSimpleName().toString()));
 					}
 

@@ -117,17 +117,17 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 			final String fieldName = element.getSimpleName().toString();
 			
 			final String paramName;
-			final TypeMirror paramType;
+			final Element paramElement;
 			if (element.getKind() == ElementKind.METHOD) {
 				VariableElement param = ((ExecutableElement)element).getParameters().get(0); 
-				paramType = param.asType();
+				paramElement = param;
 				paramName = param.getSimpleName().toString();
 			} else {
-				paramType = element.asType();
+				paramElement = element;
 				paramName = fieldName;
 			}
 			
-			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(paramType);
+			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(paramElement);
 			
 			JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, fieldName);
 			JVar fieldMethodParam = fieldMethod.param(clazz, paramName);
@@ -148,7 +148,7 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		
 		JInvocation invocation = fieldMethod.body().invoke(ref("builder"), methodName);
 		for (ParamHelper paramHelper : parameterList) {
-			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(paramHelper.getParameterElement().asType());
+			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(paramHelper.getParameterElement());
 			JVar fieldMethodParam = fieldMethod.param(clazz, paramHelper.getParameterElement().getSimpleName().toString());
 			invocation = invocation.arg(fieldMethodParam);
 			

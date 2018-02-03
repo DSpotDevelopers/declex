@@ -262,7 +262,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			String viewClass = viewsHolder.getClassNameFromId("text");
 			if (viewClass != null) {
 				TypeElement stringElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(String.class.getCanonicalName());
-				IdInfoHolder info = new IdInfoHolder("text", stringElement, stringElement.asType(), viewClass);
+				IdInfoHolder info = new IdInfoHolder("text", stringElement, viewClass);
 				JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 				
 				handler.putAssignInBlock(

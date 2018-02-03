@@ -18,6 +18,7 @@ package com.dspot.declex.handler;
 import static com.helger.jcodemodel.JExpr._new;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -68,48 +69,35 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			Element element, EComponentHolder holder) {
 		super.setTemplateDataModel(rootDataModel, element, holder);
 		
-		Map<String, String> fields = new HashMap<>();
-		getFieldsAndMethods((TypeElement) element, fields, null);
+		List<String> fieldsName = new LinkedList<>();
+		getFieldsName((TypeElement) element, fieldsName);
 		
 		Map<String, String> serializeConditions = new HashMap<>();
 		Map<String, ClassInformation> jsonSerializedModels = new HashMap<>();
 		
-		getRequiredMaps((TypeElement) element, fields, serializeConditions, jsonSerializedModels);
+		getRequiredMaps((TypeElement) element, fieldsName, serializeConditions, jsonSerializedModels);
 		
 				
 		rootDataModel.put("serializeConditions", serializeConditions);
 		rootDataModel.put("jsonSerializedModels", jsonSerializedModels);
 	}	
 
-	private void getFieldsAndMethods(TypeElement element, Map<String, String> fields, Map<String, String> methods) {
+	private void getFieldsName(TypeElement element, List<String> fieldsName) {
+		
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
-			final String elemType = elem.asType().toString();
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			
-			if (fields != null) {
+			if (fieldsName != null) {
 				if (elem.getKind() == ElementKind.FIELD) {
 					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 					
-					fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
+					fieldsName.add(elemName);
 				}					
 			}
 			
-			if (methods != null) {
-				if (elem.getKind() == ElementKind.METHOD) {
-					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
-					
-					ExecutableElement executableElement = (ExecutableElement) elem;
-					
-					//One parameter means that the method can be used to update the model
-					if (executableElement.getParameters().size() == 1) {
-						VariableElement param = executableElement.getParameters().get(0);
-						methods.put(elemName, TypeUtils.typeFromTypeString(param.asType().toString(), getEnvironment()));	
-					}
-				}	
-			}
 		}
 		
 		//Apply to Extensions
@@ -119,7 +107,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			if (superElement == null) continue;
 			
 			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
-				getFieldsAndMethods(superElement, fields, methods);
+				getFieldsName(superElement, fieldsName);
 			}
 			
 			break;
@@ -128,7 +116,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 
 	private void getRequiredMaps(
 			TypeElement element, 
-			Map<String, String> allFields, 
+			List<String> fieldsName, 
 			Map<String, String> serializeConditions,
 			Map<String, ClassInformation> jsonSerializedModels) {
 		
@@ -144,7 +132,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 				SerializeCondition serializeCondition = elem.getAnnotation(SerializeCondition.class);
 				if (serializeCondition != null) {
 					String cond = "!(" + serializeCondition.value() + ")";
-					for (String clsField : allFields.keySet()) {
+					for (String clsField : fieldsName) {
 						String prevCond = new String(cond);
 						cond = cond.replaceAll("(?<!\\w)(this\\.)*"+clsField+"(?!\\w)", "inst." + clsField);
 						
@@ -172,7 +160,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			if (superElement == null) continue;
 			
 			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
-				getRequiredMaps(superElement, allFields, serializeConditions, jsonSerializedModels);
+				getRequiredMaps(superElement, fieldsName, serializeConditions, jsonSerializedModels);
 			}
 			
 			break;
@@ -232,7 +220,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		
 		JBlock body = getGsonBuilderMethod.body();
 		
-		AbstractJClass Model = codeModelHelper.typeMirrorToJClass(holder.getAnnotatedElement().asType());
+		AbstractJClass Model = holder.getGeneratedClass();
 		if (createGetGsonBuilderMethod){
 			IJExpression createBuilder = _new(GsonBuilder)
 					.invoke("addSerializationExclusionStrategy")

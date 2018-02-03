@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.holder;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
@@ -174,7 +175,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 					getCodeModel().VOID,
 					FormatsUtils.fieldToSetter(elementName)
 				);
-			JVar param = setter.param(codeModelHelper.typeMirrorToJClass(element.asType()), elementName);
+			JVar param = setter.param(codeModelHelper.elementTypeToJClass(element), elementName);
 					
 			final Element referenceElement = ((VirtualElement) element).getReference();
 			final String referenceElementName = referenceElement.getSimpleName().toString();
@@ -212,7 +213,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				
 		JMethod setter = holder.getGeneratedClass().getMethod(
 				FormatsUtils.fieldToSetter(elementName),
-				new AbstractJType[]{codeModelHelper.typeMirrorToJClass(element.asType())}
+				new AbstractJType[]{codeModelHelper.elementTypeToJClass(element)}
 			);
 		if (setter == null) {		
 			
@@ -226,7 +227,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 					getCodeModel().VOID,
 					FormatsUtils.fieldToSetter(elementName)
 				);
-			setter.param(codeModelHelper.typeMirrorToJClass(element.asType()), elementName);
+			setter.param(codeModelHelper.elementTypeToJClass(element), elementName);
 		}
 		
 		//Remove previous method body
@@ -267,8 +268,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			JMethod getter = holder.getGeneratedClass().method(
 					JMod.PUBLIC,
-					codeModelHelper.typeMirrorToJClass(element.asType()),
-					FormatsUtils.fieldToGetter(elementName)
+					codeModelHelper.elementTypeToJClass(element),
+					fieldToGetter(elementName)
 				);
 					
 			final Element referenceElement = ((VirtualElement) element).getReference();
@@ -307,7 +308,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				
 		AbstractJType[] params = isStatic && isLazy ? new AbstractJType[]{getClasses().CONTEXT} : new AbstractJType[]{};
 		JMethod getter = holder.getGeneratedClass().getMethod(
-				FormatsUtils.fieldToGetter(elementName),
+				fieldToGetter(elementName),
 				params
 			);
 		if (getter == null) {
@@ -316,11 +317,11 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			if (isStatic) {
 				mods |= JMod.STATIC;
 			}
-			
+
 			getter = holder.getGeneratedClass().method(
 					mods,
-					codeModelHelper.typeMirrorToJClass(element.asType()),
-					FormatsUtils.fieldToGetter(elementName)
+					codeModelHelper.elementTypeToJClass(element),
+					fieldToGetter(elementName)
 				);
 			
 			if (isStatic && isLazy) {
@@ -408,7 +409,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		final boolean isLazy = modelAnnotation.lazy();
 		
 		IJAssignmentTarget beanField = null;
-		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
+		String className = codeModelHelper.elementTypeToJClass(element, true).fullName();
 		
 		IJExpression context = isStatic? ref("context") : holder().getContextRef();
 		if (context == _this()) {
@@ -637,8 +638,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		}
 		
 		IJExpression beanField = getter;
-		String className = TypeUtils.typeFromTypeString(element.asType().toString(), environment());
-		
+		String className = codeModelHelper.elementTypeToJClass(element, true).fullName();
+
 		JMethod putModelMethod = getGeneratedClass().method(JMod.NONE, getCodeModel().VOID, "_put_" + fieldName);
 		JVar args = putModelMethod.param(JMod.FINAL, MAP, "args");
 		JVar onDone = putModelMethod.param(JMod.FINAL, getJClass(Runnable.class), "onDone");

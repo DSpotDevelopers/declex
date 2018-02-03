@@ -10,6 +10,7 @@ import javax.lang.model.element.TypeElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.ADIHelper;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.ModelConstants;
 
 import com.dspot.declex.annotation.Populate;
@@ -22,10 +23,12 @@ public class AfterPopulateHelper {
 	
 	private AndroidAnnotationsEnvironment environment;
 	private ADIHelper adiHelper;
+	private APTCodeModelHelper codeModelHelper;
 	
 	public AfterPopulateHelper(AndroidAnnotationsEnvironment environment) {
 		this.environment = environment;
 		adiHelper = new ADIHelper(environment);
+		codeModelHelper = new APTCodeModelHelper(environment);
 	}
 	
 	public boolean existsPopulateFieldWithElementName(Element element) {
@@ -95,7 +98,7 @@ public class AfterPopulateHelper {
 						
 						if (!field.asType().getKind().isPrimitive()) {
 							
-							String elemType = TypeUtils.typeFromTypeString(field.asType().toString(), environment);
+							String elemType = codeModelHelper.elementTypeToJClass(field, true).fullName();
 							if (elemType.endsWith(ModelConstants.generationSuffix()))
 								elemType = elemType.substring(0, elemType.length() - 1);
 

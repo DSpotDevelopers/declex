@@ -20,12 +20,9 @@ import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -40,7 +37,6 @@ import org.androidannotations.holder.EBeanHolder;
 import com.dspot.declex.annotation.UseEvents;
 import com.dspot.declex.handler.base.BaseTemplateHandler;
 import com.dspot.declex.util.SharedRecords;
-import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JExpr;
@@ -73,24 +69,23 @@ public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 	public void process(Element element, EBeanHolder holder) {
 		super.process(element, holder);
 		
-		Map<String, String> fields = new HashMap<String, String>();
-		Map<String, String> methods = new HashMap<String, String>();
+		Map<String, Element> fields = new HashMap<>();
+		Map<String, Element> methods = new HashMap<>();
 		
 		//Get all the fields and methods
 		List<? extends Element> elems = element.getEnclosedElements();
 		for (Element elem : elems) {
 			final String elemName = elem.getSimpleName().toString();
-			final String elemType = elem.asType().toString();
 			
 			if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 			if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
 			
 			if (elem.getKind() == ElementKind.FIELD) {
-				fields.put(elemName, TypeUtils.typeFromTypeString(elemType, getEnvironment()));
+				fields.put(elemName, elem);
 			}
 			
 			if (elem.getKind() == ElementKind.METHOD) {
-				methods.put(elemName, elemType);
+				methods.put(elemName, elem);
 			}
 		}
 		
@@ -101,9 +96,7 @@ public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 			JVar instance = create.body().decl(holder.getGeneratedClass(), "instance", JExpr.invoke("create"));
 			
 			for (String elemName : fields.keySet()) {
-				String elemType = fields.get(elemName);
-				AbstractJClass elemClass = TypeUtils.classFromTypeString(elemType, getEnvironment());
-				
+				AbstractJClass elemClass = codeModelHelper.elementTypeToJClass(fields.get(elemName));
 				JVar param = create.param(elemClass, elemName);
 				create.body().invoke(instance, fieldToSetter(elemName)).arg(param);
 			}
@@ -112,21 +105,13 @@ public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 		}
 	}
 	
-	private void generateGetterAndSetters(BaseGeneratedClassHolder holder, Map<String, String> fields, Map<String, String> methods) {
+	private void generateGetterAndSetters(BaseGeneratedClassHolder holder, Map<String, Element> fields, Map<String, Element> methods) {
+		
 		AbstractJClass EventClass = holder.getGeneratedClass();
 		
 		//Generate getter and setters for Column annotated elements
 		for (String elemName : fields.keySet()) {
-			String elemType = fields.get(elemName);
-			AbstractJClass elemClass = getJClass(elemType);
-			
-			Matcher matcher = Pattern.compile("<((\\w|\\.)+)>$").matcher(elemType);
-			if (matcher.find()) {
-				String innerElem = matcher.group(1);
-				
-				elemClass = getJClass(elemType.substring(0, elemType.length() - matcher.group(0).length()));
-				elemClass = elemClass.narrow(getJClass(innerElem));
-			}
+			AbstractJClass elemClass = codeModelHelper.elementTypeToJClass(fields.get(elemName));
 			
 			String getterName = fieldToGetter(elemName);
 			

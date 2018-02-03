@@ -68,6 +68,7 @@ public class FormatsUtils {
 	}
 	
 	public static String fieldToGetter(String name) {
+
 		Matcher matcher = Pattern.compile("_(\\w)").matcher(name);
 		while (matcher.find()) {
 			name = name.replaceFirst(matcher.group(0), matcher.group(1).toUpperCase());

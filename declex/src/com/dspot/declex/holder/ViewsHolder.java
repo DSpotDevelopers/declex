@@ -43,6 +43,7 @@ import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.helper.ADIHelper;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
@@ -88,6 +89,7 @@ public class ViewsHolder extends
 	
 	private ICreateViewListener createViewListener;
 	
+	private APTCodeModelHelper codeModelHelper;
 	private ViewsHelper viewsHelper;
 	private ADIHelper adiHelper;
 	private ViewsPropertiesReaderHelper propertiesHelper;
@@ -98,6 +100,7 @@ public class ViewsHolder extends
 		this.adiHelper = new ADIHelper(environment());
 		this.propertiesHelper = ViewsPropertiesReaderHelper.getInstance(environment());		
 		this.menuParser = MenuParser.getInstance();
+		this.codeModelHelper = new APTCodeModelHelper(environment());
 		
 		viewsHelper = new ViewsHelper(holder.getAnnotatedElement(), environment());
 		defLayoutId = viewsHelper.getLayoutId();
@@ -658,7 +661,7 @@ public class ViewsHolder extends
 				// in that element combinations (recursive DFS)
 				if (!elem.asType().getKind().isPrimitive()) {
 					
-					String elemType = TypeUtils.typeFromTypeString(elem.asType().toString(), environment());
+					String elemType = codeModelHelper.elementTypeToJClass(elem, true).fullName();
 					if (elemType.endsWith(ModelConstants.generationSuffix()))
 						elemType = elemType.substring(0, elemType.length() - 1);
 
@@ -681,8 +684,8 @@ public class ViewsHolder extends
 				}
 
 				if (id.equals(elemName) || normalizedId.equals(elemName)) {
-					fields.put(completeElemName, new IdInfoHolder(layoutElementId,
-							elem, elem.asType(), layoutElementIdClass));
+					fields.put(completeElemName, 
+							new IdInfoHolder(layoutElementId, elem, layoutElementIdClass));
 				} else if (elemName.startsWith(id)) {
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
@@ -696,7 +699,7 @@ public class ViewsHolder extends
 								|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 								fields.put(
 									completeElemName, 
-									new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<VariableElement>(0), property)
+									new IdInfoHolder(layoutElementId, elem, layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 								);
 							}							
 						}
@@ -705,7 +708,7 @@ public class ViewsHolder extends
 							|| TypeUtils.isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
 							fields.put(
 								completeElemName, 
-								new IdInfoHolder(layoutElementId, elem, elem.asType(), layoutElementIdClass, new ArrayList<VariableElement>(0), property)
+								new IdInfoHolder(layoutElementId, elem, layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 							);								
 						}
 					}
@@ -737,7 +740,7 @@ public class ViewsHolder extends
 
 					if (id.equals(elemName) || normalizedId.equals(elemName) || idForMethod.equals(elemName)) {
 						
-						IdInfoHolder info = new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams);
+						IdInfoHolder info = new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, null);
 						
 						if (methods.containsKey(completeElemName) && getter) {
 							IdInfoHolder existingInfo = methods.get(completeElemName);
@@ -779,7 +782,7 @@ public class ViewsHolder extends
 						}
 					}
 				} else {
-					String elemType = TypeUtils.typeFromTypeString(exeElem.getReturnType().toString(), environment());
+					String elemType = codeModelHelper.elementTypeToJClass(exeElem, true).fullName();
 					if (elemType.endsWith(ModelConstants.generationSuffix()))
 						elemType = elemType.substring(0, elemType.length() - 1);
 
@@ -841,31 +844,37 @@ public class ViewsHolder extends
 	}
 
 	public static class IdInfoHolder {
+
 		public String idName;
 		public String viewClass;
 
 		public TypeMirror type;
-
+		
 		public List<VariableElement> extraParams;
 		public Element element;
 		
 		public String getterOrSetter;
 
-		public IdInfoHolder(String idName, Element element, TypeMirror type, String className) {
-			this(idName, element, type, className, new ArrayList<VariableElement>(0));
+		public IdInfoHolder(String idName, Element element, String className) {
+			this(idName, element, className, new ArrayList<VariableElement>(0));
 		}
 		
-		public IdInfoHolder(String idName, Element element, TypeMirror type,
+		public IdInfoHolder(String idName, Element element,
 				String className, List<VariableElement> extraParams) {
-			this(idName, element, type, className, extraParams, null);
+			this(idName, element, className, extraParams, null);
 		}
-		
-		public IdInfoHolder(String idName, Element element, TypeMirror type,
+
+        public IdInfoHolder(String idName, Element element,
+                            String className, List<VariableElement> extraParams, String getterOrSetter) {
+            this(idName, element, element.asType(), className, extraParams, getterOrSetter);
+        }
+
+		public IdInfoHolder(String idName, Element element, TypeMirror typeMirror,
 				String className, List<VariableElement> extraParams, String getterOrSetter) {
 			super();
 			this.element = element;
+			this.type = typeMirror;
 			this.idName = idName;
-			this.type = type;
 			this.viewClass = className;
 			this.extraParams = extraParams;
 			this.getterOrSetter = getterOrSetter;
@@ -873,7 +882,7 @@ public class ViewsHolder extends
 
 		@Override
 		public String toString() {
-			return idName + (type != null ? ": " + type : "")
+			return idName + (element != null ? ": " + element : "")
 					+ (getterOrSetter != null ? ": " + getterOrSetter : "")
 					+ " " + extraParams;
 		}

@@ -337,8 +337,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 			final IdInfoHolder fieldInfo = entry.getValue();
-			final String infoNameForMethod = "get" + fieldInfo.idName.substring(0, 1).toUpperCase()
-					                               + fieldInfo.idName.substring(1);
+			final String infoNameForMethod = fieldToGetter(fieldInfo.idName);
 			
 			final boolean startsWithInfo = methodName.startsWith(fieldInfo.idName) || methodName.startsWith(infoNameForMethod);
 			final boolean endsWithGetterOrSetter = fieldInfo.getterOrSetter != null && methodName.endsWith(fieldInfo.getterOrSetter);
@@ -356,8 +355,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		for (Entry<String, IdInfoHolder> entry : allMethods.entrySet()) {
 			final IdInfoHolder methodInfo = entry.getValue();
-			final String infoNameForMethod = "get" + methodInfo.idName.substring(0, 1).toUpperCase()
-                                                   + methodInfo.idName.substring(1);
+			final String infoNameForMethod = fieldToGetter(methodInfo.idName);
 
 			final boolean startsWithInfo = methodName.startsWith(methodInfo.idName) || methodName.startsWith(infoNameForMethod);
 			final boolean endsWithGetterOrSetter = methodInfo.getterOrSetter != null && methodName.endsWith(methodInfo.getterOrSetter);
@@ -410,7 +408,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		if (setters.containsKey(property)) {
 			for (TypeMirror propertyType : setters.get(property)) {
 				if (TypeUtils.isSubtype(element.asType(), propertyType, getProcessingEnvironment())) {
-					return new IdInfoHolder(null, element, element.asType(), annotatedElementClass, new ArrayList<VariableElement>(0), property);
+					return new IdInfoHolder(null, element, annotatedElementClass, new ArrayList<VariableElement>(0), property);
 				}							
 			}
 		}
@@ -528,7 +526,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				EComponentHolder holder = (EComponentHolder) processHolder.getGeneratedClassHolder(classInformation.generatorElement);
 				generatedClassForGetterAndSetter = holder.getGeneratedClass();
 				
-				classForGetterAndSetter = codeModelHelper.typeMirrorToJClass(foundAdapterElementDeclaration.asType());
+				classForGetterAndSetter = codeModelHelper.elementTypeToJClass(foundAdapterElementDeclaration);
 				
 				final String referenceName = ((VirtualElement) element).getReference().getSimpleName().toString();
 				IJExpression referenceField = cast(generatedClassForGetterAndSetter, ref(referenceName));
@@ -802,7 +800,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				for (int i = startIndex; i < info.extraParams.size(); i++) {
 					VariableElement param = info.extraParams.get(i); 
 					final String viewId = param.getSimpleName().toString(); 
-					assignRef = ParamUtils.injectParam(viewId, info.type.toString(), (JInvocation) assignRef, viewsHolder);
+					assignRef = ParamUtils.injectParam(
+							viewId, info.type.toString(), (JInvocation) assignRef, viewsHolder);
 				}
 				
 				block.add((JInvocation)assignRef);
@@ -945,15 +944,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			if (isList) {
 				Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 				if (matcher.find()) {
+					
 					className = matcher.group(1);
-					String originalClassName = className;
 					if (className.endsWith(ModelConstants.generationSuffix())) {
-						className = TypeUtils.typeFromTypeString(className, getEnvironment());
-						originalClassName = className;
-						className = className.substring(0, className.length()-1);
+						className = codeModelHelper.elementTypeToJClass(info.element, true).fullName();
 					}
 					
-					processList(viewClass, info.idName, originalClassName, origAssignRef, block, element, viewsHolder, populateHolder);
+					processList(viewClass, info.idName, className, origAssignRef, block, element, viewsHolder, populateHolder);
 					
 					return;
 				}

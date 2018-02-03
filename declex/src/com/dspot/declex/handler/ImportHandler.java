@@ -168,7 +168,7 @@ public class ImportHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		ExecutableElement executableElement = (ExecutableElement) element;
 		for (VariableElement param : executableElement.getParameters()) {
-			anonymousListenerCall.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
+			anonymousListenerCall.param(codeModelHelper.elementTypeToJClass(param), param.getSimpleName().toString());
 			invocation.arg(ref(param.getSimpleName().toString()));
 		}
 		
@@ -205,7 +205,7 @@ public class ImportHandler extends BaseAnnotationHandler<EComponentHolder> {
 			JMethod callMethod = ListenerClass.method(JMod.PUBLIC, getCodeModel().VOID, "call");
 			
 			for (VariableElement param : executableElement.getParameters()) {
-				callMethod.param(codeModelHelper.typeMirrorToJClass(param.asType()), param.getSimpleName().toString());
+				callMethod.param(codeModelHelper.elementTypeToJClass(param), param.getSimpleName().toString());
 			}
 			
 		} catch (JClassAlreadyExistsException e) {

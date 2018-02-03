@@ -2165,9 +2165,9 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 								param.metaData.put("field", fieldElement);
 								param.metaData.put("fieldName", fieldElement.getSimpleName().toString());
 								
-								String fieldClass = TypeUtils.typeFromTypeString(fieldElement.asType().toString(), env);
-								param.metaData.put("fieldClass", fieldClass);
-								param.metaData.put("fieldJClass", getJClass(fieldClass));
+								AbstractJClass fieldJClass = codeModelHelper.elementTypeToJClass(fieldElement, true);
+								param.metaData.put("fieldClass", fieldJClass.fullName());
+								param.metaData.put("fieldJClass", fieldJClass);
 							} else {
 								
 								if (!currentParam.equals(((Field) annotation).ignoreExpression())) {

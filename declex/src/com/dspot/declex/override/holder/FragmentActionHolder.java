@@ -152,7 +152,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 
 		final String elementName = element.getSimpleName().toString();
 		if (element.getKind().isField()) {
-			final AbstractJClass clazz = codeModelHelper.typeMirrorToJClass(element.asType());
+			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(element);
 			actionInfo.addMethod(
 					elementName, 
 					actionName, 
@@ -166,7 +166,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 			
 			for (VariableElement param : elementParams) {
 				final String paramName = param.getSimpleName().toString();
-				final AbstractJClass paramClass = codeModelHelper.typeMirrorToJClass(param.asType());
+				final AbstractJClass paramClass = codeModelHelper.elementTypeToJClass(param);
 				params.add(new ActionMethodParam(paramName, paramClass));
 			}
 			

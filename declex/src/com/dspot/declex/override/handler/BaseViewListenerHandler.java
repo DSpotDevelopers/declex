@@ -109,7 +109,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 								className = TypeUtils.getGeneratedClassName(className, getEnvironment());
 							}
 						}
-						className = TypeUtils.typeFromTypeString(className, getEnvironment());
+						className = codeModelHelper.typeStringToClassName(className, element);
 						
 						//Get the model
 						final JFieldRef position = ref("position");
@@ -140,7 +140,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					if (isPrimitive || isList) continue;
 					
 					if (className.endsWith(ModelConstants.generationSuffix())) {
-						className = TypeUtils.typeFromTypeString(className, getEnvironment());
+						className = codeModelHelper.typeStringToClassName(className, element);
 						className = className.substring(0, className.length()-1);
 					}
 					
@@ -191,7 +191,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						if (matcher.find()) {
 							className = matcher.group(1);
 							if (className.endsWith(ModelConstants.generationSuffix())) {
-								className = TypeUtils.typeFromTypeString(className, getEnvironment());
+								className = codeModelHelper.typeStringToClassName(className, element);
 							}
 						}
 					} 

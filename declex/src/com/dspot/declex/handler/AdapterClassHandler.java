@@ -124,7 +124,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 						
 						JMethod getModelsMethod = AdapterClass.method(
 								JMod.PUBLIC, 
-								codeModelHelper.typeMirrorToJClass(executableElement.getReturnType()),
+								codeModelHelper.elementTypeToJClass(executableElement),
 								"getModels"
 							);
 						getModelsMethod.annotate(Override.class);
@@ -159,7 +159,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 							if (viewsHolder != null) {
 								invoke = ParamUtils.injectParam(
 										param.getSimpleName().toString(), 
-										codeModelHelper.typeMirrorToJClass(param.asType()).fullName(), 
+										codeModelHelper.elementTypeToJClass(param).fullName(), 
 										invoke, viewsHolder);
 							}
 						}
@@ -229,7 +229,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 							if (viewsHolder != null) {
 								invoke = ParamUtils.injectParam(
 										param.getSimpleName().toString(), 
-										codeModelHelper.typeMirrorToJClass(param.asType()).fullName(), 
+										codeModelHelper.elementTypeToJClass(param).fullName(), 
 										invoke, viewsHolder);
 							}
 						}

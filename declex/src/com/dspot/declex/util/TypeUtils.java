@@ -33,10 +33,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.helper.ADIHelper;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.helper.TargetAnnotationHelper;
+import org.androidannotations.helper.*;
 
 import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.wrapper.element.VirtualElement;
@@ -45,6 +42,7 @@ import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
@@ -103,86 +101,98 @@ public class TypeUtils {
 		}
 	}
 	
-	public static AbstractJClass classFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
+	public static String ___classNameFromElement(Element element, boolean useInnerClass, AndroidAnnotationsEnvironment environment) {
 		
-		AbstractJClass elemClass;
+		final ProcessingEnvironment processingEnvironment = environment.getProcessingEnvironment();
 		
-		Matcher matcher = Pattern.compile("<([a-zA-Z_][a-zA-Z_0-9.]+(,[a-zA-Z_][a-zA-Z_0-9.]+)*)>$").matcher(type);
-		if (matcher.find()) {
-			elemClass = environment.getJClass(type.substring(0, type.length() - matcher.group(0).length()));
-			
-			String[] innerElems = matcher.group(1).split(",");
-			for (String innerElem : innerElems) {
-				elemClass = elemClass.narrow(environment.getJClass(
-						typeFromTypeString(innerElem, environment)
-					));
-			}
-		} else {
-			elemClass = environment.getJClass(typeFromTypeString(type, environment));
-		}
+		final TypeMirror typeMirror = element instanceof ExecutableElement? ((ExecutableElement)element).getReturnType() 
+				: element.asType(); 
 		
-		return elemClass;
-	}
-	
-	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
-		return typeFromTypeString(type, environment, true);
-	}
-
-	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment, boolean parseList) {
+		//Determine if the class exists
+		String className = typeMirror.toString();		
 		
-		String toInfereIfNeeded = type;
-
-		if (parseList) {
-			Matcher matcher = Pattern.compile("(<((\\w|\\.)+)>)$").matcher(type);
+		//Remove Generic part
+		if (useInnerClass) {
+			Matcher matcher = Pattern.compile("(<((\\w|\\.)+)>)$").matcher(className);
 			if (matcher.find()) {
-				toInfereIfNeeded = matcher.group(2);
-			}
-		} else {
-			if (toInfereIfNeeded.contains("<")) {
-				toInfereIfNeeded = toInfereIfNeeded.substring(0, toInfereIfNeeded.indexOf('<'));
-				type = type.substring(0, type.indexOf('<'));
-			}
-		}
-
-		//This means that an inference over the type is need it
-		if (!toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
-				if (generatedClass.endsWith("." + toInfereIfNeeded)) {
-					return type.replace(toInfereIfNeeded, generatedClass);
-				}
-			}
-
-		}
-		
-		//Check the inference over the type for inner classes
-		if (toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			String prevClass = toInfereIfNeeded.substring(0, toInfereIfNeeded.lastIndexOf("."));
-			if (!prevClass.contains(".") && prevClass.endsWith(ModelConstants.generationSuffix())) {
-				for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
-					if (generatedClass.endsWith("." + prevClass)) {
-						return type.replace(
-							toInfereIfNeeded, 
-							generatedClass + "." + toInfereIfNeeded.substring(toInfereIfNeeded.lastIndexOf(".") + 1));
-					}
+				
+				//Only process if it contains only one inner class
+				if (!matcher.group(2).contains(",")) {
+					className = matcher.group(2);
 				}
 			}
 		}
 		
-		return type;
+		if (processingEnvironment.getElementUtils().getTypeElement(className) != null 
+			|| typeMirror.getKind().isPrimitive()) {
+			
+			return className;
+			
+		}
+			
+		//Uses API tree to determine the element type
+		final Trees trees = Trees.instance(processingEnvironment);
+    	final TreePath treePath = trees.getPath(
+    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
+		);
+    	
+    	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
+    		
+			String lastElementImport = importTree.getQualifiedIdentifier().toString();
+			String firstElementName = className;
+			String currentVariableClass = "";
+			
+			int pointIndex = lastElementImport.lastIndexOf('.');
+			if (pointIndex != -1) {
+				lastElementImport = lastElementImport.substring(pointIndex + 1);
+			}
+			
+			pointIndex = firstElementName.indexOf('.');
+			if (pointIndex != -1) {
+				firstElementName = firstElementName.substring(0, pointIndex);
+				currentVariableClass = className.substring(pointIndex);
+			}
+			
+			while (firstElementName.endsWith("[]")) {
+				firstElementName = firstElementName.substring(0, firstElementName.length()-2);
+				if (currentVariableClass.isEmpty()) currentVariableClass = currentVariableClass + "[]";
+			}
+			
+			if (lastElementImport.equals(firstElementName)) {
+				
+				System.out.println("DD: " + className + " to " + importTree.getQualifiedIdentifier() + currentVariableClass);
+				
+				return importTree.getQualifiedIdentifier() + currentVariableClass;
+			}
+    		
+    	}
+    	
+    	System.out.println("DD: " + className + " to " + treePath.getCompilationUnit().getPackageName() + "." + className);
+    	
+    	return treePath.getCompilationUnit().getPackageName() + "." + className;
+
 	}
-	
+
 	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {
 		boolean checkNested = true;
 		if (element.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) checkNested = false;
-		return  getGeneratedClassName(element.asType().toString(), environment, checkNested);
+		return getGeneratedClassName(element.asType().toString(), element, environment, checkNested);
 	}
-	
+
 	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment) {
-		return getGeneratedClassName(clazz, environment, true);
+		return getGeneratedClassName(clazz, null, environment);
 	}
-	
+
+	public static String getGeneratedClassName(String clazz, Element referenceElement, AndroidAnnotationsEnvironment environment) {
+		return getGeneratedClassName(clazz, referenceElement, environment, true);
+	}
+
 	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment, boolean checkNested) {
-		
+		return getGeneratedClassName(clazz, null, environment, checkNested);
+	}
+
+	public static String getGeneratedClassName(String clazz, Element referenceElement, AndroidAnnotationsEnvironment environment, boolean checkNested) {
+
 		if (clazz.trim().equals("")) return "";
 		
 		if (!clazz.endsWith(ModelConstants.generationSuffix())) {
@@ -190,7 +200,8 @@ public class TypeUtils {
 		}
 		
 		if (!clazz.contains(".")) {
-			return typeFromTypeString(clazz, environment);
+			APTCodeModelHelper codeModelHelper = new APTCodeModelHelper(environment);
+			return codeModelHelper.typeStringToClassName(clazz, referenceElement);
 		}		
 		
 		if (checkNested) {
@@ -413,10 +424,10 @@ public class TypeUtils {
 		
 		String originalClassName = className;
 		if (className.endsWith(ModelConstants.generationSuffix())) {
-			className = TypeUtils.typeFromTypeString(className, environment);
+			APTCodeModelHelper codeModelHelper = new APTCodeModelHelper(environment);
+			className = codeModelHelper.elementTypeToJClass(element, true).fullName();
 			originalClassName = className;
 			className = className.substring(0, className.length()-1);
-			
 		}
 		
 		TypeElement typeElement = null;

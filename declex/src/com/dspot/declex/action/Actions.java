@@ -54,7 +54,6 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
 import com.dspot.declex.api.action.process.ActionProcessor;
-import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.AbstractJClass;
@@ -84,8 +83,8 @@ public class Actions {
 	
 	private boolean generateInRound = true;
 	
-	final IdAnnotationHelper annotationHelper;
-	final APTCodeModelHelper codeModelHelper;
+	private final IdAnnotationHelper annotationHelper;
+	private final APTCodeModelHelper codeModelHelper;
 	
 	public static Actions getInstance() {
 		return instance;
@@ -127,7 +126,7 @@ public class Actions {
 		ACTION_ANNOTATION.add(StopOn.class);
 		
 		annotationHelper = new IdAnnotationHelper(env, ActionFor.class.getCanonicalName());
-		codeModelHelper = new DeclexAPTCodeModelHelper(env);		
+		codeModelHelper = new APTCodeModelHelper(env);		
 		
 		Actions.instance = this;
 	}
@@ -288,8 +287,7 @@ public class Actions {
 		this.createInformationForMethods(typeElement, actionInfo, null);
 	}
 	
-	public void createInformationForMethods(Element typeElement, ActionInfo actionInfo, 
-			 List<String> methodsHandled) {
+	private void createInformationForMethods(Element typeElement, ActionInfo actionInfo, List<String> methodsHandled) {
 
 		if (methodsHandled == null) {
 			methodsHandled = new LinkedList<>();
@@ -313,7 +311,7 @@ public class Actions {
 						}
 					}
 					
-					final AbstractJClass paramType = codeModelHelper.typeMirrorToJClass(param.asType());
+					final AbstractJClass paramType = codeModelHelper.elementTypeToJClass(param);
 					
 					ActionMethodParam actionMethodParam = 
 							new ActionMethodParam(
