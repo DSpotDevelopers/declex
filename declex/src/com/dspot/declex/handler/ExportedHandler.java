@@ -29,6 +29,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 
+import com.dspot.declex.annotation.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
@@ -36,40 +37,35 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.ExternalPopulate;
-import com.dspot.declex.annotation.ExternalRecollect;
-import com.dspot.declex.annotation.NonExternal;
-import com.dspot.declex.annotation.Populate;
-import com.dspot.declex.annotation.Recollect;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.helper.AfterPopulateHelper;
-import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
-import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
+import org.androidannotations.helper.FilesCacheHelper.FileDependency;
+import org.androidannotations.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
 
-public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
+public class ExportedHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
-	public ExternalHandler(AndroidAnnotationsEnvironment environment) {
-		this(External.class, environment);
+	public ExportedHandler(AndroidAnnotationsEnvironment environment) {
+		this(Exported.class, environment);
 		
 		codeModelHelper = new DeclexAPTCodeModelHelper(environment);
 	}
 
-	public ExternalHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
+	public ExportedHandler(Class<? extends Annotation> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
 	}
 	
 	@Override
 	public void getDependencies(Element element, Map<Element, Object> dependencies) {
 		
-		//External in the super class will inject through ADI all the external methods
+		//Exported in the super class will inject through ADI all the export methods
 		if (element.getKind().equals(ElementKind.CLASS)) {
 			
 			AfterPopulateHelper afterPopulateHelper = new AfterPopulateHelper(getEnvironment());
@@ -88,29 +84,29 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 					if (!elem.getModifiers().contains(Modifier.PUBLIC)) continue;
 					
 					if (elem.getAnnotation(AfterInject.class) != null) continue;
-					if (elem.getAnnotation(ExternalPopulate.class) != null) continue;
-					if (elem.getAnnotation(ExternalRecollect.class) != null) continue;
+					if (elem.getAnnotation(ExportPopulate.class) != null) continue;
+					if (elem.getAnnotation(ExportRecollect.class) != null) continue;
 					
 					if (elem.getAnnotation(Populate.class) != null) {
 						if (!afterPopulateHelper.existsPopulateFieldWithElementName(elem)) {
-							dependencies.put(elem, ExternalPopulate.class);
+							dependencies.put(elem, ExportPopulate.class);
 							continue;
 						}						
 					}
 					
 					if (elem.getAnnotation(Recollect.class) != null) {
-						dependencies.put(elem, ExternalRecollect.class);
+						dependencies.put(elem, ExportRecollect.class);
 						continue;
 					}
 					
-					boolean externalMethod = adiHelper.hasAnnotation(elem, External.class);
+					boolean externalMethod = adiHelper.hasAnnotation(elem, Exported.class);
 					if (!externalMethod) {
 						List<? extends AnnotationMirror> annotations = elem.getAnnotationMirrors();
 						for (AnnotationMirror annotation : annotations) {
 							if (getEnvironment().getSupportedAnnotationTypes()
 									            .contains(annotation.getAnnotationType().toString()))
 							{
-								dependencies.put(elem, External.class);
+								dependencies.put(elem, Exported.class);
 								externalMethod = true;
 								break;
 							}
@@ -129,7 +125,7 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 									if (getEnvironment().getSupportedAnnotationTypes()
 											            .contains(annotation.getAnnotationType().toString()))
 									{
-										dependencies.put(param, External.class);
+										dependencies.put(param, Exported.class);
 										break;
 									}
 								}
@@ -142,10 +138,10 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 					
 					if (elem.getKind().isField()) {
 						if (elem.getAnnotation(Populate.class) != null) {
-							dependencies.put(elem, ExternalPopulate.class);
+							dependencies.put(elem, ExportPopulate.class);
 						}				
 						if (elem.getAnnotation(Recollect.class) != null) {
-							dependencies.put(elem, ExternalRecollect.class);
+							dependencies.put(elem, ExportRecollect.class);
 						}
 					} 
 					
@@ -159,17 +155,17 @@ public class ExternalHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		if (element.getKind() == ElementKind.METHOD) {
 			if (element.getAnnotation(AfterInject.class) != null) {
-				valid.addError("You cannot use @External in an @AfterInject method");
+				valid.addError("You cannot use @Exported in an @AfterInject method");
 				return;
 			}
 			
 			if (element.getModifiers().contains(Modifier.STATIC)) {
-				valid.addError("You cannot use @External in a static element");
+				valid.addError("You cannot use @Exported in a static element");
 				return;
 			}
 			
 			if (!element.getModifiers().contains(Modifier.PUBLIC)) {
-				valid.addError("You can use @External only on public methods");
+				valid.addError("You can use @Exported only on public methods");
 				return;
 			}
 

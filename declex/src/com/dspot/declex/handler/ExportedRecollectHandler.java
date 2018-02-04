@@ -26,18 +26,17 @@ import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
+import com.dspot.declex.annotation.ExportRecollect;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.ExternalRecollect;
 import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
-import com.dspot.declex.api.external.RecollectModelListener;
-import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
+import com.dspot.declex.api.export.RecollectModelListener;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JFieldVar;
@@ -45,12 +44,12 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-public class ExternalRecollectHandler extends ExternalHandler {
+public class ExportedRecollectHandler extends ExportedHandler {
 	
 	private Set<Element> referencedElementsLinked = new HashSet<>();
 	
-	public ExternalRecollectHandler(AndroidAnnotationsEnvironment environment) {
-		super(ExternalRecollect.class, environment);
+	public ExportedRecollectHandler(AndroidAnnotationsEnvironment environment) {
+		super(ExportRecollect.class, environment);
 	}
 	
 	@Override

@@ -36,15 +36,15 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
-import com.dspot.declex.api.external.PopulateModelListener;
+import com.dspot.declex.api.export.PopulateModelListener;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.holder.PopulateHolder;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JAnonymousClass;
 import com.helger.jcodemodel.JBlock;
@@ -53,12 +53,12 @@ import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
 
-public class ExternalPopulateHandler extends ExternalHandler {
+public class ExportedPopulateHandler extends ExportedHandler {
 	
 	private Set<Element> referencedElementsLinked = new HashSet<>();
 	
-	public ExternalPopulateHandler(AndroidAnnotationsEnvironment environment) {
-		super(ExternalPopulate.class, environment);
+	public ExportedPopulateHandler(AndroidAnnotationsEnvironment environment) {
+		super(ExportPopulate.class, environment);
 	}
 	
 	@Override

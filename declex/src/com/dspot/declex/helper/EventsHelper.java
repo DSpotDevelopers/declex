@@ -39,6 +39,7 @@ import javax.lang.model.type.TypeKind;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.helper.FilesCacheHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EActivityHolder;
@@ -65,7 +66,7 @@ import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.JAnnotationUse;

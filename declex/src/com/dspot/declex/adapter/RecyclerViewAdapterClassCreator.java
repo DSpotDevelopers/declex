@@ -88,7 +88,7 @@ public class RecyclerViewAdapterClassCreator extends HolderClassCreator {
 		JMethod setModels = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "setModels");
 		JVar modelsParam = setModels.param(getClasses().LIST.narrow(Model), "models");
 		JConditional ifModels = setModels.body()._if(modelsParam.ne(_null()));
-		ifModels._then().directStatement("//This permits the external modification of the model");
+		ifModels._then().directStatement("//This permits the export modification of the model");
 		ifModels._then().directStatement("//without crashing the interface for concurrent modifications");
 		ifModels._then().assign(_this().ref(models), _new(ArrayList).arg(modelsParam));
 		ifModels._else().invoke(_this().ref(models), "clear");

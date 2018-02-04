@@ -46,7 +46,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.annotation.External;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.annotation.RunWith;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
@@ -55,7 +55,7 @@ import com.dspot.declex.holder.view_listener.IStatementCreator;
 import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
@@ -208,9 +208,9 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
     			
 				if (block != null) {
 					
-					if (element.getAnnotation(RunWith.class) != null && adiHelper.getAnnotation(element, External.class) != null) {
+					if (element.getAnnotation(RunWith.class) != null && adiHelper.getAnnotation(element, Exported.class) != null) {
 
-						//If this is an @External @RunWith method, it should not be call by itself,
+						//If this is an @Exported @RunWith method, it should not be call by itself,
 						//this code avoids this issue (an infinite loop)
 						
 						//This will be called by ExernalHandler as well
@@ -279,9 +279,9 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	    					}
     					}    							
     					
-    					if (adiHelper.getAnnotation(element, External.class) != null) {
+    					if (adiHelper.getAnnotation(element, Exported.class) != null) {
 
-    						//If this is an @External @RunWith method, it should not be called by itself,
+    						//If this is an @Exported @RunWith method, it should not be called by itself,
     						//this code avoids this issue (an infinite loop)
     						
     						//This will be called by ExernalHandler as well

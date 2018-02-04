@@ -23,6 +23,7 @@ import static com.helger.jcodemodel.JExpr.ref;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
+import com.dspot.declex.annotation.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.Extra;
@@ -35,14 +36,7 @@ import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.annotation.ExternalPopulate;
-import com.dspot.declex.annotation.ExternalRecollect;
-import com.dspot.declex.annotation.LoadOnEvent;
-import com.dspot.declex.annotation.Model;
-import com.dspot.declex.annotation.PutOnAction;
-import com.dspot.declex.annotation.PutOnEvent;
-import com.dspot.declex.annotation.UpdateOnEvent;
-import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ModelHolder;
@@ -52,7 +46,7 @@ import com.dspot.declex.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.holder.view_listener.ClickHolder;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -125,8 +119,8 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		JBlock block;
 		boolean checkNull = false;
 		
-		final boolean hasExternal = adiHelper.getAnnotation(element, ExternalPopulate.class) != null
-                                    || adiHelper.getAnnotation(element, ExternalRecollect.class) != null;
+		final boolean hasExport = adiHelper.getAnnotation(element, ExportPopulate.class) != null
+                                    || adiHelper.getAnnotation(element, ExportRecollect.class) != null;
 
 		final ModelHolder modelHolder = holder.getPluginHolder(new ModelHolder(holder));	
 		final UseModelHolder useModelHolder = holder.getPluginHolder(new UseModelHolder(holder));
@@ -168,7 +162,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 					}	
 				}
 								
-				if (!hasExternal) {
+				if (!hasExport) {
 					block = modelHolder.getGetterBody(element)
 							           ._if(ref(element.getSimpleName().toString()).eq(_null()))._then();
 				} else {
@@ -189,9 +183,9 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				block = useModelHolder.getGetModelListInitBlock();
 				generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);				
 			} else {			
-				//It is important to avoid this behavior for External fields, because this
+				//It is important to avoid this behavior for Exported fields, because this
 				//causes infinite loops
-				if (!hasExternal) {
+				if (!hasExport) {
 					generateGetModelCallInBlock(block, false, element, modelHolder, useModelHolder, true);
 				}
 			}

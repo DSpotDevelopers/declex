@@ -35,14 +35,11 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.*;
 
-import com.dspot.declex.helper.FilesCacheHelper;
-import com.dspot.declex.wrapper.element.VirtualElement;
-import com.helger.jcodemodel.AbstractJClass;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JVar;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
@@ -99,78 +96,6 @@ public class TypeUtils {
 			if (value instanceof String)
 				fieldAnnotation.param(name, (String)value);
 		}
-	}
-	
-	public static String ___classNameFromElement(Element element, boolean useInnerClass, AndroidAnnotationsEnvironment environment) {
-		
-		final ProcessingEnvironment processingEnvironment = environment.getProcessingEnvironment();
-		
-		final TypeMirror typeMirror = element instanceof ExecutableElement? ((ExecutableElement)element).getReturnType() 
-				: element.asType(); 
-		
-		//Determine if the class exists
-		String className = typeMirror.toString();		
-		
-		//Remove Generic part
-		if (useInnerClass) {
-			Matcher matcher = Pattern.compile("(<((\\w|\\.)+)>)$").matcher(className);
-			if (matcher.find()) {
-				
-				//Only process if it contains only one inner class
-				if (!matcher.group(2).contains(",")) {
-					className = matcher.group(2);
-				}
-			}
-		}
-		
-		if (processingEnvironment.getElementUtils().getTypeElement(className) != null 
-			|| typeMirror.getKind().isPrimitive()) {
-			
-			return className;
-			
-		}
-			
-		//Uses API tree to determine the element type
-		final Trees trees = Trees.instance(processingEnvironment);
-    	final TreePath treePath = trees.getPath(
-    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
-		);
-    	
-    	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
-    		
-			String lastElementImport = importTree.getQualifiedIdentifier().toString();
-			String firstElementName = className;
-			String currentVariableClass = "";
-			
-			int pointIndex = lastElementImport.lastIndexOf('.');
-			if (pointIndex != -1) {
-				lastElementImport = lastElementImport.substring(pointIndex + 1);
-			}
-			
-			pointIndex = firstElementName.indexOf('.');
-			if (pointIndex != -1) {
-				firstElementName = firstElementName.substring(0, pointIndex);
-				currentVariableClass = className.substring(pointIndex);
-			}
-			
-			while (firstElementName.endsWith("[]")) {
-				firstElementName = firstElementName.substring(0, firstElementName.length()-2);
-				if (currentVariableClass.isEmpty()) currentVariableClass = currentVariableClass + "[]";
-			}
-			
-			if (lastElementImport.equals(firstElementName)) {
-				
-				System.out.println("DD: " + className + " to " + importTree.getQualifiedIdentifier() + currentVariableClass);
-				
-				return importTree.getQualifiedIdentifier() + currentVariableClass;
-			}
-    		
-    	}
-    	
-    	System.out.println("DD: " + className + " to " + treePath.getCompilationUnit().getPackageName() + "." + className);
-    	
-    	return treePath.getCompilationUnit().getPackageName() + "." + className;
-
 	}
 
 	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {

@@ -69,7 +69,7 @@ public class Actions {
 	
 	private static Actions instance;
 	
-	//<Action Holder Class, Is External (Declared in a library)
+	//<Action Holder Class, Is Exported (Declared in a library)
 	private final Map<String, Boolean> ACTION_HOLDERS = new HashMap<>();
 	private final Map<String, TypeElement> ACTION_HOLDER_ELEMENT_FOR_ACTION = new HashMap<>();
 	
@@ -103,7 +103,7 @@ public class Actions {
 						
 			boolean isAction = clazz.getAnnotation(com.dspot.declex.annotation.action.Actions.class) != null; 
 			if (isAction) {
-				//If it is an Actions container object, add it as an external Action
+				//If it is an Actions container object, add it as an export Action
 				instance.addActions(actionToCheck);
 			}
 		

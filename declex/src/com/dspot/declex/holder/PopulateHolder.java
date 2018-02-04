@@ -16,14 +16,14 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JCatchBlock;
@@ -83,8 +83,8 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 	}
 	
 	public JFieldRef getPopulateListener(Element element) {
-		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
-		if (!hasExternalPopulate) return null;
+		final boolean hasExportPopulate = adiHelper.getAnnotation(element, ExportPopulate.class) != null;
+		if (!hasExportPopulate) return null;
 		
 		JFieldRef populateListener;
 		if (element instanceof VirtualElement) {		
@@ -150,14 +150,14 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 	private void callPopulateAfterModelLoaded(Element element, JMethod populateMethod) {
 		
 		final String fieldName = element.getSimpleName().toString();
-		final boolean hasExternalPopulate = adiHelper.getAnnotation(element, ExternalPopulate.class) != null;
+		final boolean hasExportPopulate = adiHelper.getAnnotation(element, ExportPopulate.class) != null;
 		
 		Model model = adiHelper.getAnnotation(element, Model.class); 
 		if (model != null) {			
 			final ModelHolder modelHolder;
 			
-			//Support ExternalPopulate
-			if (hasExternalPopulate) {
+			//Support ExportPopulate
+			if (hasExportPopulate) {
 								
 				final Element referenceElement = ((VirtualElement) element).getReference();
 				ClassInformation classInformation = TypeUtils.getClassInformation(referenceElement, environment(), true);
@@ -195,7 +195,7 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 				.cor(cast(getJClass(Boolean.class), ref("args").invoke("get").arg("populate")))
 			)._then();
 			
-			if (hasExternalPopulate) {
+			if (hasExportPopulate) {
 				final String populateListenerName = "populate" + fieldName.substring(0, 1).toUpperCase()
                         + fieldName.substring(1);
 				

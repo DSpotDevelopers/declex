@@ -51,7 +51,7 @@ import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;

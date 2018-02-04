@@ -40,6 +40,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
+import org.androidannotations.annotations.Exported;
 import org.androidannotations.api.BackgroundExecutor;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.APTCodeModelHelper;
@@ -50,17 +51,16 @@ import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.ExternalPopulate;
-import com.dspot.declex.annotation.ExternalRecollect;
+import com.dspot.declex.annotation.ExportPopulate;
+import com.dspot.declex.annotation.ExportRecollect;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.helper.FilesCacheHelper;
+import org.androidannotations.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJAssignmentTarget;
@@ -164,9 +164,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, External.class) != null 
-			|| adiHelper.getAnnotation(element, ExternalPopulate.class) != null
-			|| adiHelper.getAnnotation(element, ExternalRecollect.class) != null)) {
+		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, Exported.class) != null
+			|| adiHelper.getAnnotation(element, ExportPopulate.class) != null
+			|| adiHelper.getAnnotation(element, ExportRecollect.class) != null)) {
 		
 			//It will never be static here
 			
@@ -200,7 +200,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			modelMethod = new ModelMethod(setter, setter.body());
 			
-			if (adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
+			if (adiHelper.getAnnotation(element, ExportPopulate.class) != null) {
 				setterModelMethods.put(element, modelMethod);
 				return modelMethod;
 			}
@@ -260,9 +260,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		ModelMethod modelMethod = null;
 		
 		BaseGeneratedClassHolder holder = holder();
-		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, External.class) != null 
-			|| adiHelper.getAnnotation(element, ExternalPopulate.class) != null
-			|| adiHelper.getAnnotation(element, ExternalRecollect.class) != null)) {
+		if (element instanceof VirtualElement && (adiHelper.getAnnotation(element, Exported.class) != null
+			|| adiHelper.getAnnotation(element, ExportPopulate.class) != null
+			|| adiHelper.getAnnotation(element, ExportRecollect.class) != null)) {
 
 			//It will never be static here
 			
@@ -296,7 +296,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			
 			modelMethod = new ModelMethod(getter, getterBody);
 			
-			if (adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
+			if (adiHelper.getAnnotation(element, ExportPopulate.class) != null) {
 				getterModelMethods.put(element, modelMethod);
 				return modelMethod;
 			}

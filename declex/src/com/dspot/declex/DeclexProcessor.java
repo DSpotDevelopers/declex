@@ -34,7 +34,10 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
+import com.dspot.declex.annotation.*;
 import org.androidannotations.annotations.Bean;
+import org.androidannotations.annotations.Export;
+import org.androidannotations.annotations.Import;
 import org.androidannotations.handler.AnnotationHandler;
 import org.androidannotations.helper.AndroidManifest;
 import org.androidannotations.internal.generation.CodeModelGenerator;
@@ -50,26 +53,19 @@ import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.annotation.Export;
-import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.Import;
-import com.dspot.declex.annotation.JsonModel;
-import com.dspot.declex.annotation.LocalDBModel;
-import com.dspot.declex.annotation.ServerModel;
-import com.dspot.declex.annotation.UseEvents;
-import com.dspot.declex.annotation.UseModel;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.ActionHelper;
-import com.dspot.declex.helper.FilesCacheHelper;
-import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
+import org.androidannotations.helper.FilesCacheHelper;
+import org.androidannotations.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.parser.LayoutsParser;
 import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
@@ -284,7 +280,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 									
 		}
 		
-		//TODO The Cache service is not prepared for Exports and Externals
+		//TODO The Cache service is not prepared for Exports
 		
 		timeStats.start("Extract Annotations");
 		
@@ -415,7 +411,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				generatingTargets.add(annotationHandler.getTarget());
 			}
 			
-			generatingTargets.add(External.class.getCanonicalName());
+			generatingTargets.add(Exported.class.getCanonicalName());
 			generatingTargets.add(UseModel.class.getCanonicalName());
 			generatingTargets.add(UseEvents.class.getCanonicalName());
 			generatingTargets.add(LocalDBModel.class.getCanonicalName());

@@ -61,7 +61,7 @@ import com.dspot.declex.parser.MenuParser;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JAnonymousClass;

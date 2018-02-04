@@ -44,7 +44,7 @@ import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.helper.FilesCacheHelper;
+import org.androidannotations.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;

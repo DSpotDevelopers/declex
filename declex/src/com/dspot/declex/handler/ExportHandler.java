@@ -36,11 +36,11 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.Export;
+import org.androidannotations.annotations.Export;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;

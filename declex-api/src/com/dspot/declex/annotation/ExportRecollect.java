@@ -13,10 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dspot.declex.api.external;
+package com.dspot.declex.annotation;
 
-import com.dspot.declex.api.action.runnable.OnFailedRunnable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface RecollectModelListener {
-	void recollectModel(Runnable afterRecollect, OnFailedRunnable onFailed);
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.FIELD)
+public @interface ExportRecollect {
+	boolean validate() default false;
+	boolean validateAutoMessage() default true;
+	boolean debug() default false;
 }

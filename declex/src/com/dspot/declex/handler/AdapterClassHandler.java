@@ -39,7 +39,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.adapter.plugin.JClassPlugin;
 import com.dspot.declex.annotation.AdapterClass;
-import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.ParamUtils;
@@ -71,12 +71,12 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		}
 		
 		AbstractJClass baseClass = getBaseAdapter(element);
-		if (baseClass != null && adiHelper.getAnnotation(element, ExternalPopulate.class) != null) {
+		if (baseClass != null && adiHelper.getAnnotation(element, ExportPopulate.class) != null) {
 			Element baseClassElement = getProcessingEnvironment().getElementUtils().getTypeElement(baseClass.fullName());
 			if (baseClassElement != null) {
 				if (!baseClassElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
 					if (!baseClassElement.getModifiers().contains(Modifier.STATIC)) {
-						valid.addError("For @ExternalPopulate fields, the provided inner class in @AdapterClass should be static");
+						valid.addError("For @ExportPopulate fields, the provided inner class in @AdapterClass should be static");
 					}
 				}
 			}

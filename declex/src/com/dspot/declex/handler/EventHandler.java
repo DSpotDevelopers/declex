@@ -16,14 +16,14 @@
 package com.dspot.declex.handler;
 
 import com.dspot.declex.annotation.Event;
-import com.dspot.declex.annotation.Export;
-import com.dspot.declex.annotation.External;
+import org.androidannotations.annotations.Export;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -137,7 +137,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		
-		if (adiHelper.hasAnnotation(element, External.class) 
+		if (adiHelper.hasAnnotation(element, Exported.class)
 			|| adiHelper.hasAnnotation(element, Export.class)) {
 			
 			if (element instanceof VirtualElement) {

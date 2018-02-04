@@ -47,7 +47,7 @@ import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.annotation.ExternalRecollect;
+import com.dspot.declex.annotation.ExportRecollect;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.annotation.UseModel;
@@ -60,7 +60,7 @@ import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.AbstractJType;
 import com.helger.jcodemodel.IJExpression;
@@ -136,7 +136,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder));
 		final String fieldName = element.getSimpleName().toString();
 		
-		final boolean hasExternalRecollect = adiHelper.getAnnotation(element, ExternalRecollect.class) != null;
+		final boolean hasExportRecollect = adiHelper.getAnnotation(element, ExportRecollect.class) != null;
 		
 		final ClassInformation classInformation = TypeUtils.getClassInformation(element, getEnvironment());
 		final String className = classInformation.generatorClassName;
@@ -151,7 +151,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		if (modelAnnotation != null) {
 			
 			EComponentHolder beanHolder = holder;
-			if (hasExternalRecollect) {
+			if (hasExportRecollect) {
 				final Element referenceElement = ((VirtualElement) element).getReference();
 				ClassInformation info = TypeUtils.getClassInformation(referenceElement, getEnvironment(), true);
 				ProcessHolder processHolder = getEnvironment().getProcessHolder();
@@ -160,7 +160,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 
 			final ModelHolder modelHolder = beanHolder.getPluginHolder(new ModelHolder(beanHolder));
 			JBlock putModelMethodBlock = modelHolder.getPutModelMethodBlock(
-				hasExternalRecollect? ((VirtualElement)element).getElement() : element
+				hasExportRecollect? ((VirtualElement)element).getElement() : element
 			);
 			putModelMethodBlock.removeAll();						
 			
@@ -172,7 +172,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			JBlock ifRecollect = ifRecollectConditional._then();
 			ifRecollectConditional._else().invoke(ref("putModelRunnable"), "run");
 			
-			if (hasExternalRecollect) {
+			if (hasExportRecollect) {
 				JFieldRef listenerField = ref(
 					"recollect" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1)
 				);

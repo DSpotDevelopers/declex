@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.FIELD, ElementType.METHOD})
-public @interface ExternalPopulate {
+public @interface ExportPopulate {
 	
 	/**
 	 * A List of Layouts to be inflated by the populator

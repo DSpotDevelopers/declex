@@ -42,6 +42,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
+import com.dspot.declex.annotation.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
@@ -59,11 +60,7 @@ import com.dspot.declex.adapter.RecyclerViewAdapterClassCreator;
 import com.dspot.declex.adapter.RecyclerViewAdapterPopulator;
 import com.dspot.declex.adapter.ViewAdapterPopulator;
 import com.dspot.declex.adapter.plugin.JClassPlugin;
-import com.dspot.declex.annotation.ExternalPopulate;
-import com.dspot.declex.annotation.LoadOnEvent;
-import com.dspot.declex.annotation.Model;
-import com.dspot.declex.annotation.Populate;
-import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.AfterPopulateHelper;
 import com.dspot.declex.helper.EventsHelper;
@@ -83,7 +80,7 @@ import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
@@ -452,7 +449,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			final ModelHolder modelHolder = viewsHolder.holder().getPluginHolder(new ModelHolder(viewsHolder.holder()));
 			assignRef = invoke(modelHolder.getGetterMethod(element));
 			
-		} else if (adiHelper.hasAnnotation(element, ExternalPopulate.class)) {
+		} else if (adiHelper.hasAnnotation(element, ExportPopulate.class)) {
 			assignRef = invoke(fieldToGetter(fieldName));
 		} else {
 			assignRef = ref(fieldName);

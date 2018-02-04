@@ -23,14 +23,14 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.annotation.Export;
-import com.dspot.declex.annotation.External;
+import org.androidannotations.annotations.Export;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.annotation.OnEvent;
 import com.dspot.declex.handler.base.BaseOnEventHandler;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 
 public class OnEventHandler extends BaseOnEventHandler {	
@@ -43,7 +43,7 @@ public class OnEventHandler extends BaseOnEventHandler {
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		
-		if (adiHelper.hasAnnotation(element, External.class)
+		if (adiHelper.hasAnnotation(element, Exported.class)
 			|| adiHelper.hasAnnotation(element, Export.class)) {
 			if (element instanceof VirtualElement) {
 				eventsHelper.registerAsEventListener(holder);

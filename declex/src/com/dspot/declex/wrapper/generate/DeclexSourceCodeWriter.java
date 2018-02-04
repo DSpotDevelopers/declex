@@ -14,7 +14,7 @@ import org.androidannotations.internal.process.OriginatingElements;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import com.dspot.declex.helper.FilesCacheHelper;
+import org.androidannotations.helper.FilesCacheHelper;
 import com.helger.jcodemodel.JPackage;
 
 public class DeclexSourceCodeWriter extends SourceCodeWriter {

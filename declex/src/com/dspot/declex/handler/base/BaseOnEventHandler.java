@@ -15,9 +15,6 @@
  */
 package com.dspot.declex.handler.base;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import javax.lang.model.element.Element;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
@@ -26,11 +23,11 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
-import com.dspot.declex.annotation.External;
+import org.androidannotations.annotations.Exported;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.element.VirtualElement;
+import org.androidannotations.internal.virtual.VirtualElement;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
@@ -66,7 +63,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
 		
-		if (adiHelper.hasAnnotation(element, External.class)) {
+		if (adiHelper.hasAnnotation(element, Exported.class)) {
 			if (element instanceof VirtualElement) {
 				eventsHelper.registerAsEventListener(holder);
 			}

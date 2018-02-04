@@ -46,6 +46,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import org.androidannotations.annotations.Exported;
 import org.androidannotations.Option;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.APTCodeModelHelper;
@@ -53,7 +54,6 @@ import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import com.dspot.declex.annotation.External;
 import com.dspot.declex.annotation.RunWith;
 import com.dspot.declex.annotation.UseModel;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
@@ -351,7 +351,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 
 			//Omit specials fields
 			if (elem.getAnnotation(RunWith.class) != null) continue;
-			if (adiHelper.hasAnnotation(elem, External.class)) continue;
+			if (adiHelper.hasAnnotation(elem, Exported.class)) continue;
 			
 			for (AnnotationMirror annotation : elem.getAnnotationMirrors()) {
 				if (environment().getSupportedAnnotationTypes()
