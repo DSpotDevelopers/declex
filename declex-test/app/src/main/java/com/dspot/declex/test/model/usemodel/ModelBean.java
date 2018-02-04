@@ -17,7 +17,6 @@ package com.dspot.declex.test.model.usemodel;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.test.model.usemodel.model.ModelAddress_;
 import com.dspot.declex.test.model.usemodel.model.ModelUser;
 import com.dspot.declex.test.model.usemodel.model.ModelUser_;
 
@@ -50,14 +49,14 @@ public class ModelBean {
     @UseModel
     ModelUser forcedUseModelUser;
 
-//    @Model
-//    ModelUser_ enhancedUser;
+    @Model
+    ModelUser_ enhancedUser;
 
     @Model
     List<ModelUser> userList;
 
-//    @Model
-//    List<ModelUser_> enhancedUserList;
+    @Model
+    List<ModelUser_> enhancedUserList;
 
     @UseModel
     List<ModelUser> forcedUseModelUserList;
