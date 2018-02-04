@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(
@@ -53,14 +54,16 @@ public class TestModelBean {
         this.bean = ModelBean_.getInstance_(RuntimeEnvironment.application);
         this.executeAsyncDone = new AtomicBoolean(false);
         this.executeAsyncFailed = new AtomicBoolean(false);
-        this.args = new HashMap();
+        this.args = new HashMap<>();
     }
 
     @Test
     public void testBeanModelUser() {
-        bean.setUser(ModelUser_.getModel_(RuntimeEnvironment.application, args, Arrays.asList(Annotation.class, Model.class)));
-        assertNotNull(bean.getUser());
-        assertTrue(bean.getUser() instanceof ModelUser_);
+
+        ModelUser_ user = mock(ModelUser_.class);
+        bean.setUser(user);
+        assertEquals(bean.getUser(), user);
+
     }
 
     @Test
@@ -72,10 +75,11 @@ public class TestModelBean {
 
     @Test
     public void testBeanLoadingAsync() {
+
         final ModelBean_ bean = ModelBean_.getInstance_(RuntimeEnvironment.application);
         final AtomicBoolean executeAsyncDone = new AtomicBoolean(false);
         final AtomicBoolean executeAsyncFailed = new AtomicBoolean(false);
-        final Map<String, Object> args = new HashMap();
+        final Map<String, Object> args = new HashMap<>();
 
         {
             BackgroundExecutor.execute(new BackgroundExecutor.Task("", 0, "") {
@@ -95,6 +99,7 @@ public class TestModelBean {
             assertNotNull(bean.getAsyncUser());
             assertTrue(bean.getAsyncUser() instanceof ModelUser_);
         }
+
     }
 
     @Test

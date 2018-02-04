@@ -31,11 +31,11 @@ dependencies {
     compile 'com.android.support:support-v4:25.+'
 
     testCompile "org.robolectric:robolectric:3.3.2"
-    testCompile "org.mockito:mockito-core:2.7.5"
-    testCompile 'org.powermock:powermock-module-junit4:1.7.0RC4'
-    testCompile 'org.powermock:powermock-module-junit4-rule:1.7.0RC4'
-    testCompile 'org.powermock:powermock-api-mockito2:1.7.0RC4'
-    testCompile "org.powermock:powermock-classloading-xstream:1.7.0RC4"
+    testCompile "org.mockito:mockito-core:2.8.9"
+    testCompile 'org.powermock:powermock-module-junit4:1.7.1'
+    testCompile 'org.powermock:powermock-module-junit4-rule:1.7.1'
+    testCompile 'org.powermock:powermock-api-mockito2:1.7.1'
+    testCompile "org.powermock:powermock-classloading-xstream:1.7.1"
 
     testCompile 'junit:junit:4.12'
 }

@@ -30,6 +30,7 @@ import static org.junit.Assert.*;
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
 @PrepareForTest({ModelSocialWorker_.class})
 public class TestJsonModel {
+
     @Rule
     public PowerMockRule rule = new PowerMockRule();
 

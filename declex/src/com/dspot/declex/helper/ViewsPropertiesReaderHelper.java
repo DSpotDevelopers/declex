@@ -76,6 +76,7 @@ public class ViewsPropertiesReaderHelper {
 	}
 	
 	private void readGettersAndSetters(Element element, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
+
 		List<? extends Element> elems = element.getEnclosedElements();
 		
 		for (Element elem : elems) {

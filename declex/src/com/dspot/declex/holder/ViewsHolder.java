@@ -278,7 +278,7 @@ public class ViewsHolder extends
 						boolean hasGetterAsString = getters.containsKey(property) && fieldTypeToMatch.equals(String.class.getCanonicalName());
 						
 						boolean hasSetter = false;
-						if (isProperty) {
+						if (isProperty && setters.containsKey(property)) {
 							for (TypeMirror setter : setters.get(property)) {
 								hasSetter = TypeUtils.isSubtype(fieldTypeToMatch, setter.toString(), processingEnv())
 										|| TypeUtils.isSubtype(wrapperToPrimitive(fieldTypeToMatch), setter.toString(), processingEnv());

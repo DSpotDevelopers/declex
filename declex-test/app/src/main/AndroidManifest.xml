@@ -3,8 +3,7 @@
           xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:label="@string/app_name"
-        android:theme="@style/AppTheme">
+        android:label="@string/app_name">
 
         <activity android:name=".action.ActionMainActivity_"/>
         <activity android:name=".injection.property.PropertyInjectionActivity_"/>

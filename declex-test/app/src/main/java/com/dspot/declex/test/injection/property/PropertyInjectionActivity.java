@@ -16,63 +16,106 @@
 package com.dspot.declex.test.injection.property;
 
 import android.app.Activity;
-import android.support.v4.app.Fragment;
-import android.widget.ImageView;
+import android.content.res.ColorStateList;
 
 import com.dspot.declex.api.injection.Property;
 import com.dspot.declex.test.R;
 
 import org.androidannotations.annotations.AfterViews;
-import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.EFragment;
 
 @EActivity(R.layout.view_basic)
 public class PropertyInjectionActivity extends Activity {
 
+    CharSequence labelTextSimpleArg;
+    int editVisibilityArg;
+    Integer imageVisibilityWithWrapperSimpleArg;
+    Property<CharSequence> labelTextPropertyArg;
+    Property<String> label2TextPropertyAsString;
+    private Property<String> labelVisibilityPropertyAsStringArg;
+    private Property<Integer> buttonVisibilityPrimitivePropertyArg;
+    private Property<ColorStateList> readOnlyPropertyArg;
+    private Property<Integer> writeOnlyPropertyArg;
+
+    public CharSequence getLabelTextSimpleArg() {
+        return labelTextSimpleArg;
+    }
+
+    public int getEditVisibilityArg() {
+        return editVisibilityArg;
+    }
+
+    public Integer getImageVisibilityWithWrapperSimpleArg() {
+        return imageVisibilityWithWrapperSimpleArg;
+    }
+
+    public Property<CharSequence> getLabelTextPropertyArg() {
+        return labelTextPropertyArg;
+    }
+
+    public Property<String> getLabel2TextPropertyAsString() {
+        return label2TextPropertyAsString;
+    }
+
+    public Property<String> getLabelVisibilityPropertyAsStringArg() {
+        return labelVisibilityPropertyAsStringArg;
+    }
+
+    public Property<Integer> getButtonVisibilityPrimitivePropertyArg() {
+        return buttonVisibilityPrimitivePropertyArg;
+    }
+
+    public Property<ColorStateList> getReadOnlyPropertyArg() {
+        return readOnlyPropertyArg;
+    }
+
+    public Property<Integer> getWriteOnlyPropertyArg() {
+        return writeOnlyPropertyArg;
+    }
+
     @AfterViews
     void labelTextSimple(CharSequence labelText) {
-
+        this.labelTextSimpleArg = labelText;
     }
 
     @AfterViews
     void editVisibilitySimple(int editVisibility) {
-
+        this.editVisibilityArg = editVisibility;
     }
 
     @AfterViews
-    void imageVisibilitySimple(Integer imageVisibility) {
-
+    void imageVisibilityWithWrapperSimple(Integer imageVisibility) {
+        this.imageVisibilityWithWrapperSimpleArg = imageVisibility;
     }
 
     @AfterViews
-    void labelText(Property<CharSequence> labelText) {
-
+    void labelTextProperty(Property<CharSequence> labelText) {
+        this.labelTextPropertyArg = labelText;
     }
 
     @AfterViews
-    void labelTextString(Property<String> labelText) {
-
+    void label2TextPropertyAsString(Property<String> label2Text) {
+        this.label2TextPropertyAsString = label2Text;
     }
 
     @AfterViews
-    void labelVisibilityString(Property<String> labelVisibility) {
-
+    void labelVisibilityPropertyAsString(Property<String> labelVisibility) {
+        this.labelVisibilityPropertyAsStringArg = labelVisibility;
     }
 
     @AfterViews
-    void buttonVisibility(Property<Integer> buttonVisibility) {
-
+    void buttonVisibilityPrimitiveProperty(Property<Integer> buttonVisibility) {
+        this.buttonVisibilityPrimitivePropertyArg = buttonVisibility;
     }
 
     @AfterViews
-    void readOnlyProperty(Property<Integer> labelTextColor) {
-
+    void readOnlyProperty(Property<ColorStateList> labelTextColors) {
+        this.readOnlyPropertyArg = labelTextColors;
     }
 
     @AfterViews
     void writeOnlyProperty(Property<Integer> imageBackgroundResource) {
-
+        this.writeOnlyPropertyArg = imageBackgroundResource;
     }
 
 }
