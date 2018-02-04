@@ -21,12 +21,12 @@ import static com.dspot.declex.Action.$ActionMainActivity;
 import static com.dspot.declex.Action.$ActionMainFragment;
 
 @EBean
-public class ActionBean {
+public class ActionsCallsBean {
 
     public void callMainFragment() {
         $ActionMainFragment();
     }
 
-//TODO    public void callMainActivity() { $ActionMainActivity(); }
+    public void callMainActivity() { $ActionMainActivity(); }
 
 }

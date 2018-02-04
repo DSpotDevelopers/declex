@@ -20,8 +20,24 @@ import android.support.v4.app.Fragment;
 import com.dspot.declex.test.R;
 
 import org.androidannotations.annotations.EFragment;
+import org.androidannotations.annotations.FragmentArg;
 
 @EFragment(R.layout.fragment_main)
 public class ActionMainFragment extends Fragment {
+
+    @FragmentArg
+    String arg1;
+
+    @FragmentArg
+    void arg2(int arg2){}
+
+    @FragmentArg
+    void arg3(int arg3) {
+
+    }
+
+    void multiple(@FragmentArg int arg1, @FragmentArg String arg2) {
+
+    }
 
 }

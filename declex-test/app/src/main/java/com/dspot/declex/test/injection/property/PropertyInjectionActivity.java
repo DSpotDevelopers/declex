@@ -27,11 +27,11 @@ import org.androidannotations.annotations.EActivity;
 @EActivity(R.layout.view_basic)
 public class PropertyInjectionActivity extends Activity {
 
-    CharSequence labelTextSimpleArg;
-    int editVisibilityArg;
-    Integer imageVisibilityWithWrapperSimpleArg;
-    Property<CharSequence> labelTextPropertyArg;
-    Property<String> label2TextPropertyAsString;
+    private CharSequence labelTextSimpleArg;
+    private int editVisibilityArg;
+    private Integer imageVisibilityWithWrapperSimpleArg;
+    private Property<CharSequence> labelTextPropertyArg;
+    private Property<String> label2TextPropertyAsString;
     private Property<String> labelVisibilityPropertyAsStringArg;
     private Property<Integer> buttonVisibilityPrimitivePropertyArg;
     private Property<ColorStateList> readOnlyPropertyArg;

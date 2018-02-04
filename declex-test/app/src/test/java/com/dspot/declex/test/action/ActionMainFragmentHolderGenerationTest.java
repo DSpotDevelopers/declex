@@ -47,7 +47,7 @@ import static org.robolectric.util.ReflectionHelpers.setField;
     manifest = "app/src/main/AndroidManifest.xml",
     sdk = 25
 )
-public class TestFragmentActionHolder {
+public class ActionMainFragmentHolderGenerationTest {
 
     @Test
     public void testInitMethods() throws Exception {

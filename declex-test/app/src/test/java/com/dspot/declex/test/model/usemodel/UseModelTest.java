@@ -65,7 +65,7 @@ import static org.hamcrest.Matchers.*;
 )
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
 @PrepareForTest({ModelUser_.class})
-public class TestUseModel {
+public class UseModelTest {
 
     @Rule
     public PowerMockRule rule = new PowerMockRule();

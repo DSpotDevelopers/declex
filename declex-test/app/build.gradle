@@ -19,13 +19,11 @@ android {
 }
 
 dependencies {
-    annotationProcessor 'com.dspot:declex:2.0.a.18'
-    compile 'com.dspot:declex-api:2.0.a.18'
-    compile 'com.dspot:declex-actions:2.0.a.8'
-}
-
-dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
+
+    annotationProcessor 'com.dspot:declex:2.0.a.19'
+    compile 'com.dspot:declex-api:2.0.a.19'
+    compile 'com.dspot:declex-actions:2.0.a.8'
 
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support:support-v4:25.+'

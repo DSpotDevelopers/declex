@@ -42,16 +42,16 @@ import static org.mockito.Mockito.inOrder;
 )
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
 @PrepareForTest({ActionMainActivityActionHolder_.class, ActionMainFragmentActionHolder_.class})
-public class TestActionBean {
+public class ActionsCallsTest {
 
     @Rule
     public PowerMockRule rule = new PowerMockRule();
 
-    private ActionBean_ bean;
+    private ActionsCallsBean_ bean;
 
     @Before
     public void loadHolder() {
-        bean = ActionBean_.getInstance_(RuntimeEnvironment.application);
+        bean = ActionsCallsBean_.getInstance_(RuntimeEnvironment.application);
     }
 
     @Test

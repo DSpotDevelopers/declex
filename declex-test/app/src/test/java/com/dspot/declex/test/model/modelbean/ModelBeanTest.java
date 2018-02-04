@@ -1,19 +1,14 @@
 package com.dspot.declex.test.model.modelbean;
 
 import com.dspot.declex.annotation.Model;
-import com.dspot.declex.test.model.usemodel.ModelBean_;
-import com.dspot.declex.test.model.usemodel.model.ModelUser;
+import com.dspot.declex.test.model.ModelBean_;
 import com.dspot.declex.test.model.usemodel.model.ModelUser_;
 
 import org.androidannotations.api.BackgroundExecutor;
-
-import static org.hamcrest.Matchers.*;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
@@ -29,7 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 @RunWith(RobolectricTestRunner.class)
@@ -39,7 +37,7 @@ import static org.mockito.Mockito.mock;
 )
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
 @PrepareForTest({ModelBean_.class})
-public class TestModelBean {
+public class ModelBeanTest {
 
     private ModelBean_ bean;
     private AtomicBoolean executeAsyncDone;

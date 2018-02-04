@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
     manifest = "app/src/main/AndroidManifest.xml",
     sdk = 25
 )
-public class TestPropertyInjection {
+public class PropertyInjectionTest {
 
     private static final String LABEL_TEXT_TO_SET = "Label Text To Set";
     private static final String LABEL_TEXT = "Label Text";
