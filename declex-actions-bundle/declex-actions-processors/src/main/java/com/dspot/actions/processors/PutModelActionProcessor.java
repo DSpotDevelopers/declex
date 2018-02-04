@@ -15,18 +15,9 @@
  */
 package com.dspot.actions.processors;
 
-import static com.helger.jcodemodel.JExpr.invoke;
-
-import javax.lang.model.element.Element;
-import javax.lang.model.element.Modifier;
-
-import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.EFragment;
-
-import com.dspot.declex.annotation.External;
-import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.ExportRecollect;
 import com.dspot.declex.annotation.Model;
-import com.dspot.declex.annotation.Populate;
+import com.dspot.declex.annotation.Recollect;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
@@ -36,7 +27,15 @@ import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 
-public class LoadModelActionProcessor extends BaseActionProcessor {
+import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.EFragment;
+import org.androidannotations.annotations.export.Export;
+
+import javax.lang.model.element.Element;
+
+import static com.helger.jcodemodel.JExpr.invoke;
+
+public class PutModelActionProcessor extends BaseActionProcessor {
 
 	@Override
 	public void validate(ActionInfo actionInfo) {
@@ -54,14 +53,14 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Model");
 				}
 				
-				actionInfo.isTimeConsuming = modelAnnotation.async();
+				actionInfo.isTimeConsuming = modelAnnotation.asyncPut();
 				
-				ActionMethod noPopulate = getActionMethod("noPopulate");
-				if (noPopulate.metaData != null) {
-					Populate populatorAnnotation = getAnnotation(field, Populate.class);
-					ExternalPopulate externalPopulatorAnnotation = getAnnotation(field, ExternalPopulate.class);
-					if (populatorAnnotation == null && externalPopulatorAnnotation == null) {
-						throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
+				ActionMethod noRecollecte = getActionMethod("noRecollect");
+				if (noRecollecte.metaData != null) {
+					Recollect recollectorAnnotation = getAnnotation(field, Recollect.class);
+					ExportRecollect externalRecollectorAnnotation = getAnnotation(field, ExportRecollect.class);
+					if (recollectorAnnotation == null && externalRecollectorAnnotation == null) {
+						throw new IllegalStateException("The field " + field + " is not annotated with @Recollect");
 					}
 				}
 			}
@@ -80,15 +79,14 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 		if (init.metaData != null) {
 			ActionMethodParam initParam = init.params.get(0);
 			Element field = (Element) initParam.metaData.get("field");
-			
+						
 			if (field != null) {
-				
 				Model modelAnnotation = getAnnotation(field, Model.class);
-					
+				
 				if (field.getEnclosingElement().getAnnotation(EFragment.class) == null
 					&& field.getEnclosingElement().getAnnotation(EActivity.class) == null
-					&& getAnnotation(getElement(), External.class) == null
-					&& getAnnotation(getAnnotatedElement(), External.class) == null)
+					&& getAnnotation(getElement(), Export.class) == null
+					&& getAnnotation(getAnnotatedElement(), Export.class) == null)
 				{
 					if (getActionMethod("keepCallingThread").metaData == null) {
 						addPreBuildBlock(getAction().invoke("keepCallingThread"));
@@ -97,8 +95,8 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 				
 				actionInfo.isTimeConsuming = modelAnnotation.async();
 				
-				JMethod getModelMethod = getMethodInHolder(
-						"getLoadModelMethod", "com.dspot.declex.holder.ModelHolder", field
+				JMethod putModelMethod = getMethodInHolder(
+						"getPutModelMethod", "com.dspot.declex.holder.ModelHolder", field
 					);
 				
 				if (query.metaData == null) {
@@ -116,16 +114,12 @@ public class LoadModelActionProcessor extends BaseActionProcessor {
 					addPostInitBlock(getAction().invoke("fields").arg(fieldsExp));
 				}
 				
-				JInvocation invoke = invoke(getModelMethod);
-				if (field.getModifiers().contains(Modifier.STATIC)) {
-					IJExpression context = getMethodInHolder("getContextRef");
-					invoke.arg(context);
-				}
-				invoke = invoke.arg(getAction().invoke("getArgs"))
-						       .arg(getAction().invoke("getDone"))
-						       .arg(getAction().invoke("getFailed"));
+				JInvocation invoke = invoke(putModelMethod)
+										.arg(getAction().invoke("getArgs"))
+						                .arg(getAction().invoke("getDone"))
+						                .arg(getAction().invoke("getFailed"));
 				
-				addPostBuildBlock(invoke);					
+				addPostBuildBlock(invoke);				
 			}
 		}
 	}

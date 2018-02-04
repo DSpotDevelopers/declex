@@ -20,7 +20,7 @@ import static com.helger.jcodemodel.JExpr.ref;
 
 import javax.lang.model.element.Element;
 
-import com.dspot.declex.annotation.ExternalPopulate;
+import com.dspot.declex.annotation.ExportPopulate;
 import com.dspot.declex.annotation.Populate;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
@@ -46,7 +46,7 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			
 			if (field != null) {
 				Populate populateAnnotation = getAnnotation(field, Populate.class);
-				ExternalPopulate externalPopulateAnnotation = getAnnotation(field, ExternalPopulate.class);
+				ExportPopulate externalPopulateAnnotation = getAnnotation(field, ExportPopulate.class);
 				if (populateAnnotation == null && externalPopulateAnnotation == null) {
 					throw new IllegalStateException("The field " + field + " is not annotated with @Populate");
 				}				
@@ -66,7 +66,7 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 			
 			if (field != null) {
 				
-				if (getAnnotation(field, ExternalPopulate.class) != null) {
+				if (getAnnotation(field, ExportPopulate.class) != null) {
 					
 					JFieldRef listenerField = 
 							getMethodInHolder("getPopulateListener", "com.dspot.declex.holder.PopulateHolder", field);
