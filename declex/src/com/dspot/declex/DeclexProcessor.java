@@ -444,7 +444,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		    	boolean actionScanNeeded = false;
 		    	for (ImportTree importTree : compilationUnit.getImports()) {
 		    	
-		            if (actions._isAction(importTree.getQualifiedIdentifier().toString())) {
+		            if (actions.isAction(importTree.getQualifiedIdentifier().toString())) {
 		            	actionScanNeeded = true;
 		            	
 		            	//The loop continues in order to check different libraries actions  

@@ -36,6 +36,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
@@ -106,54 +107,56 @@ public class EventsHelper {
 		this.environment = environment;
 	}
 	
-	public static boolean isEvent(String name) {
+	private boolean isEvent(String name) {
 		
 		String eventToCheck = name.substring(0, name.lastIndexOf('.'));
 		if (eventToCheck.isEmpty() || !eventToCheck.endsWith(".event")) return false;
 		
 		if (eventToCheck.equals(DeclexConstant.EVENT_PATH)) return true;
-		
-		try {
-			ClassLoader classLoader = instance.getClass().getClassLoader();			
-			Class<?> clazz = classLoader.loadClass(name);
-				
-			boolean isEvent = false;
-			
-			if (clazz.getAnnotation(UseEvents.class) != null) isEvent = true;
-			
-			if (clazz.getCanonicalName().endsWith(ModelConstants.generationSuffix())) {
-				clazz = clazz.getSuperclass();
-				if (clazz.getAnnotation(UseEvents.class) != null) isEvent = true;
+
+		Element element = environment.getProcessingEnvironment().getElementUtils().getTypeElement(name);
+		if (element == null) return false;
+
+		boolean isEvent = false;
+
+		if (element.getAnnotation(UseEvents.class) != null) isEvent = true;
+
+		if (!isEvent && element.getSimpleName().toString().endsWith(ModelConstants.generationSuffix())) {
+
+			//Check in the super class
+			List<? extends TypeMirror> superTypes = environment.getProcessingEnvironment().getTypeUtils().directSupertypes(element.asType());
+			for (TypeMirror type : superTypes) {
+				TypeElement superElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
+				if (superElement == null) continue;
+
+				if (superElement.getAnnotation(UseEvents.class) != null) isEvent = true;
 			}
-			
-			if (isEvent) {
-				instance.registerEvent(clazz);
-			}
-			
-			return isEvent;
-			
-		} catch (ClassNotFoundException e) {
-			return false;
+
 		}
-		
+
+		if (isEvent) {
+			registerEvent(element);
+		}
+
+		return isEvent;
+
 	}
 		
-	private void registerEvent(Class<?> clazz) {
+	private void registerEvent(Element element) {
 		
 		final Map<String, String> fields = new HashMap<>();
 		
-		TypeElement typeElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(clazz.getCanonicalName()); 
-		for (Element element : typeElement.getEnclosedElements()) {
+		for (Element elem : element.getEnclosedElements()) {
 			
-			if (element.getKind().isField()) {
-				if (element.getModifiers().isEmpty()) {
-					fields.put(element.getSimpleName().toString(), element.asType().toString());
+			if (elem.getKind().isField()) {
+				if (elem.getModifiers().isEmpty()) {
+					fields.put(elem.getSimpleName().toString(), elem.asType().toString());
 				}
 			}
 			
 		}
 		
-		registerEvent(clazz.getCanonicalName(), fields);
+		registerEvent(element.asType().toString(), fields);
 		
 	}
 
@@ -288,12 +291,11 @@ public class EventsHelper {
 		}
 
 		//If the class was already created, do nothing (ex. events in libraries)
-		try {
-			ClassLoader classLoader = instance.getClass().getClassLoader();			
-			Class<?> clazz = classLoader.loadClass(className);			
-			return environment.getJClass(clazz);
-		} catch (ClassNotFoundException e) {}
-		
+        Element existingElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(className);
+        if (existingElement != null) {
+            return environment.getJClass(existingElement.asType().toString());
+        }
+
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
 

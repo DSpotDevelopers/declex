@@ -356,7 +356,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			for (AnnotationMirror annotation : elem.getAnnotationMirrors()) {
 				if (environment().getSupportedAnnotationTypes()
 			            .contains(annotation.getAnnotationType().toString())) {
-					
+
 					try {
 						@SuppressWarnings("unchecked")
 						Class<Annotation> annotationClass = (Class<Annotation>) getClass().getClassLoader().loadClass(annotation.getAnnotationType().toString());
