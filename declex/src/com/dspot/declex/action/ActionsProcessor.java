@@ -214,7 +214,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
     	//Check if the Action Api was activated for this compilation unit
     	for (ImportTree importTree : treePath.getCompilationUnit().getImports()) {
     		
-            if (Actions.isAction(importTree.getQualifiedIdentifier().toString())) {
+            if (Actions.getInstance().isAction(importTree.getQualifiedIdentifier().toString())) {
 
             	try {
 
@@ -1028,7 +1028,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (methodSelect.contains(".")) {
 			subMethods.add(invoke);
 		} else {
-			
+
 			if (Actions.getInstance().hasActionNamed(methodSelect)) {
 				
 				String actionClass = Actions.getInstance().getActionNames().get(methodSelect);

@@ -24,11 +24,16 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
 import com.dspot.declex.annotation.*;
+import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.Trees;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.Extra;
 import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.CompilationTreeHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
@@ -54,20 +59,18 @@ import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JInvocation;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.TreePathScanner;
-import com.sun.source.util.Trees;
 
 public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 	private static final Logger LOGGER = LoggerFactory.getLogger(ModelHandler.class);
 	
 	private EventsHelper eventsHelper;
+	private CompilationTreeHelper compilationTreeHelper;
 	
 	public ModelHandler(AndroidAnnotationsEnvironment environment) {
 		super(Model.class, environment);		
 		eventsHelper = EventsHelper.getInstance(environment);
+		compilationTreeHelper = new CompilationTreeHelper(environment);
 	}
 
 	@Override
@@ -137,7 +140,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		//If there's a LoadOnEvent annotation, then instantiate the object only on that event
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
 		if (loadOnEvent != null) {
-			String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, LoadOnEvent.class.getCanonicalName(), "value");
 			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
 			
 			if (classField == null || eventClass == null) {
@@ -198,7 +201,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		PutOnEvent putOnEvent = element.getAnnotation(PutOnEvent.class);
 		if (putOnEvent != null) {
-			String classField = TypeUtils.getClassFieldValue(element, PutOnEvent.class.getCanonicalName(), "value", getEnvironment());
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, PutOnEvent.class.getCanonicalName(), "value");
 			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
 			
 			if (classField == null || eventClass == null) {
@@ -239,7 +242,7 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		//If an UpdateOnEvent is present, add the call to the provided Event
 		UpdateOnEvent updateOnEvent = element.getAnnotation(UpdateOnEvent.class);
 		if (updateOnEvent != null) {
-			String classField = TypeUtils.getClassFieldValue(element, UpdateOnEvent.class.getCanonicalName(), "value", getEnvironment());	
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, UpdateOnEvent.class.getCanonicalName(), "value");
 			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
 			
 			if (classField == null || eventClass == null) {
@@ -258,71 +261,65 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
 	private void generateGetModelCallInBlock(final JBlock block, final boolean checkNull, final Element element, 
 			final ModelHolder modelHolder, final UseModelHolder useModelHolder, final boolean isStatic) {
-		
-		//This ensures the priority of the @Model
-		final Trees trees = Trees.instance(getProcessingEnvironment());
-		final TreePath treePath = trees.getPath(
-    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
-		);
-    	
-    	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
-    		
-    		@Override
-    		public Object visitAnnotation(AnnotationTree annotationTree, Trees trees) {
-    			String annotationName = annotationTree.getAnnotationType().toString();
-    			if (annotationName.equals(Model.class.getSimpleName()) 
-    				|| annotationName.equals(Model.class.getCanonicalName())) {
-    				
-    				int position = (int) trees.getSourcePositions()
-    										  .getStartPosition(treePath.getCompilationUnit(), annotationTree);
-    				
-    				Model annotation = adiHelper.getAnnotation(element, Model.class);
 
-    				//Get the internal calling method
-    				JMethod getModelMethod = modelHolder.getLoadModelMethod(element);
-    				    				
+		compilationTreeHelper.visitElementTree(element, new TreePathScanner<Boolean, Trees>() {
+
+			CompilationUnitTree compilationUnit = compilationTreeHelper.getCompilationUnitImportFromElement(element);
+
+			@Override
+			public Boolean visitAnnotation(AnnotationTree annotationTree, Trees trees) {
+				String annotationName = annotationTree.getAnnotationType().toString();
+				if (annotationName.equals(Model.class.getSimpleName())
+						|| annotationName.equals(Model.class.getCanonicalName())) {
+
+					int position = (int) trees.getSourcePositions().getStartPosition(compilationUnit, annotationTree);
+
+					Model annotation = adiHelper.getAnnotation(element, Model.class);
+
+					//Get the internal calling method
+					JMethod getModelMethod = modelHolder.getLoadModelMethod(element);
+
 					JBlock callBlock = new JBlock();
 					JVar args = callBlock.decl(
-						getClasses().MAP.narrow(String.class, Object.class),
-						"loadModelArgs",
-						_new(getClasses().HASH_MAP)
+							getClasses().MAP.narrow(String.class, Object.class),
+							"loadModelArgs",
+							_new(getClasses().HASH_MAP)
 					);
-					
+
 					{
-	    				final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
-	    				final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
+						final IJExpression queryExpr = FormatsUtils.expressionFromString(annotation.query());
+						final IJExpression orderByExpr = FormatsUtils.expressionFromString(annotation.orderBy());
 						final IJExpression fieldsExpr = FormatsUtils.expressionFromString(annotation.fields());
-						
+
 						if (!annotation.query().isEmpty()) callBlock.add(args.invoke("put").arg("query").arg(queryExpr));
 						if (!annotation.orderBy().isEmpty()) callBlock.add(args.invoke("put").arg("orderBy").arg(orderByExpr));
 						if (!annotation.fields().isEmpty()) callBlock.add(args.invoke("put").arg("fields").arg(fieldsExpr));
 					}
-    				
-    				IJExpression onFailed = _null();
-    				if (isStatic && useModelHolder != null && !annotation.lazy()) 
-    					onFailed = useModelHolder.getGetModelInitBlockOnFailed();
-    				
-    				JInvocation invocation = invoke(getModelMethod);    				
-    				if (isStatic) {
-    					invocation = invocation.arg(ref("context"));
-    				}    				
-    				invocation = invocation.arg(args).arg(_null()).arg(onFailed);
-    				
-    				if (checkNull) {
-    					callBlock._if(invoke(modelHolder.getGetterMethod(element)).eq(_null()))
-    						     ._then().add(invocation);
-    				} else {
-    					callBlock.add(invocation);
-    				}
-    				
-    				SharedRecords.priorityAdd(block, callBlock, position);
-    			}
-    			
-    			return super.visitAnnotation(annotationTree, trees);
-    		}
-    		
-    	};
-    	scanner.scan(treePath, trees);  
+
+					IJExpression onFailed = _null();
+					if (isStatic && useModelHolder != null && !annotation.lazy())
+						onFailed = useModelHolder.getGetModelInitBlockOnFailed();
+
+					JInvocation invocation = invoke(getModelMethod);
+					if (isStatic) {
+						invocation = invocation.arg(ref("context"));
+					}
+					invocation = invocation.arg(args).arg(_null()).arg(onFailed);
+
+					if (checkNull) {
+						callBlock._if(invoke(modelHolder.getGetterMethod(element)).eq(_null()))
+								._then().add(invocation);
+					} else {
+						callBlock.add(invocation);
+					}
+
+					SharedRecords.priorityAdd(block, callBlock, position);
+				}
+
+				return super.visitAnnotation(annotationTree, trees);
+			}
+
+		});
 	}
 
 	private void generatePutModelCallInBlock(JBlock block, Element element, ModelHolder holder, boolean hasEvent) {

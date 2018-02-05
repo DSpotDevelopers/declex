@@ -36,7 +36,7 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
-import org.androidannotations.annotations.Export;
+import org.androidannotations.annotations.export.Export;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;

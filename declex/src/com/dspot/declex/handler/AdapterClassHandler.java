@@ -65,7 +65,8 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		if (classField == null) {
 			valid.addError("The provided class isn't a valid class");
 		}
@@ -81,6 +82,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 				}
 			}
 		}
+
 	}
 
 	@Override
@@ -93,7 +95,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 		
 		if (element.getAnnotation(AdapterClass.class) == null) return;
 		
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(classField);
 		
 		if (typeElement == null) {
@@ -247,7 +249,7 @@ public class AdapterClassHandler extends BaseAnnotationHandler<EComponentHolder>
 	public AbstractJClass getBaseAdapter(Element element) {
 		if (element.getAnnotation(AdapterClass.class) == null) return null;
 		
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		return getJClass(classField);
 	}
 

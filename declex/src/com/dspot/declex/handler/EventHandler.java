@@ -16,8 +16,8 @@
 package com.dspot.declex.handler;
 
 import com.dspot.declex.annotation.Event;
-import org.androidannotations.annotations.Export;
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Export;
+import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;

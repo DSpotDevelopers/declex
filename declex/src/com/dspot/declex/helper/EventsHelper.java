@@ -39,7 +39,6 @@ import javax.lang.model.type.TypeKind;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.helper.FilesCacheHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EActivityHolder;

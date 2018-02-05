@@ -89,32 +89,7 @@ public class Actions {
 	public static Actions getInstance() {
 		return instance;
 	}
-	
-	public static boolean isAction(String name) {
-		
-		String actionToCheck = name.substring(0, name.lastIndexOf('.'));
-		if (actionToCheck.isEmpty() || !actionToCheck.endsWith(".Action")) return false;
-		
-		if (actionToCheck.equals(DeclexConstant.ACTION)) return true;
-		
-		try {
-			ClassLoader classLoader = instance.getClass().getClassLoader();			
-			Class<?> clazz = classLoader.loadClass(actionToCheck);
-						
-			boolean isAction = clazz.getAnnotation(com.dspot.declex.annotation.action.Actions.class) != null; 
-			if (isAction) {
-				//If it is an Actions container object, add it as an export Action
-				instance.addActions(actionToCheck);
-			}
-		
-			return isAction;
-			
-		} catch (ClassNotFoundException e) {
-			return false;
-		}
-		
-	}
-		
+
 	public Actions(InternalAndroidAnnotationsEnvironment env) {
 		
 		this.env = env;
@@ -130,8 +105,28 @@ public class Actions {
 		
 		Actions.instance = this;
 	}
-	
-	private void addActions(String actions) {
+
+    public boolean isAction(String name) {
+
+        String actionToCheck = name.substring(0, name.lastIndexOf('.'));
+        if (actionToCheck.isEmpty() || !actionToCheck.endsWith(".Action")) return false;
+
+        if (actionToCheck.equals(DeclexConstant.ACTION)) return true;
+
+        TypeElement element = env.getProcessingEnvironment().getElementUtils().getTypeElement(actionToCheck);
+        if (element == null) return false;
+
+        boolean isAction = element.getAnnotation(com.dspot.declex.annotation.action.Actions.class) != null;
+        if (isAction) {
+            //If it is an Actions container object, add it as an export Action
+            addActions(actionToCheck);
+        }
+
+        return isAction;
+
+    }
+
+    private void addActions(String actions) {
 		
 		if (!EXTERNAL_ACTIONS.contains(actions)) {
 			TypeElement typeElement = env.getProcessingEnvironment().getElementUtils().getTypeElement(actions);
@@ -204,7 +199,11 @@ public class Actions {
 		if (stopGeneration) {
 			this.generateInRound = false;
 		}
-		
+
+		if (!ACTION_NAMES.containsKey("$" + name)) {
+			System.out.println("ADDING ACTION: " + name);
+		}
+
 		ACTION_NAMES.put("$" + name, clazz);
 		
 		ActionInfo prevInfo = ACTION_INFOS.get(clazz);

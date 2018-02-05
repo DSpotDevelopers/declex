@@ -46,7 +46,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Exported;
 import org.androidannotations.Option;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.APTCodeModelHelper;

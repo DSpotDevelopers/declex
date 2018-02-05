@@ -10,8 +10,8 @@ import java.util.concurrent.Executors;
 
 import javax.tools.JavaFileObject;
 
-import org.androidannotations.helper.FilesCacheHelper;
-import org.androidannotations.helper.FilesCacheHelper.FileDetails;
+import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.util.FileUtils;
 
 public class DeclexCachedSourceOutputStream extends OutputStream {

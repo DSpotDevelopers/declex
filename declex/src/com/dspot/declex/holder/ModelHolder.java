@@ -40,12 +40,13 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 
-import org.androidannotations.annotations.Exported;
+import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.Trees;
+import org.androidannotations.annotations.export.Exported;
 import org.androidannotations.api.BackgroundExecutor;
-import org.androidannotations.helper.ADIHelper;
-import org.androidannotations.helper.APTCodeModelHelper;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.helper.*;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.internal.process.ProcessHolder;
@@ -56,7 +57,7 @@ import com.dspot.declex.annotation.ExportRecollect;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
-import org.androidannotations.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
@@ -79,10 +80,6 @@ import com.helger.jcodemodel.JPrimitiveType;
 import com.helger.jcodemodel.JSynchronizedBlock;
 import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.TreePathScanner;
-import com.sun.source.util.Trees;
 
 public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	
@@ -103,6 +100,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	
 	private APTCodeModelHelper codeModelHelper;
 	private ADIHelper adiHelper;
+	private CompilationTreeHelper compilationTreeHelper;
 		
 	public ModelHolder(EComponentHolder holder) {
 		super(holder);
@@ -118,6 +116,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		
 		codeModelHelper = new DeclexAPTCodeModelHelper(environment());
 		adiHelper = new ADIHelper(environment());
+		compilationTreeHelper = new CompilationTreeHelper(environment());
 	}
 	
 	public JMethod getGetterMethod(Element element) {
@@ -399,7 +398,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		return loadModelRecord.methodBlock;
 	}
 	
-	private ModelMethod setLoadModelMethod(Element element) {		
+	private ModelMethod setLoadModelMethod(final Element element) {
 		
 		final UseModelHolder useModelHolder = useModelHolderForElement(element);
 		
@@ -485,34 +484,29 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		//Insert the annotations in the order of appearance 
 		//TreePathScanner is used to determine the order in the code and ensure
 		//that it doens't depends on the compiler implementation
-		final Trees trees = Trees.instance(environment().getProcessingEnvironment());
-		final TreePath treePath = trees.getPath(
-    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
-		);
-		
-    	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
-    		
-    		@Override
-    		public Object visitAnnotation(AnnotationTree annotationTree, Trees trees) {
-    			String annotationName = annotationTree.getAnnotationType().toString();
-    			
-    			for (AnnotationMirror annotation : annotations) {
-    				final String annotationCanonicalName = annotation.getAnnotationType().toString();
-    				if (annotationCanonicalName.equals(annotationName)
-    	    				|| annotationCanonicalName.endsWith("." + annotationName)) {
-    					
-    					int position = (int) trees.getSourcePositions()
-								  .getStartPosition(treePath.getCompilationUnit(), annotationTree);
-    					
-    					annotationClasses.put(position, getJClass(annotationCanonicalName));
-    				}
-    			}
-    			
-    			return super.visitAnnotation(annotationTree, trees);
-    		}
-    		
-    	};
-    	scanner.scan(treePath, trees);  
+		compilationTreeHelper.visitElementTree(element, new TreePathScanner<Boolean, Trees>() {
+
+			CompilationUnitTree compilationUnit = compilationTreeHelper.getCompilationUnitImportFromElement(element);
+
+			@Override
+			public Boolean visitAnnotation(AnnotationTree annotationTree, Trees trees) {
+				String annotationName = annotationTree.getAnnotationType().toString();
+
+				for (AnnotationMirror annotation : annotations) {
+					final String annotationCanonicalName = annotation.getAnnotationType().toString();
+					if (annotationCanonicalName.equals(annotationName)
+							|| annotationCanonicalName.endsWith("." + annotationName)) {
+
+						int position = (int) trees.getSourcePositions().getStartPosition(compilationUnit, annotationTree);
+						annotationClasses.put(position, getJClass(annotationCanonicalName));
+
+					}
+				}
+
+				return super.visitAnnotation(annotationTree, trees);
+			}
+
+		});
     	
 		for (Entry<Integer, AbstractJClass> annotationEntry : annotationClasses.entrySet()) {
 			annotations_invocation.arg(dotclass(annotationEntry.getValue())); 

@@ -34,13 +34,14 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.export.NonExport;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EComponentHolder;
 
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.helper.AfterPopulateHelper;
-import org.androidannotations.helper.FilesCacheHelper.FileDependency;
-import org.androidannotations.helper.FilesCacheHelper.FileDetails;
+import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
+import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import org.androidannotations.internal.virtual.VirtualElement;
@@ -77,7 +78,7 @@ public class ExportedHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 				if (elem.getModifiers().contains(Modifier.STATIC)) continue;
 				if (elem.getModifiers().contains(Modifier.ABSTRACT)) continue;
-				if (elem.getAnnotation(NonExternal.class) != null) continue;
+				if (elem.getAnnotation(NonExport.class) != null) continue;
 								
 				if (elem.getKind() == ElementKind.METHOD) {
 				

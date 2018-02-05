@@ -43,7 +43,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
-import org.androidannotations.helper.FilesCacheHelper.FileDependency;
+import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.override.helper.OverrideAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;

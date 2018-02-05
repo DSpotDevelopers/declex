@@ -37,6 +37,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.management.openmbean.InvalidOpenTypeException;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -46,7 +47,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.annotation.RunWith;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.holder.ViewsHolder;
@@ -224,9 +225,11 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 					}
 					return true;
 				}
-			} catch (IllegalAccessException | IllegalArgumentException
-					| InvocationTargetException e) {
+			} catch (IllegalAccessException | IllegalArgumentException e) {
 				e.printStackTrace();
+			} catch (InvocationTargetException e) {
+				System.out.println("Detected with: " + holderMethod.getName() + " in " + holder.getClass());
+				e.getCause().printStackTrace();
 			}
     	}
     	

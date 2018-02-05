@@ -122,7 +122,7 @@ import com.dspot.declex.handler.UpdateOnEventHandler;
 import com.dspot.declex.handler.UseEventsHandler;
 import com.dspot.declex.handler.UseLocalDBHandler;
 import com.dspot.declex.handler.UseModelHandler;
-import org.androidannotations.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.override.handler.AfterInjectHandler;
 import com.dspot.declex.override.handler.AfterViewsHandler;

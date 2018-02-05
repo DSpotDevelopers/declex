@@ -35,7 +35,7 @@ public class PutOnEventHandler extends BaseOnEventHandler {
 		super.validate(element, valid);
 		
 		if (element.getAnnotation(PutOnEvent.class).debug()) {
-			String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 			valid.addWarning("Event class: " + classField);
 		}
 	}

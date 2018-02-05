@@ -245,7 +245,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
 		if (loadOnEvent != null) {
-			String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, LoadOnEvent.class.getCanonicalName(), "value");
 			String eventClass = SharedRecords.getEvent(classField, getEnvironment());
 			
 			if (classField == null || eventClass == null) {
@@ -567,8 +567,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		LoadOnEvent loadOnEvent = element.getAnnotation(LoadOnEvent.class);
 		if (loadOnEvent != null) {
-			final String classField = TypeUtils.getClassFieldValue(element, LoadOnEvent.class.getCanonicalName(), "value", getEnvironment());
-			final String eventClass = SharedRecords.getEvent(classField, getEnvironment());			
+			final String classField = annotationHelper.extractAnnotationClassNameParameter(element, LoadOnEvent.class.getCanonicalName(), "value");
+			final String eventClass = SharedRecords.getEvent(classField, getEnvironment());
 			final EventHolder eventHolder = viewsHolder.holder().getPluginHolder(new EventHolder(viewsHolder.holder()));
 			final JBlock eventBody = eventHolder.getEventBlock(eventClass);
 			

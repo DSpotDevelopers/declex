@@ -44,7 +44,7 @@ import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import org.androidannotations.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
@@ -256,10 +256,14 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 					transactionField, 
 					invoke(cast(AppCompatActivity, contextField), getFragmentManager).invoke("beginTransaction")
 				);
-			ifIsActivity._elseif(contextField._instanceof(ActionBarActivity))._then().assign(
-					transactionField, 
-					invoke(cast(ActionBarActivity, contextField), getFragmentManager).invoke("beginTransaction")
+
+			if (hasActionBarActivityInClasspath()) {
+				ifIsActivity._elseif(contextField._instanceof(ActionBarActivity))._then().assign(
+						transactionField,
+						invoke(cast(ActionBarActivity, contextField), getFragmentManager).invoke("beginTransaction")
 				);
+			}
+
 		} else {
 			transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, TRANSACTION_NAME);
 					
@@ -272,6 +276,10 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		JMethod transactionMethodMethod = FragmentAction.method(JMod.PUBLIC, FragmentTransaction, TRANSACTION_NAME);
 		transactionMethodMethod.body()._return(transactionField);
+	}
+
+	private boolean hasActionBarActivityInClasspath() {
+		return processingEnv().getElementUtils().getTypeElement("android.support.v7.app.ActionBarActivity") != null;
 	}
 	
 	private void setTransactionMethods() {

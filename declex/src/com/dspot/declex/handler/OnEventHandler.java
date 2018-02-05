@@ -23,13 +23,12 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import org.androidannotations.annotations.Export;
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Export;
+import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.annotation.OnEvent;
 import com.dspot.declex.handler.base.BaseOnEventHandler;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.TypeUtils;
 import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 
@@ -52,7 +51,7 @@ public class OnEventHandler extends BaseOnEventHandler {
 			eventsHelper.registerAsEventListener(holder);
 		}
 		
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}

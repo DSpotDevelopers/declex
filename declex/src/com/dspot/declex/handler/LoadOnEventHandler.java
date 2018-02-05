@@ -35,7 +35,7 @@ public class LoadOnEventHandler extends BaseOnEventHandler {
 		super.validate(element, valid);
 		
 		if (element.getAnnotation(LoadOnEvent.class).debug()) {
-			String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+			String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 			valid.addWarning("Event class: " + classField);
 		}
 	}

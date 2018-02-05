@@ -15,34 +15,23 @@
  */
 package com.dspot.declex.util;
 
+import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.JVar;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.helper.ADIHelper;
+import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.helper.*;
-
-import org.androidannotations.internal.virtual.VirtualElement;
-import com.helger.jcodemodel.JAnnotationUse;
-import com.helger.jcodemodel.JVar;
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.ExpressionTree;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.TreePathScanner;
-import com.sun.source.util.Trees;
 
 public class TypeUtils {
 	
@@ -143,71 +132,8 @@ public class TypeUtils {
 		
 		return clazz;
 	}
-	
-	public static String getClassFieldValue(Element element, final String annotationName, String methodName, AndroidAnnotationsEnvironment environment) {
-		TargetAnnotationHelper helper = new TargetAnnotationHelper(environment, annotationName);
-		
-		AnnotationMirror annotationMirror = helper.findAnnotationMirror(element, annotationName);
-		Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = annotationMirror.getElementValues();
 
-		for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValues.entrySet()) {
-			/*
-			 * "methodName" is unset when the default value is used
-			 */
-			if (methodName.equals(entry.getKey().getSimpleName().toString())) {
-
-				AnnotationValue annotationValue = entry.getValue();
-				
-				String result = annotationValue + "";
-				if (result.endsWith(".class")) result = result.substring(0, result.length()-6);
-			
-				if (result.equals("<error>")) {
-					
-					final StringBuilder resultBuilder = new StringBuilder();
-					
-					//Try to get the value using Compiler API Tree
-					final Trees trees = Trees.instance(environment.getProcessingEnvironment());
-					final TreePath treePath = trees.getPath(
-			    			element instanceof VirtualElement? ((VirtualElement)element).getElement() : element
-					);
-					
-		        	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
-		        		
-		        		private Pattern pattern = Pattern.compile("value\\s*=\\s*([a-zA-Z_][a-zA-Z_0-9.]+)\\.class$");
-		        		
-		        		@Override
-		        		public Object visitAnnotation(AnnotationTree annotationTree,
-		        				Trees trees) {
-		        			
-		        			if (!annotationName.endsWith("." + annotationTree.getAnnotationType().toString()))
-		        				return super.visitAnnotation(annotationTree, trees);
-		        			
-		        			List<? extends ExpressionTree> args = annotationTree.getArguments();
-		        			for (ExpressionTree arg : args) {
-		        				Matcher matcher = pattern.matcher(arg.toString());
-		        				if (matcher.find()) {
-		        					resultBuilder.append(matcher.group(1));
-		        					break;
-		        				}
-		        			}
-		        			
-		        			return super.visitAnnotation(annotationTree, trees);
-		        		}
-		        		
-		        	};
-		        	
-		        	scanner.scan(treePath, trees);
-		        	result = resultBuilder.toString();
-				}
-				
-				return result;				
-			}
-		}
-		
-		return null;
-	}
-	
-	public static boolean isSubTypeRecusive(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
+	public static boolean isSubTypeRecursive(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
 		String subType = potentialSubtype.toString();
 		String superType = potentialSupertype.toString();
 		
@@ -222,7 +148,7 @@ public class TypeUtils {
 		
 		List<? extends TypeMirror> superTypes = processingEnv.getTypeUtils().directSupertypes(potentialSubtype);
 		for (TypeMirror type : superTypes) {
-			if (isSubTypeRecusive(type, potentialSupertype, processingEnv)) return true;
+			if (isSubTypeRecursive(type, potentialSupertype, processingEnv)) return true;
 		}
 		
 		return false;
@@ -231,7 +157,7 @@ public class TypeUtils {
 	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {		
 		
 		//This is because isSubtype is failing with generic classes in gradle
-		return isSubTypeRecusive(potentialSubtype, potentialSupertype, processingEnv);
+		return isSubTypeRecursive(potentialSubtype, potentialSupertype, processingEnv);
 	}
 
 	public static boolean isSubtype(TypeMirror t1, String t2, ProcessingEnvironment processingEnv) {

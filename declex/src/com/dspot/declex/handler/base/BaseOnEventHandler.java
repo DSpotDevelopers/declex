@@ -23,10 +23,9 @@ import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
 
-import org.androidannotations.annotations.Exported;
+import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.helper.EventsHelper;
 import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.TypeUtils;
 import org.androidannotations.internal.virtual.VirtualElement;
 
 public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> {
@@ -42,7 +41,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		
 		if (classField.trim().equals("")) {
 			valid.addError("No event has been provided");
@@ -71,7 +70,7 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 			eventsHelper.registerAsEventListener(holder);
 		}
 		
-		String classField = TypeUtils.getClassFieldValue(element, getTarget(), "value", getEnvironment());
+		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");
 		if (!classField.contains(".")) {
 			classField = DeclexConstant.EVENT_PATH + classField;
 		}

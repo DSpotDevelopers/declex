@@ -35,7 +35,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
-import org.androidannotations.helper.FilesCacheHelper;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
 import com.helger.jcodemodel.JMethod;
 
