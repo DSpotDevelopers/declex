@@ -35,6 +35,7 @@ import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
 import com.helger.jcodemodel.JMethod;
 
@@ -72,6 +73,13 @@ public class UseModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 	
 		useModelHolder.getExistsVar();
 		useModelHolder.getFields();
+		
+		//This avoids cross references if Cache Files is enabled
+		if (FilesCacheHelper.isCacheFilesEnabled()) {
+			useModelHolder.getGetModelListMethod();
+			useModelHolder.getLoadModelMethod();
+			useModelHolder.getModelInitMethod();
+		}
 		
 		//Get Instance will invoke getModel_
 		JMethod factoryMethod = ((EBeanHolder)holder).getFactoryMethod();

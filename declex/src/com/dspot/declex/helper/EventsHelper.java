@@ -166,6 +166,14 @@ public class EventsHelper {
 		}
 		final int index = className.lastIndexOf('.');
 		final String eventName = className.substring(index + 1);
+				
+		if (!FilesCacheHelper.getInstance().hasCachedFile(className)) {
+			FilesCacheHelper.getInstance().addGeneratedClass(className, null);
+			FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(className, env, false), 
+				null
+			);
+		}
 		
 		ActionInfo actionInfo = new ActionInfo(className);
 		Actions.getInstance().addAction(eventName, className, actionInfo);
@@ -298,6 +306,10 @@ public class EventsHelper {
 		JDefinedClass EventClass;
 		try {
 			
+			if (FilesCacheHelper.getInstance().hasCachedFile(className)) {
+				throw new RuntimeException();
+			}
+			
 			if (!parametersContainer && eventRegisteredAndHasParameters(className)) {
 				//This means an @Event with parameters registered and it will create the class
 				throw new RuntimeException();
@@ -309,6 +321,7 @@ public class EventsHelper {
 			EventClass.javadoc().add(actionInfo.references);
 			
 			Element rootElement = TypeUtils.getRootElement(fromElement);
+			FilesCacheHelper.getInstance().addGeneratedClass(className, rootElement);
 			
 		} catch (JClassAlreadyExistsException e) {
 			

@@ -15,17 +15,18 @@
  */
 package com.dspot.declex.override.holder;
 
-import com.dspot.declex.action.Actions;
-import com.dspot.declex.annotation.action.ActionFor;
-import com.dspot.declex.annotation.action.StopOn;
-import com.dspot.declex.api.action.base.BaseActivityActionHolder;
-import com.dspot.declex.api.action.process.ActionInfo;
-import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.action.processor.ActivityActionProcessor;
-import com.dspot.declex.util.JavaDocUtils;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
-import com.helger.jcodemodel.*;
+import static com.helger.jcodemodel.JExpr._new;
+
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.annotations.Extra;
@@ -33,16 +34,25 @@ import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-
-import static com.helger.jcodemodel.JExpr._new;
+import com.dspot.declex.action.Actions;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.StopOn;
+import com.dspot.declex.api.action.base.BaseActivityActionHolder;
+import com.dspot.declex.api.action.process.ActionInfo;
+import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.api.action.processor.ActivityActionProcessor;
+import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.JavaDocUtils;
+import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.util.TypeUtils.ClassInformation;
+import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.JDefinedClass;
+import com.helger.jcodemodel.JFieldVar;
+import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.JVar;
 
 public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 
@@ -72,6 +82,13 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 		final String pkg = clsName.substring(0, index);
 		final String activityName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + activityName + "ActionHolder";
+		
+		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
+		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(actionName, env, false),
+				null
+			);
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.processors.add(new ActivityActionProcessor());

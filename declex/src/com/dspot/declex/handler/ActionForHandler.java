@@ -34,6 +34,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import com.dspot.declex.helper.FilesCacheHelper;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
@@ -43,6 +44,7 @@ import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
+import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
 import com.dspot.declex.override.helper.OverrideAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.TypeUtils;
@@ -69,7 +71,22 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		
 	@Override
 	protected void validate(Element element, ElementValidation valid) {
-
+		
+		//Actions depends on Action Holders
+		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
+		
+		//Mark the Cache of this file as Action, to add action objects after generation
+		try {
+			//If it is a generated ActionHolder
+            FilesCacheHelper.getInstance().getFileDetails(element.asType().toString()).isAction = true;
+		} catch (Throwable e){
+			//For normal not generated ActionHolders
+			FileDependency actionHolderDependency = FilesCacheHelper.getInstance().getFileDependency(element.asType().toString());
+			if (actionHolderDependency != null) {
+				actionHolderDependency.isAction = true;
+			}
+		}
+		
 		boolean initFound = false;
 		boolean buildFound = false;
 		boolean executeFound = false;
@@ -223,6 +240,7 @@ public class ActionForHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			try {
 				JDefinedClass ActionGate = getCodeModel()._class(JMod.PUBLIC, actionGateClassName);
 				ActionGate._extends(codeModelHelper.elementTypeToJClass(element));
+				FilesCacheHelper.getInstance().addGeneratedClass(actionGateClassName, element);
 				
 				if (javaDoc != null) {
 					ActionGate.javadoc().add(javaDoc);

@@ -30,6 +30,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 
 import com.dspot.declex.annotation.*;
+import com.dspot.declex.helper.FilesCacheHelper;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.AfterInject;
@@ -40,6 +41,8 @@ import org.androidannotations.holder.EComponentHolder;
 
 import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.helper.AfterPopulateHelper;
+import com.dspot.declex.helper.FilesCacheHelper.FileDependency;
+import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import org.androidannotations.internal.virtual.VirtualElement;
@@ -168,6 +171,33 @@ public class ExportedHandler extends BaseAnnotationHandler<EComponentHolder> {
 				return;
 			}
 
+			//TODO
+			//Now the rootElement generated class depends on this element
+			final Element rootElement = TypeUtils.getRootElement(element);
+			final String generatedRootElementClass = TypeUtils.getGeneratedClassName(rootElement, getEnvironment());
+			final FilesCacheHelper filesCacheHelper = FilesCacheHelper.getInstance();
+
+			System.out.println("XX: " + generatedRootElementClass);
+			if (filesCacheHelper.hasCachedFile(generatedRootElementClass)) {
+				
+				FileDetails details = filesCacheHelper.getFileDetails(generatedRootElementClass);
+				System.out.println("XY: " + details);
+				
+				FileDependency dependency = filesCacheHelper.getFileDependency(((VirtualElement)element).getElement().getEnclosingElement().asType().toString());
+				
+				if (!details.dependencies.contains(dependency)) {		
+					System.out.println("XZ: " + dependency);
+					
+					details.invalidate();
+					valid.addError("Please rebuild the project to update the cache");
+				}			
+			}
+			
+			filesCacheHelper.addGeneratedClass(
+					generatedRootElementClass, 
+					((VirtualElement)element).getElement().getEnclosingElement()
+				);
+	
 		}
 	}
 	

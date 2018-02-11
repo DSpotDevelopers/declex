@@ -44,6 +44,7 @@ import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
@@ -92,6 +93,13 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String pkg = clsName.substring(0, index);
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
+		
+		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
+		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
+		FilesCacheHelper.getInstance().addGeneratedClass(
+				TypeUtils.getGeneratedClassName(actionName, env, false), 
+				null
+			);
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.isTimeConsuming = false;

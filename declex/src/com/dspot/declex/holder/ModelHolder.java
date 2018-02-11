@@ -57,6 +57,7 @@ import com.dspot.declex.annotation.ExportRecollect;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.api.action.runnable.OnFailedRunnable;
 import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.util.TypeUtils.ClassInformation;
@@ -347,6 +348,9 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 	}
 	
 	private UseModelHolder useModelHolderForElement(Element element) {
+		
+		//If CacheFiles is enabled, crossed references cannot be handled
+		if (FilesCacheHelper.isCacheFilesEnabled()) return null;
 		
 		ClassInformation classInformation = TypeUtils.getClassInformation(element, environment(), true);
 		ProcessHolder processHolder = environment().getProcessHolder();
