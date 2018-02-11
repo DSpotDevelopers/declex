@@ -46,6 +46,7 @@ import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JVar;
+import org.androidannotations.internal.model.AnnotationElements;
 
 public class ExtraHandler extends org.androidannotations.internal.core.handler.ExtraHandler {
 
@@ -64,12 +65,12 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		final Element rootElement = TypeUtils.getRootElement(element);
 		final String rootElementClass = rootElement.asType().toString();
 		
-		if (filesCacheHelper.isAncestor(rootElementClass)) {
+		if (getEnvironment().getValidatedElements().isAncestor(rootElement)) {
 						
-			Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElementClass);
+			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = getEnvironment().getValidatedElements().getAncestorSubClassesElements(rootElement);
 			
-			for (String subClass : subClasses) {
-				if (filesCacheHelper.isAncestor(subClass)) continue;
+			for (AnnotationElements.AnnotatedAndRootElements subClass : subClasses) {
+				if (getEnvironment().getValidatedElements().isAncestor(subClass.rootTypeElement)) continue;
 				
 				ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
 				

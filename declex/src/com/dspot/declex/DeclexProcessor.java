@@ -15,26 +15,21 @@
  */
 package com.dspot.declex;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-
+import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.*;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.api.util.FormatsUtils;
+import com.dspot.declex.helper.ActionHelper;
+import com.dspot.declex.parser.LayoutsParser;
+import com.dspot.declex.parser.MenuParser;
+import com.dspot.declex.util.DeclexConstant;
+import com.dspot.declex.util.SharedRecords;
+import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.wrapper.RoundEnvironmentByCache;
+import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
+import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.JExpr;
+import com.helger.jcodemodel.JFieldRef;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.ImportTree;
@@ -42,6 +37,7 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.export.Export;
+import org.androidannotations.annotations.export.Exported;
 import org.androidannotations.annotations.export.Import;
 import org.androidannotations.handler.AnnotationHandler;
 import org.androidannotations.helper.AndroidManifest;
@@ -49,33 +45,23 @@ import org.androidannotations.helper.CompilationTreeHelper;
 import org.androidannotations.internal.generation.CodeModelGenerator;
 import org.androidannotations.internal.helper.AndroidManifestFinder;
 import org.androidannotations.internal.model.AnnotationElements;
-import org.androidannotations.internal.model.AnnotationElements.AnnotatedAndRootElements;
 import org.androidannotations.internal.model.AnnotationElementsHolder;
 import org.androidannotations.internal.model.ModelExtractor;
 import org.androidannotations.internal.process.ModelProcessor.ProcessResult;
+import org.androidannotations.internal.virtual.VirtualElement;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerContext;
 import org.androidannotations.logger.LoggerFactory;
 import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
-import com.dspot.declex.action.Actions;
-import org.androidannotations.annotations.export.Exported;
-import com.dspot.declex.annotation.action.ActionFor;
-import com.dspot.declex.api.util.FormatsUtils;
-import com.dspot.declex.helper.ActionHelper;
-import com.dspot.declex.helper.FilesCacheHelper;
-import com.dspot.declex.helper.FilesCacheHelper.FileDetails;
-import com.dspot.declex.parser.LayoutsParser;
-import com.dspot.declex.parser.MenuParser;
-import com.dspot.declex.util.DeclexConstant;
-import com.dspot.declex.util.SharedRecords;
-import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.wrapper.RoundEnvironmentByCache;
-import org.androidannotations.internal.virtual.VirtualElement;
-import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
-import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.JExpr;
-import com.helger.jcodemodel.JFieldRef;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+import java.io.IOException;
+import java.util.*;
 
 public class DeclexProcessor extends org.androidannotations.internal.AndroidAnnotationProcessor {
 	
@@ -86,10 +72,6 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected LayoutsParser layoutsParser;
 	protected MenuParser menuParser;
 	protected Actions actions;
-	
-	protected FilesCacheHelper filesCacheHelper;
-	protected Set<FileDetails> cachedFiles;
-	protected int cachedFilesGenerated;
 
 	private CompilationTreeHelper compilationTreeHelper;
 	
@@ -113,27 +95,10 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			layoutsParser = new LayoutsParser(androidAnnotationsEnv, LOGGER);
 			menuParser = new MenuParser(androidAnnotationsEnv, LOGGER);
 			
-			actions = new Actions(androidAnnotationsEnv);	
-			
-			filesCacheHelper = new FilesCacheHelper(androidAnnotationsEnv);
-			cachedFiles = new HashSet<>();
+			actions = new Actions(androidAnnotationsEnv);
 
 			compilationTreeHelper = new CompilationTreeHelper(androidAnnotationsEnv);
-			
-			if (FilesCacheHelper.isCacheFilesEnabled()) {
-				cachedFiles.addAll(filesCacheHelper.getAutogeneratedClasses()); //Write all Cached Autogenerated Classes
-				cachedFilesGenerated = 0;
-				
-				if (PRE_GENERATION_ENABLED) {
-					for (FileDetails details : cachedFiles) {
-						if (!details.canBeUpdated) {
-							details.preGenerate(androidAnnotationsEnv);
-						}
-					}
-				}
-				
-			}
-			
+
 			timeStats.stop("Helpers Initialization");
 			timeStats.logStats();
 			
@@ -170,37 +135,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		
 		boolean nothingToDo = super.nothingToDo(annotations, roundEnv);
 		
-		if (nothingToDo) {			
-			if (roundEnv.processingOver()) {
-			
-				timeStats.start("Writing Cache");
-				
-				long time = 0;
-				//Wait till all the documents be saved
-				while (FileDetails.isSaving()) {
-					
-					if (time > 30000) {
-						LOGGER.error("Timeout writing to Cache for more than 30 segs");
-						break;
-					}
-					
-					try {
-						Thread.sleep(100);
-						time += 100;
-					} catch (InterruptedException e) {};
-				}
-				
-				if (FileDetails.getFailedGenerations().size() > 0) {
-					LOGGER.error("Generation of Cached Files Failed with " + FileDetails.getFailedGenerations());
-				}
-				
-				filesCacheHelper.saveGeneratedClasses();
-				
-				filesCacheHelper.ensureSources();
-				
-				timeStats.stop("Writing Cache");
-			}
-			
+		if (nothingToDo) {
 			return true;
 		} else {
 
@@ -228,173 +163,50 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	protected AnnotationElementsHolder extractAnnotations(
 			Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 		
-		if (!FilesCacheHelper.isCacheFilesEnabled()) {
-			timeStats.start("Scan for Exports");
-			Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements = new HashMap<>();
-			scanForExports(roundEnv, annotations, virtualAnnotatedElements);
-			timeStats.stop("Scan for Exports");
-			
-			timeStats.start("Extract Annotations");
-			
-			final ModelExtractor modelExtractor = new ModelExtractor();
-			final AnnotationElementsHolder extractedModel;
-			
-			if (!virtualAnnotatedElements.isEmpty()) {				
-				
-				Set<TypeElement> completeAnnotations = new HashSet<>(annotations);
-				completeAnnotations.addAll(virtualAnnotatedElements.keySet());
-				
-				for (TypeElement annotation : annotations) {
-					Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-					if (virtualAnnotatedElements.containsKey(annotation)) {
-						
-						Set virtualElements = virtualAnnotatedElements.get(annotation);						
-						for (Element element : elements) {
-							virtualElements.add(element);	
-						}
-						
-					} else {
-						virtualAnnotatedElements.put(annotation, elements);
-					}
-				}
-				
-				
-				extractedModel = modelExtractor.extract(
-						completeAnnotations, 
-					getSupportedAnnotationTypes(), 
-					new RoundEnvironmentByCache(roundEnv, virtualAnnotatedElements)
-				);
-				
-			} else {
-				extractedModel = modelExtractor.extract(annotations, getSupportedAnnotationTypes(), roundEnv);
-			}
-			
-			Set<AnnotatedAndRootElements> ancestorAnnotatedElements = extractedModel.getAllAncestors();
-			for (AnnotatedAndRootElements elements : ancestorAnnotatedElements) {
-				
-				//Add ancestors to File Cache Service
-				Element rootElement = elements.annotatedElement;
-				if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {					
-					FilesCacheHelper.getInstance().addAncestor(rootElement, elements.rootTypeElement);
-				}
-			}
-			
-			timeStats.stop("Extract Annotations");
-			
-			return extractedModel;
-									
-		}
-		
-		//TODO The Cache service is not prepared for Exports
-		
-		timeStats.start("Extract Annotations");
-		
-		Map<TypeElement, Set<? extends Element>> annotatedElements = new HashMap<>();
-		Set<TypeElement> noCachedAnnotations = new HashSet<>();
-		
-		Set<String> confirmedCachedClasses = new HashSet<>();
-		Map<String, Boolean> confirmedAncestorsClasses = new HashMap<>();
-		
-		for (TypeElement annotation : annotations) {
-			Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-									
-			Set<Element> annotatedElementsWithAnnotation = new HashSet<>();			
-			
-			annotationElements: for (Element element : elements) {
-					
-				final Element rootElement = TypeUtils.getRootElement(element);		
-				final String rootElementClass = rootElement.asType().toString();
-				
-				if (confirmedAncestorsClasses.containsKey(rootElementClass)) {
-					if (confirmedAncestorsClasses.get(rootElementClass)) {
-						annotatedElementsWithAnnotation.add(element);
-					}
-					continue;
-				}
-				
-				if (filesCacheHelper.isAncestor(rootElementClass)) {
-										
-					Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElementClass);
-					for (String subClass : subClasses) {
-						
-						if (filesCacheHelper.isAncestor(subClass)) continue;
-						
-						//TODO
-						//Only direct generated classes are checked for cache, but there's others generated classes
-						//which are not checked, for instance the Events and Actions Holders, even if their cache
-						//is invalid this mechanism doesn't guarantee to regenerate them
-						final String generatedSubClassName = TypeUtils.getGeneratedClassName(subClass, rootElement, androidAnnotationsEnv, false);
-						
-						if (!filesCacheHelper.hasCachedFile(generatedSubClassName)) {
-							annotatedElementsWithAnnotation.add(element);
-							
-							confirmedAncestorsClasses.put(rootElementClass, true);
-							continue annotationElements;
-						}
-					}
-					
-					confirmedAncestorsClasses.put(rootElementClass, false);
-					continue;
-				}
-				
-				//Get Generated Class Name for the rootElement				
-				//TODO
-				//Only direct generated classes are checked for cache, but there's others generated classes
-				//which are not checked, for instance the Events and Actions Holders, even if their cache
-				//is invalid this mechanism doesn't guarantee to regenerate them
-				final String generatedClassName = TypeUtils.getGeneratedClassName(rootElement, androidAnnotationsEnv);
-				if (confirmedCachedClasses.contains(generatedClassName)) continue;
-				
-				
-				if (filesCacheHelper.hasCachedFile(generatedClassName)) {
+		timeStats.start("Scan for Exports");
+		Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements = new HashMap<>();
+		scanForExports(roundEnv, annotations, virtualAnnotatedElements);
+		timeStats.stop("Scan for Exports");
 
-					Set<FileDetails> detailsList = filesCacheHelper.getFileDetailsList(generatedClassName);
-					for (FileDetails details : detailsList) {						
-						cachedFiles.add(details);
-						
-						if (PRE_GENERATION_ENABLED && !details.canBeUpdated) {
-							details.preGenerate(androidAnnotationsEnv);
-						}
+		timeStats.start("Extract Annotations");
+
+		final ModelExtractor modelExtractor = new ModelExtractor();
+		final AnnotationElementsHolder extractedModel;
+
+		if (!virtualAnnotatedElements.isEmpty()) {
+
+			Set<TypeElement> completeAnnotations = new HashSet<>(annotations);
+			completeAnnotations.addAll(virtualAnnotatedElements.keySet());
+
+			for (TypeElement annotation : annotations) {
+				Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
+				if (virtualAnnotatedElements.containsKey(annotation)) {
+
+					Set virtualElements = virtualAnnotatedElements.get(annotation);
+					for (Element element : elements) {
+						virtualElements.add(element);
 					}
-					
-					confirmedCachedClasses.add(generatedClassName);
-					
+
 				} else {
-					annotatedElementsWithAnnotation.add(element);
+					virtualAnnotatedElements.put(annotation, elements);
 				}
 			}
-			
-			if (!annotatedElementsWithAnnotation.isEmpty()) {
-				noCachedAnnotations.add(annotation);
-				annotatedElements.put(annotation, annotatedElementsWithAnnotation);
-			}
+
+
+			extractedModel = modelExtractor.extract(
+					completeAnnotations,
+				getSupportedAnnotationTypes(),
+				new RoundEnvironmentByCache(roundEnv, virtualAnnotatedElements)
+			);
+
+		} else {
+			extractedModel = modelExtractor.extract(annotations, getSupportedAnnotationTypes(), roundEnv);
 		}
-		
-		if (PRE_GENERATION_ENABLED) {
-			filesCacheHelper.preGenerateSources();
-		}
-		
-		ModelExtractor modelExtractor = new ModelExtractor();
-		AnnotationElementsHolder extractedModel = modelExtractor.extract(
-			noCachedAnnotations, 
-			getSupportedAnnotationTypes(), 
-			new RoundEnvironmentByCache(roundEnv, annotatedElements)
-		);
-				
-		Set<AnnotatedAndRootElements> ancestorAnnotatedElements = extractedModel.getAllAncestors();
-		for (AnnotatedAndRootElements elements : ancestorAnnotatedElements) {
-			
-			//Add ancestors to File Cache Service
-			Element rootElement = elements.annotatedElement;
-			if (rootElement.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) {
-				FilesCacheHelper.getInstance()
-				                .addAncestor(rootElement, elements.rootTypeElement);
-			}
-		}
-		
+
 		timeStats.stop("Extract Annotations");
-				
+
 		return extractedModel;
+									
 	}
 	
 	/**
@@ -604,8 +416,6 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			AnnotationElements extractedModel,
 			AnnotationElementsHolder validatingHolder) {
 		
-		filesCacheHelper.validateCurrentCache();
-		
 		AnnotationElements annotationElements = super.validateAnnotations(extractedModel, validatingHolder);
 		
 		//Run validations for Actions (it should be run after all the normal validations)
@@ -641,17 +451,11 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 				
 		timeStats.start("Generate Sources");
 		
-		int numberOfFiles = processResult.codeModel.countArtifacts() + cachedFiles.size() - cachedFilesGenerated; 
-				
-		//Generate Actions
-		if (!filesCacheHelper.hasCachedFile(DeclexConstant.ACTION) 
-			|| !cachedFiles.contains(filesCacheHelper.getFileDetails(DeclexConstant.ACTION))) {
-			
-			if (actions.buildActionsObject()) {
-				LOGGER.debug("Generating Action Object");
-				numberOfFiles++;			
-			}
-			
+		int numberOfFiles = processResult.codeModel.countArtifacts();
+
+		if (actions.buildActionsObject()) {
+			LOGGER.debug("Generating Action Object");
+			numberOfFiles++;
 		}
 		
 		LOGGER.info("Number of files generated by DecleX: {}", numberOfFiles);
@@ -664,15 +468,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			);
 			modelGenerator.generate(processResult);
 		}
-		
-		for (FileDetails details : cachedFiles) {	
-			if (!details.generated) {
-				LOGGER.debug("Generating class from cache: {}", details.className);
-				details.generate(androidAnnotationsEnv);
-				cachedFilesGenerated++;
-			}
-		}
-		
+
 		timeStats.stop("Generate Sources");
 		
 		timeStats.start("Save Config");				
@@ -681,57 +477,5 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		timeStats.stop("Save Config");
 
 	}
-	
-	public static void main(String[] args) {
-		System.out.println("DecleX Service");
-		
-		int i = 0;
-		while (i < args.length) {
-			
-			switch (args[i]) {
-			
-			case "generate":
-				try {
-					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "generate.log"));
-					
-					System.out.println("Running Generate Cache Service");
-					FilesCacheHelper.runGenerateSources(5);
-				} catch (Throwable e) {
-					e.printStackTrace();
-					System.exit(1);
-				} finally {
-					System.out.close();
-					System.exit(0);
-				}
-				break;
-			
-			case "cache":
-				try {
-					System.setOut(outputFile(FilesCacheHelper.getExternalCache().getAbsolutePath() + File.separator + "cache.log"));
-				
-					System.out.println("Running Cache Service");
-					FilesCacheHelper.runClassCacheCreation();
-				} catch (Throwable e) {
-					e.printStackTrace();
-					System.exit(1);
-				} finally {
-					System.out.close();
-					System.exit(0);
-				}
-				break;
 
-			default:
-				System.out.println("Unknow argument: " + args[i]);
-				break;
-			}
-			
-			i++;
-		}
-	}
-	
-	private static PrintStream outputFile(String name) throws FileNotFoundException {
-		File file = new File(name);
-		if (file.exists()) file.delete();
-        return new PrintStream(new BufferedOutputStream(new FileOutputStream(name)));
-    }
 }

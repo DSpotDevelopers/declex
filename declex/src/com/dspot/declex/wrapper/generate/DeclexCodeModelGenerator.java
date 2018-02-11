@@ -20,14 +20,4 @@ public class DeclexCodeModelGenerator extends CodeModelGenerator {
 				"You can create a larger work that contains this file and distribute that work under terms of your choice.\n";
 	}
 	
-	public void generate(ModelProcessor.ProcessResult processResult) throws IOException {
-		Charset charset = getCharset();
-
-		SourceCodeWriter sourceCodeWriter = new DeclexSourceCodeWriter(filer, processResult.originatingElements, charset);
-
-		PrologCodeWriter prologCodeWriter = new PrologCodeWriter(sourceCodeWriter, header);
-
-		processResult.codeModel.build(prologCodeWriter, new ResourceCodeWriter(filer, charset));
-	}
-	
 }

@@ -34,7 +34,7 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
 		
-		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			FragmentActionHolder.createInformationForActionHolder(element, getEnvironment());
 		}
 	}
@@ -43,7 +43,7 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	public void process(Element element, EFragmentHolder holder) {
 		super.process(element, holder);
 		
-		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
 			actionHolder.getFragmentAction();
 		}

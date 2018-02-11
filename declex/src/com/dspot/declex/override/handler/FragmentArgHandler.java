@@ -18,6 +18,7 @@ package com.dspot.declex.override.handler;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +40,7 @@ import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.override.holder.FragmentActionHolder;
 import com.dspot.declex.util.TypeUtils;
+import org.androidannotations.internal.model.AnnotationElements;
 import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
@@ -63,12 +65,12 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		final Element rootElement = TypeUtils.getRootElement(element);
 		final String rootElementClass = rootElement.asType().toString();
 		
-		if (filesCacheHelper.isAncestor(rootElementClass)) {
+		if (getEnvironment().getValidatedElements().isAncestor(rootElement)) {
 						
-			Set<String> subClasses = filesCacheHelper.getAncestorSubClasses(rootElementClass);
+			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = getEnvironment().getValidatedElements().getAncestorSubClassesElements(rootElement);
 			
-			for (String subClass : subClasses) {
-				if (filesCacheHelper.isAncestor(subClass)) continue;
+			for (AnnotationElements.AnnotatedAndRootElements subClass : subClasses) {
+				if (getEnvironment().getValidatedElements().isAncestor(subClass.rootTypeElement)) continue;
 				
 				ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
 				

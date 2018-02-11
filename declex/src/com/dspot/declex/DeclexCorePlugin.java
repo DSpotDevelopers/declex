@@ -122,7 +122,6 @@ import com.dspot.declex.handler.UpdateOnEventHandler;
 import com.dspot.declex.handler.UseEventsHandler;
 import com.dspot.declex.handler.UseLocalDBHandler;
 import com.dspot.declex.handler.UseModelHandler;
-import com.dspot.declex.helper.FilesCacheHelper;
 import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.override.handler.AfterInjectHandler;
 import com.dspot.declex.override.handler.AfterViewsHandler;
@@ -170,13 +169,10 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 			TraceHandler.OPTION_TRACE, 
 			SupposeThreadHandler.OPTION_THREAD_CONTROL,
 			
-			FilesCacheHelper.OPTION_CACHE_FILES,
-			FilesCacheHelper.OPTION_DEBUG_CACHE,
-			FilesCacheHelper.OPTION_CACHE_FILES_IN_PROCESS,
-			
 			UseModelHolder.OPTION_GENERATE_IS_GETTERS,
 			
 			Actions.OPTION_DEBUG_ACTIONS
+
 		);
 	}
 	

@@ -34,7 +34,7 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
 		
-		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			ActivityActionHolder.createInformationForActionHolder(element, getEnvironment());
 		}
 	}
@@ -43,7 +43,7 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 	public void process(Element element, EActivityHolder holder) {
 		super.process(element, holder);
 		
-		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
 			actionHolder.getActivityAction();
 		}
