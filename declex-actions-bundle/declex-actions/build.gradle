@@ -1,5 +1,5 @@
 apply plugin: 'com.android.library'
-def DECLEX_VERSION = '2.0.a.19'
+def DECLEX_VERSION = '2.0.a.21'
 
 ext {
     PUBLISH_GROUP_ID = 'com.dspot'
@@ -11,7 +11,7 @@ android {
     compileSdkVersion 26
     buildToolsVersion "26.0.3"
     defaultConfig {
-        minSdkVersion 14
+        minSdkVersion 9
         targetSdkVersion 26
         versionCode 1
         versionName "$DECLEX_VERSION"
@@ -36,11 +36,9 @@ android {
 dependencies {
     annotationProcessor "com.dspot:declex:$DECLEX_VERSION"
     compile "com.dspot:declex-api:$DECLEX_VERSION"
-
     compile "com.dspot:declex-actions-processors:$DECLEX_VERSION"
 
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:26.0.0'
+    provided 'com.android.support:appcompat-v7:26.0.0'
 
     testCompile 'junit:junit:4.12'
 }

@@ -947,12 +947,12 @@ public class FilesCacheHelper {
 		} 
 		
 		final String subClassName = subClass.asType().toString();
-						
-		CompilationUnitTree compilationUnitTree = compilationTreeHelper.getCompilationUnitImportFromElement(ancestor);
-        if (compilationUnitTree == null) return;
+
+		CompilationUnitTree compilationUnit = compilationTreeHelper.getCompilationUnitImportFromElement(ancestor);
+        if (compilationUnit == null) return;
 
 		FileDependency ancestorDependency = FileDependency.newFileDependency(ancestor.asType().toString());
-		ancestorDependency.sourceFile = Paths.get(compilationUnitTree.getSourceFile().toUri()).toFile().getAbsolutePath();
+		ancestorDependency.sourceFile = Paths.get(compilationUnit.getSourceFile().toUri()).toFile().getAbsolutePath();
 		ancestorDependency.sourceFileLastModified = new File(ancestorDependency.sourceFile).lastModified();
 		ancestorDependency.isAncestor = true;
 		ancestorDependency.isValid = true;

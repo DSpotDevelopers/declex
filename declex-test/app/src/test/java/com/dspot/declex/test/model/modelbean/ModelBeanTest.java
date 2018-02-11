@@ -2,6 +2,7 @@ package com.dspot.declex.test.model.modelbean;
 
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.test.model.ModelBean_;
+import com.dspot.declex.test.model.usemodel.model.ModelUser;
 import com.dspot.declex.test.model.usemodel.model.ModelUser_;
 
 import org.androidannotations.api.BackgroundExecutor;

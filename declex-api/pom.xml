@@ -7,7 +7,7 @@
 	<parent>
 		<groupId>com.dspot</groupId>
 		<artifactId>declex-parent</artifactId>
-		<version>2.0.a.20</version>
+		<version>2.0.a.21</version>
 	</parent>
 
     <artifactId>declex-api</artifactId>

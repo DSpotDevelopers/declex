@@ -16,6 +16,6 @@
 package com.dspot.declex.api.action.process;
 
 public interface ActionProcessor {
-	public void validate(ActionInfo actionInfo);
-	public void process(ActionInfo actionInfo);
+	void validate(ActionInfo actionInfo);
+	void process(ActionInfo actionInfo);
 }

@@ -18,14 +18,8 @@ package com.dspot.declex.action;
 import static com.helger.jcodemodel.JExpr._new;
 
 import java.lang.annotation.Annotation;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -35,9 +29,11 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
+import com.sun.source.tree.CompilationUnitTree;
 import org.androidannotations.Option;
 import org.androidannotations.api.view.HasViews;
 import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.helper.CompilationTreeHelper;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
 import org.androidannotations.internal.process.ProcessHolder;
@@ -60,6 +56,7 @@ import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
+import org.androidannotations.plugin.AndroidAnnotationsPlugin;
 
 public class Actions {
 
@@ -85,7 +82,8 @@ public class Actions {
 	
 	private final IdAnnotationHelper annotationHelper;
 	private final APTCodeModelHelper codeModelHelper;
-	
+	private final CompilationTreeHelper compilationTreeHelper;
+
 	public static Actions getInstance() {
 		return instance;
 	}
@@ -101,9 +99,10 @@ public class Actions {
 		ACTION_ANNOTATION.add(StopOn.class);
 		
 		annotationHelper = new IdAnnotationHelper(env, ActionFor.class.getCanonicalName());
-		codeModelHelper = new APTCodeModelHelper(env);		
-		
-		Actions.instance = this;
+		codeModelHelper = new APTCodeModelHelper(env);
+		compilationTreeHelper = new CompilationTreeHelper(env);
+
+        Actions.instance = this;
 	}
 
     public boolean isAction(String name) {
@@ -200,10 +199,6 @@ public class Actions {
 			this.generateInRound = false;
 		}
 
-		if (!ACTION_NAMES.containsKey("$" + name)) {
-			System.out.println("ADDING ACTION: " + name);
-		}
-
 		ACTION_NAMES.put("$" + name, clazz);
 		
 		ActionInfo prevInfo = ACTION_INFOS.get(clazz);
@@ -262,20 +257,31 @@ public class Actions {
 			//Load processors
 			if (processors != null) {
 				for (DeclaredType processor : processors) {
-					try {
-						actionInfo.processors.add(
-								(ActionProcessor) Class.forName(processor.toString()).newInstance()
-							);
-					} catch (Exception e) {
-						TypeElement element = env.getProcessingEnvironment().getElementUtils().getTypeElement(processor.toString());
-						if (element == null) {
-							LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded, it is not in the building path", typeElement);							
-						} else {
-							LOGGER.info("Processor \"" + processor.toString() + "\" coudn't be loaded", typeElement);
-						}
-						
-					}
-				}
+
+                    Class<ActionProcessor> processorClass = null;
+
+				    try {
+                        processorClass = (Class<ActionProcessor>) Class.forName(processor.toString());
+                    } catch (ClassNotFoundException e) {
+                        LOGGER.error("Processor \"" + processor.toString() + "\" couldn't be loaded", typeElement);
+					} catch (ClassCastException e) {
+                        LOGGER.error("Processor \"" + processor.toString() + "\" is not an Action Processor", typeElement);
+                    }
+
+					if (processorClass != null) {
+				        try {
+                            actionInfo.processors.add(processorClass.newInstance());
+                        } catch (Throwable e) {
+                            LOGGER.info("Processor \"" + processor.toString() + "\" couldn't be instantiated", typeElement);
+                        }
+                    } else {
+                        TypeElement element = env.getProcessingEnvironment().getElementUtils().getTypeElement(processor.toString());
+                        if (element == null) {
+                            LOGGER.info("Processor \"" + processor.toString() + "\" couldn't be loaded, it is not in the building path", typeElement);
+                        }
+                    }
+
+                }
 			}
 									
 			createInformationForMethods(typeElement, actionInfo);
