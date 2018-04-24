@@ -16,8 +16,15 @@
     <packaging>pom</packaging>
 
     <name>DecleX Parent</name>
-    <description>DecleX - The ultimate framework for Android Development </description>
+    <description>DecleX - The ultimate framework for Android Development</description>
     <url>https://github.com/smaugho/declex</url>
+
+    <distributionManagement>
+        <repository>
+            <id>bintray-declex</id>
+            <url>https://api.bintray.com/maven/dspot-developers/declex/declex-parent/;publish=1</url>
+        </repository>
+    </distributionManagement>
 
     <organization>
         <name>DSpot Sp. z o.o</name>
