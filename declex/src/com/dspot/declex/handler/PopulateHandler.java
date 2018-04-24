@@ -179,6 +179,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		ViewsHelper viewsHelper = new ViewsHelper(element.getEnclosingElement(), getEnvironment());
+
+		if (viewsHelper.getLayoutObjects() == null) {
+			valid.addError("@Populate cannot be used, if there is no associated layout");
+			return;
+		}
+
 		if (!(element instanceof ExecutableElement)) {
 			
 			boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		

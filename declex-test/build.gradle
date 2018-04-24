@@ -15,9 +15,9 @@ buildscript {
 
 allprojects {
     repositories {
+        mavenLocal()
         jcenter()
         mavenCentral()
-        mavenLocal()
 
         maven {url 'https://dl.bintray.com/dspot-developers/declex'}
         google()

@@ -61,18 +61,18 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 		
 		super.validate(element, validation);
 		if (!validation.isValid()) return;
-		
-		final Element rootElement = TypeUtils.getRootElement(element);
-		final String rootElementClass = rootElement.asType().toString();
-		
-		if (getEnvironment().getValidatedElements().isAncestor(rootElement)) {
+
+		final AnnotationElements validatedElements = getEnvironment().getValidatedElements();
+
+		if (validatedElements.isAncestor(element)) {
 						
-			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = getEnvironment().getValidatedElements().getAncestorSubClassesElements(rootElement);
-			
+			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = validatedElements.getAncestorSubClassesElements(element);
 			for (AnnotationElements.AnnotatedAndRootElements subClass : subClasses) {
+
 				if (getEnvironment().getValidatedElements().isAncestor(subClass.rootTypeElement)) continue;
-				
-				ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
+
+				final String subClassName = subClass.rootTypeElement.asType().toString();
+				final ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(subClassName + "ActionHolder");
 				
 				if (element.getKind() == ElementKind.PARAMETER) {
 					FragmentActionHolder.addFragmentArg(activityActionInfo, element.getEnclosingElement(), getEnvironment());
@@ -83,7 +83,10 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 			}
 			
 		} else {
-			ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(rootElementClass + "ActionHolder");
+
+			final Element rootElement = TypeUtils.getRootElement(element);
+			final String rootElementClass = rootElement.asType().toString();
+			final ActionInfo activityActionInfo = Actions.getInstance().getActionInfos().get(rootElementClass + "ActionHolder");
 			
 			if (element.getKind() == ElementKind.PARAMETER) {
 				FragmentActionHolder.addFragmentArg(activityActionInfo, element.getEnclosingElement(), getEnvironment());

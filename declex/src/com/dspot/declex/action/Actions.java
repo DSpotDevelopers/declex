@@ -15,37 +15,7 @@
  */
 package com.dspot.declex.action;
 
-import static com.helger.jcodemodel.JExpr._new;
-
-import java.lang.annotation.Annotation;
-import java.util.*;
-import java.util.Map.Entry;
-
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
-
-import com.sun.source.tree.CompilationUnitTree;
-import org.androidannotations.Option;
-import org.androidannotations.api.view.HasViews;
-import org.androidannotations.helper.APTCodeModelHelper;
-import org.androidannotations.helper.CompilationTreeHelper;
-import org.androidannotations.helper.IdAnnotationHelper;
-import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
-import org.androidannotations.internal.process.ProcessHolder;
-import org.androidannotations.logger.Logger;
-import org.androidannotations.logger.LoggerFactory;
-
-import com.dspot.declex.annotation.action.ActionFor;
-import com.dspot.declex.annotation.action.Assignable;
-import com.dspot.declex.annotation.action.Field;
-import com.dspot.declex.annotation.action.FormattedExpression;
-import com.dspot.declex.annotation.action.Literal;
-import com.dspot.declex.annotation.action.StopOn;
+import com.dspot.declex.annotation.action.*;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
@@ -56,7 +26,29 @@ import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JMod;
-import org.androidannotations.plugin.AndroidAnnotationsPlugin;
+import org.androidannotations.Option;
+import org.androidannotations.api.view.HasViews;
+import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.helper.CompilationTreeHelper;
+import org.androidannotations.helper.IdAnnotationHelper;
+import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
+import org.androidannotations.internal.process.ProcessHolder;
+import org.androidannotations.logger.Logger;
+import org.androidannotations.logger.LoggerFactory;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+
+import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.FileObject;
+import javax.tools.JavaFileObject;
+import java.lang.annotation.Annotation;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static com.helger.jcodemodel.JExpr._new;
 
 public class Actions {
 
@@ -65,6 +57,8 @@ public class Actions {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(Actions.class);
 	
 	private static Actions instance;
+
+	private final Map<String, ClassLoader> classLoaderForProcessor = new HashMap<>();
 	
 	//<Action Holder Class, Is Exported (Declared in a library)
 	private final Map<String, Boolean> ACTION_HOLDERS = new HashMap<>();
@@ -82,7 +76,6 @@ public class Actions {
 	
 	private final IdAnnotationHelper annotationHelper;
 	private final APTCodeModelHelper codeModelHelper;
-	private final CompilationTreeHelper compilationTreeHelper;
 
 	public static Actions getInstance() {
 		return instance;
@@ -100,7 +93,6 @@ public class Actions {
 		
 		annotationHelper = new IdAnnotationHelper(env, ActionFor.class.getCanonicalName());
 		codeModelHelper = new APTCodeModelHelper(env);
-		compilationTreeHelper = new CompilationTreeHelper(env);
 
         Actions.instance = this;
 	}
@@ -213,79 +205,123 @@ public class Actions {
 		TypeElement generatedHolder = env.getProcessingEnvironment().getElementUtils().getTypeElement(
 				TypeUtils.getGeneratedClassName(typeElement, env)
 			);
-		
-		final ActionFor actionForAnnotation = typeElement.getAnnotation(ActionFor.class);
-		
-		for (String name : actionForAnnotation.value()) {
-			
-			ACTION_HOLDER_ELEMENT_FOR_ACTION.put("$" + name, typeElement);
 
-			//Get model info
-			final ActionInfo actionInfo = new ActionInfo(actionHolder);
-			actionInfo.isGlobal = actionForAnnotation.global();			
-			actionInfo.isTimeConsuming = actionForAnnotation.timeConsuming();
-			
-			if (isExternal) {
-				actionInfo.generated = false;
-			}
-			
-			//This will work only for cached classes
-			if (generatedHolder != null) {
-				for (Element elem : generatedHolder.getEnclosedElements()) {
-					if (elem instanceof ExecutableElement) {
-						final String elemName = elem.getSimpleName().toString();
-						final List<? extends VariableElement> params = ((ExecutableElement)elem).getParameters();
-						
-						if (elemName.equals("onViewChanged") && params.size() == 1
-							&& params.get(0).asType().toString().equals(HasViews.class.getCanonicalName())) {
-							actionInfo.handleViewChanges = true;
-							break;
-						}
-					}
-				}
-			}
-			
-			addAction(name, actionHolder, actionInfo, false);
-			
-			String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(typeElement);
-			actionInfo.setReferences(javaDoc);
-			
-			List<DeclaredType> processors = annotationHelper.extractAnnotationClassArrayParameter(
-					typeElement, ActionFor.class.getCanonicalName(), "processors"
-				);
-			
-			//Load processors
-			if (processors != null) {
-				for (DeclaredType processor : processors) {
+		ActionFor actionForAnnotation = null;
+		try{
+		    actionForAnnotation = typeElement.getAnnotation(ActionFor.class);
+        } catch (Exception e) {
+		    LOGGER.error("An error occurred processing the @ActionFor annotation", e);
+        }
 
-                    Class<ActionProcessor> processorClass = null;
+        if (actionForAnnotation != null) {
 
-				    try {
-                        processorClass = (Class<ActionProcessor>) Class.forName(processor.toString());
-                    } catch (ClassNotFoundException e) {
-                        LOGGER.error("Processor \"" + processor.toString() + "\" couldn't be loaded", typeElement);
-					} catch (ClassCastException e) {
-                        LOGGER.error("Processor \"" + processor.toString() + "\" is not an Action Processor", typeElement);
-                    }
+            for (String name : actionForAnnotation.value()) {
 
-					if (processorClass != null) {
-				        try {
-                            actionInfo.processors.add(processorClass.newInstance());
-                        } catch (Throwable e) {
-                            LOGGER.info("Processor \"" + processor.toString() + "\" couldn't be instantiated", typeElement);
-                        }
-                    } else {
-                        TypeElement element = env.getProcessingEnvironment().getElementUtils().getTypeElement(processor.toString());
-                        if (element == null) {
-                            LOGGER.info("Processor \"" + processor.toString() + "\" couldn't be loaded, it is not in the building path", typeElement);
-                        }
-                    }
+                ACTION_HOLDER_ELEMENT_FOR_ACTION.put("$" + name, typeElement);
 
+                //Get model info
+                final ActionInfo actionInfo = new ActionInfo(actionHolder);
+                actionInfo.isGlobal = actionForAnnotation.global();
+                actionInfo.isTimeConsuming = actionForAnnotation.timeConsuming();
+
+                if (isExternal) {
+                    actionInfo.generated = false;
                 }
-			}
-									
-			createInformationForMethods(typeElement, actionInfo);
-		}		
+
+                //This will work only for cached classes
+                if (generatedHolder != null) {
+                    for (Element elem : generatedHolder.getEnclosedElements()) {
+                        if (elem instanceof ExecutableElement) {
+                            final String elemName = elem.getSimpleName().toString();
+                            final List<? extends VariableElement> params = ((ExecutableElement) elem).getParameters();
+
+                            if (elemName.equals("onViewChanged") && params.size() == 1
+                                    && params.get(0).asType().toString().equals(HasViews.class.getCanonicalName())) {
+                                actionInfo.handleViewChanges = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                addAction(name, actionHolder, actionInfo, false);
+
+                String javaDoc = env.getProcessingEnvironment().getElementUtils().getDocComment(typeElement);
+                actionInfo.setReferences(javaDoc);
+
+                List<DeclaredType> processors = annotationHelper.extractAnnotationClassArrayParameter(
+                        typeElement, ActionFor.class.getCanonicalName(), "processors"
+                );
+
+                //Load processors
+                if (processors != null) {
+                    for (DeclaredType processor : processors) {
+
+                        Class<ActionProcessor> processorClass = null;
+
+                        try {
+
+                            ClassLoader loader = classLoaderForProcessor.get(processor.toString());
+                            if (loader != null) {
+                                processorClass = (Class<ActionProcessor>) Class.forName(processor.toString(), true, loader);
+                            } else {
+                                processorClass = (Class<ActionProcessor>) Class.forName(processor.toString());
+                            }
+
+                        } catch (ClassNotFoundException e) {
+
+                            Element element =  env.getProcessingEnvironment().getElementUtils().getTypeElement(processor.toString());
+							if (element == null) {
+								LOGGER.error("Processor \"" + processor.toString() + "\" couldn't be loaded", typeElement);
+							} else {
+
+							    try {
+							        //Get the file from which the class was loaded
+                                    java.lang.reflect.Field field = element.getClass().getField("classfile");
+                                    field.setAccessible(true);
+                                    JavaFileObject classfile = (JavaFileObject) field.get(element);
+
+                                    String jarUrl = classfile.toUri().toURL().toString();
+                                    jarUrl = jarUrl.substring(0, jarUrl.lastIndexOf('!') + 2);
+
+                                    //Create or use a previous created class loader for the given file
+                                    ClassLoader loader;
+                                    if (classLoaderForProcessor.containsKey(jarUrl)) {
+                                        loader = classLoaderForProcessor.get(jarUrl);
+                                    } else {
+                                        loader = new URLClassLoader(new URL[]{new URL(jarUrl)}, Actions.class.getClassLoader());
+                                        classLoaderForProcessor.put(processor.toString(), loader);
+                                        classLoaderForProcessor.put(jarUrl, loader);
+                                    }
+
+                                    processorClass = (Class<ActionProcessor>) Class.forName(processor.toString(), true, loader);
+
+                                } catch (Throwable e1) {
+                                    LOGGER.error("Processor \"" + processor.toString() + "\" couldn't be loaded: " + e1.getMessage(), typeElement);
+                                }
+
+							}
+
+                        } catch (ClassCastException e) {
+                            LOGGER.error("Processor \"" + processor.toString() + "\" is not an Action Processor", typeElement);
+                        }
+
+                        if (processorClass != null) {
+                            try {
+                                actionInfo.processors.add(processorClass.newInstance());
+                            } catch (Throwable e) {
+                                LOGGER.info("Processor \"" + processor.toString() + "\" couldn't be instantiated", typeElement);
+                            }
+                        }
+
+                    }
+                }
+
+                createInformationForMethods(typeElement, actionInfo);
+            }
+
+        }
+
 	}
 	
 	public void createInformationForMethods(Element typeElement, ActionInfo actionInfo) {

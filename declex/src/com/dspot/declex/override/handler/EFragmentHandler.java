@@ -33,7 +33,7 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
-		
+
 		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			FragmentActionHolder.createInformationForActionHolder(element, getEnvironment());
 		}

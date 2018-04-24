@@ -30,6 +30,7 @@ import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.annotations.EFragment;
 import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.InjectHelper;
 import org.androidannotations.helper.InjectHelper.ParamHelper;
@@ -61,19 +62,19 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		
 		super.validate(element, validation);
 		if (!validation.isValid()) return;
-		
-		final Element rootElement = TypeUtils.getRootElement(element);
-		final String rootElementClass = rootElement.asType().toString();
-		
-		if (getEnvironment().getValidatedElements().isAncestor(rootElement)) {
-						
-			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = getEnvironment().getValidatedElements().getAncestorSubClassesElements(rootElement);
-			
+
+		final AnnotationElements validatedElements = getEnvironment().getValidatedElements();
+
+		if (validatedElements.isAncestor(element)) {
+
+			Set<AnnotationElements.AnnotatedAndRootElements> subClasses = validatedElements.getAncestorSubClassesElements(element);
 			for (AnnotationElements.AnnotatedAndRootElements subClass : subClasses) {
-				if (getEnvironment().getValidatedElements().isAncestor(subClass.rootTypeElement)) continue;
-				
-				ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(subClass + "ActionHolder");
-				
+
+				if (validatedElements.isAncestor(subClass.rootTypeElement)) continue;
+
+				final String subClassName = subClass.rootTypeElement.asType().toString();
+				final ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(subClassName + "ActionHolder");
+
 				if (element.getKind() == ElementKind.PARAMETER) {
 					FragmentActionHolder.addFragmentArg(fragmentActionInfo, element.getEnclosingElement(), getEnvironment());
 				} else {
@@ -83,7 +84,10 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 			}					
 			
 		} else {
-			ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(rootElementClass + "ActionHolder");
+
+			final Element rootElement = TypeUtils.getRootElement(element);
+			final String rootElementClass = rootElement.asType().toString();
+			final ActionInfo fragmentActionInfo = Actions.getInstance().getActionInfos().get(rootElementClass + "ActionHolder");
 			
 			if (element.getKind() == ElementKind.PARAMETER) {
 				FragmentActionHolder.addFragmentArg(fragmentActionInfo, element.getEnclosingElement(), getEnvironment());

@@ -160,8 +160,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	}
 	
 	@Override
-	protected AnnotationElementsHolder extractAnnotations(
-			Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+	protected AnnotationElementsHolder extractAnnotations(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 		
 		timeStats.start("Scan for Exports");
 		Map<TypeElement, Set<? extends Element>> virtualAnnotatedElements = new HashMap<>();
@@ -194,7 +193,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 
 
 			extractedModel = modelExtractor.extract(
-					completeAnnotations,
+				completeAnnotations,
 				getSupportedAnnotationTypes(),
 				new RoundEnvironmentByCache(roundEnv, virtualAnnotatedElements)
 			);
