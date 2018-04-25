@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion "26.0.3"
+    compileSdkVersion 27
+    buildToolsVersion "27.0.3"
     defaultConfig {
         applicationId "com.dspot.declex.test"
         minSdkVersion 14
-        targetSdkVersion 26
+        targetSdkVersion 27
         versionCode 1
         versionName "1.0"
     }
@@ -25,8 +25,8 @@ dependencies {
     compile 'com.dspot:declex-api:2.0.a.21'
     compile 'com.dspot:declex-actions:2.0.a.21'
 
-    compile 'com.android.support:appcompat-v7:26.0.0'
-    compile 'com.android.support:support-v4:26.0.0'
+    compile 'com.android.support:appcompat-v7:27.1.1'
+    compile 'com.android.support:support-v4:27.1.1'
 
     testCompile "org.robolectric:robolectric:3.3.2"
     testCompile "org.mockito:mockito-core:2.8.9"
