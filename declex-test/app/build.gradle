@@ -1,8 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
+
     compileSdkVersion 27
     buildToolsVersion "27.0.3"
+
     defaultConfig {
         applicationId "com.dspot.declex.test"
         minSdkVersion 14
@@ -10,31 +12,35 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    testOptions.unitTests.includeAndroidResources true
+
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-    annotationProcessor 'com.dspot:declex:2.0.a.21'
-    compile 'com.dspot:declex-api:2.0.a.21'
-    compile 'com.dspot:declex-actions:2.0.a.21'
+    annotationProcessor 'com.dspot:declex:2.0.a.23'
+    implementation 'com.dspot:declex-api:2.0.a.23'
+    implementation 'com.dspot:declex-actions:2.0.a.21'
 
-    compile 'com.android.support:appcompat-v7:27.1.1'
-    compile 'com.android.support:support-v4:27.1.1'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.android.support:support-v4:27.1.1'
 
-    testCompile "org.robolectric:robolectric:3.3.2"
-    testCompile "org.mockito:mockito-core:2.8.9"
-    testCompile 'org.powermock:powermock-module-junit4:1.7.1'
-    testCompile 'org.powermock:powermock-module-junit4-rule:1.7.1'
-    testCompile 'org.powermock:powermock-api-mockito2:1.7.1'
-    testCompile "org.powermock:powermock-classloading-xstream:1.7.1"
+    testImplementation "org.robolectric:robolectric:3.8"
+    testImplementation "org.mockito:mockito-core:2.8.9"
+    testImplementation 'org.powermock:powermock-module-junit4:1.7.1'
+    testImplementation 'org.powermock:powermock-module-junit4-rule:1.7.1'
+    testImplementation 'org.powermock:powermock-api-mockito2:1.7.1'
+    testImplementation "org.powermock:powermock-classloading-xstream:1.7.1"
 
-    testCompile 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
 }
 

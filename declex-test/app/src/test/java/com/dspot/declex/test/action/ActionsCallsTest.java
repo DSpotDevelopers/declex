@@ -36,10 +36,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import static org.mockito.Mockito.inOrder;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-    manifest = "app/src/main/AndroidManifest.xml",
-    sdk = 25
-)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
 @PrepareForTest({ActionMainActivityActionHolder_.class, ActionMainFragmentActionHolder_.class})
 public class ActionsCallsTest {

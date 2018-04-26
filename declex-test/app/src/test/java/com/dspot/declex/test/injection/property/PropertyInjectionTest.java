@@ -42,10 +42,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-    manifest = "app/src/main/AndroidManifest.xml",
-    sdk = 25
-)
 public class PropertyInjectionTest {
 
     private static final String LABEL_TEXT_TO_SET = "Label Text To Set";
