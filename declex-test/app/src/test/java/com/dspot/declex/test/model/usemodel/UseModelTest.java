@@ -59,10 +59,6 @@ import static org.powermock.api.support.membermodification.MemberModifier.stub;
 import static org.hamcrest.Matchers.*;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-    manifest = "app/src/main/AndroidManifest.xml",
-    sdk = 25
-)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*" })
 @PrepareForTest({ModelUser_.class})
 public class UseModelTest {
@@ -286,4 +282,5 @@ public class UseModelTest {
         user.putModel_(args);
         assertEquals("email@after.put", user.getEmail());
     }
+
 }

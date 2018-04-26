@@ -23,10 +23,6 @@ import com.google.gson.Gson;
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-        manifest = "app/src/main/AndroidManifest.xml",
-        sdk = 25
-)
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
 @PrepareForTest({ModelSocialWorker_.class})
 public class JsonModelTest {

@@ -43,10 +43,6 @@ import static org.robolectric.util.ReflectionHelpers.getField;
 import static org.robolectric.util.ReflectionHelpers.setField;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-    manifest = "app/src/main/AndroidManifest.xml",
-    sdk = 25
-)
 public class ActionMainFragmentHolderGenerationTest {
 
     @Test

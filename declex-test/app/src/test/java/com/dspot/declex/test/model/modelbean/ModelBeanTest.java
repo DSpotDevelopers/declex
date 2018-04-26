@@ -32,10 +32,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(
-        manifest = "app/src/main/AndroidManifest.xml",
-        sdk = 25
-)
 @PowerMockIgnore({"org.mockito.*", "org.robolectric.*", "android.*", "org.powermock.*"})
 @PrepareForTest({ModelBean_.class})
 public class ModelBeanTest {
@@ -59,7 +55,7 @@ public class ModelBeanTest {
     @Test
     public void testBeanModelUser() {
 
-        ModelUser_ user = mock(ModelUser_.class);
+        ModelUser_ user = new ModelUser_();
         bean.setUser(user);
         assertEquals(bean.getUser(), user);
 
