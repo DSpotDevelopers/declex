@@ -21,12 +21,10 @@ import android.support.v7.app.AppCompatActivity;
 
 import com.dspot.declex.test.R;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.annotation.Config;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,7 +41,7 @@ import static org.robolectric.util.ReflectionHelpers.getField;
 import static org.robolectric.util.ReflectionHelpers.setField;
 
 @RunWith(RobolectricTestRunner.class)
-public class ActionMainFragmentHolderGenerationTest {
+public class ActionCompatFragmentHolderGenerationTest {
 
     @Test
     public void testInitMethods() throws Exception {
@@ -56,7 +54,7 @@ public class ActionMainFragmentHolderGenerationTest {
         when(activity.getSupportFragmentManager()).thenReturn(fragmentManager);
 
         {
-            ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(activity);
+            ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(activity);
             {
                 holder.init();
             }
@@ -66,7 +64,7 @@ public class ActionMainFragmentHolderGenerationTest {
         }
 
         {
-            ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(activity);
+            ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(activity);
             {
                 holder.init("FragmentTag");
             }
@@ -78,7 +76,7 @@ public class ActionMainFragmentHolderGenerationTest {
 
     @Test
     public void testDirectMethods() throws Exception {
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
+        ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
 
         //Check default container
         assertEquals(R.id.container, getField(holder, "container"));
@@ -94,9 +92,9 @@ public class ActionMainFragmentHolderGenerationTest {
     public void testDefaultCallToExecute() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.commit()).thenReturn(0);
-        when(transaction.replace(anyInt(), any(ActionMainFragment_.class), any(String.class))).thenReturn(transaction);
+        when(transaction.replace(anyInt(), any(ActionCompatFragment_.class), any(String.class))).thenReturn(transaction);
 
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
+        ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
         final AtomicBoolean calledStart = new AtomicBoolean(false);
@@ -113,7 +111,7 @@ public class ActionMainFragmentHolderGenerationTest {
             holder.execute();
         }
 
-        verify(transaction, times(1)).replace(eq(R.id.container), any(ActionMainFragment_.class), eq("SomeTag"));
+        verify(transaction, times(1)).replace(eq(R.id.container), any(ActionCompatFragment_.class), eq("SomeTag"));
         verify(transaction, times(1)).commit();
         assertTrue(calledStart.get());
     }
@@ -121,9 +119,9 @@ public class ActionMainFragmentHolderGenerationTest {
     @Test
     public void testReplaceIsCalled() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
-        when(transaction.replace(anyInt(), any(ActionMainFragment_.class), isNull(String.class))).thenReturn(transaction);
+        when(transaction.replace(anyInt(), any(ActionCompatFragment_.class), isNull(String.class))).thenReturn(transaction);
 
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
+        ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
         {
@@ -131,16 +129,16 @@ public class ActionMainFragmentHolderGenerationTest {
             holder.replace().execute();
         }
 
-        verify(transaction, times(1)).replace(eq(R.id.container), any(ActionMainFragment_.class), isNull(String.class));
+        verify(transaction, times(1)).replace(eq(R.id.container), any(ActionCompatFragment_.class), isNull(String.class));
         verify(transaction, times(1)).commit();
     }
 
     @Test
     public void testAddIsCalled() throws Exception {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
-        when(transaction.add(anyInt(), any(ActionMainFragment_.class), isNull(String.class))).thenReturn(transaction);
+        when(transaction.add(anyInt(), any(ActionCompatFragment_.class), isNull(String.class))).thenReturn(transaction);
 
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
+        ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
         {
@@ -148,7 +146,7 @@ public class ActionMainFragmentHolderGenerationTest {
             holder.add().execute();
         }
 
-        verify(transaction, times(1)).add(eq(R.id.container), any(ActionMainFragment_.class), isNull(String.class));
+        verify(transaction, times(1)).add(eq(R.id.container), any(ActionCompatFragment_.class), isNull(String.class));
         verify(transaction, times(1)).commit();
     }
 
@@ -157,7 +155,7 @@ public class ActionMainFragmentHolderGenerationTest {
         FragmentTransaction transaction = mock(FragmentTransaction.class);
         when(transaction.addToBackStack(isNull(String.class))).thenReturn(transaction);
 
-        ActionMainFragmentActionHolder_ holder = ActionMainFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
+        ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(RuntimeEnvironment.application);
         setField(holder, "transaction", transaction);
 
         {

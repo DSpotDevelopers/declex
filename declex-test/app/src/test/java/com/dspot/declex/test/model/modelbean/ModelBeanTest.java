@@ -309,6 +309,7 @@ public class ModelBeanTest {
 
     @Test
     public void testBeanModelListQueryAsync() {
+
         final ModelBean_ bean = ModelBean_.getInstance_(RuntimeEnvironment.application);
         final AtomicBoolean executeAsyncDone = new AtomicBoolean(false);
         final AtomicBoolean executeAsyncFailed = new AtomicBoolean(false);

@@ -15,29 +15,13 @@
  */
 package com.dspot.declex.test.action;
 
-import android.support.v4.app.Fragment;
+import org.androidannotations.annotations.EBean;
 
-import com.dspot.declex.test.R;
+@EBean
+public class ActionsReturnBean {
 
-import org.androidannotations.annotations.EFragment;
-import org.androidannotations.annotations.FragmentArg;
-
-@EFragment(R.layout.fragment_main)
-public class ActionMainFragment extends Fragment {
-
-    @FragmentArg
-    String arg1;
-
-    @FragmentArg
-    void arg2(int arg2){}
-
-    @FragmentArg
-    void arg3(int arg3) {
-
-    }
-
-    void multiple(@FragmentArg int arg1, @FragmentArg String arg2) {
-
+    public int returnNumber() {
+        return 1;
     }
 
 }

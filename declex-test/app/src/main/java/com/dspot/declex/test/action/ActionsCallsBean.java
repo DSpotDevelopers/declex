@@ -15,18 +15,107 @@
  */
 package com.dspot.declex.test.action;
 
+import android.support.annotation.NonNull;
+
 import org.androidannotations.annotations.EBean;
 
-import static com.dspot.declex.Action.$ActionMainActivity;
-import static com.dspot.declex.Action.$ActionMainFragment;
+import static com.dspot.declex.Action.$ActionActivity;
+import static com.dspot.declex.Action.$ActionFragment;
+import static com.dspot.declex.Action.$SimpleAction;
 
 @EBean
 public class ActionsCallsBean {
 
     public void callMainFragment() {
-        $ActionMainFragment();
+        $ActionFragment();
     }
 
-    public void callMainActivity() { $ActionMainActivity(); }
+    public void callMainActivity() { $ActionActivity(); }
+
+    public void callSimpleAction() {
+        $SimpleAction();
+    }
+
+    public void callSimpleActionWithInitParam(String initParam) {
+        $SimpleAction(initParam);
+    }
+
+    public void callSimpleActionWithInitParamAndMethod(String initParam) {
+        $SimpleAction(initParam).method1();
+    }
+
+    public void callSimpleActionWithInitParamAndParam(String initParam, String param) {
+        $SimpleAction(initParam).param1(param);
+    }
+
+    public void callSimpleActionWithParamAndMethod(String param) {
+        $SimpleAction().param1(param).method1();
+    }
+
+    public void callSimpleActionWithMethodAndParam(String param) {
+        $SimpleAction().method1().param1(param);
+    }
+
+    public void callSimpleActionAndCheckDefaultSelector(@NonNull Runnable afterDefaultSelector) {
+        $SimpleAction();
+        afterDefaultSelector.run();
+    }
+
+    public void callSimpleActionAndCheckIfElseWithDefaultSelector(String initParam,
+            @NonNull Runnable afterDefaultSelector, @NonNull Runnable afterSecondSelector) {
+
+        $SimpleAction(initParam);
+        if ($SimpleAction.Selector1) {
+            afterDefaultSelector.run();
+        } else {
+            afterSecondSelector.run();
+        }
+
+    }
+
+    public void callSimpleActionAndCheckIfElseWithSecondSelector(String initParam,
+            @NonNull Runnable afterDefaultSelector, @NonNull Runnable afterSecondSelector) {
+
+        $SimpleAction(initParam);
+        if ($SimpleAction.Selector2) {
+            afterSecondSelector.run();
+        } else {
+            afterDefaultSelector.run();
+        }
+
+    }
+
+    public void callSimpleActionAndCheckIfElseWithThirdSelector(String initParam,
+            @NonNull Runnable afterDefaultSelector, @NonNull Runnable afterThirdSelector) {
+
+        $SimpleAction(initParam);
+        if ($SimpleAction.Selector3) {
+            afterThirdSelector.run();
+        } else {
+            afterDefaultSelector.run();
+        }
+
+    }
+
+    public void callSimpleActionAndCheckSelectors(String initParam,
+            @NonNull Runnable afterDefaultSelector, @NonNull Runnable afterSecondSelector,
+            @NonNull Runnable afterThirdSelector) {
+
+        $SimpleAction(initParam);
+
+        if ($SimpleAction.Selector1) {
+            afterDefaultSelector.run();
+        }
+
+        if ($SimpleAction.Selector2) {
+            afterSecondSelector.run();
+        }
+
+        if ($SimpleAction.Selector3) {
+            afterThirdSelector.run();
+        }
+
+    }
+
 
 }

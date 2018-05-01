@@ -21,13 +21,13 @@ import com.dspot.declex.test.R;
 
 import org.androidannotations.annotations.EActivity;
 
-import static com.dspot.declex.Action.$ActionMainFragment;
+import static com.dspot.declex.Action.$ActionFragment;
 
 @EActivity(R.layout.activity_main)
-public class ActionMainActivity extends AppCompatActivity {
+public class ActionActivity extends AppCompatActivity {
 
     public void callMainFragment() {
-        $ActionMainFragment();
+        $ActionFragment();
     }
 
 }
