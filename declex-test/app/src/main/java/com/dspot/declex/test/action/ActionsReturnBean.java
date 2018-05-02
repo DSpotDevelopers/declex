@@ -17,10 +17,53 @@ package com.dspot.declex.test.action;
 
 import org.androidannotations.annotations.EBean;
 
+import static com.dspot.declex.Action.$SimpleAction;
+
 @EBean
 public class ActionsReturnBean {
 
-    public int returnNumber() {
+    public int actionReturnInt() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public short actionReturnShort() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public long actionReturnLong() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public float actionReturnFloat() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public double actionReturnDouble() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public char actionReturnChar() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public byte actionReturnByte() {
+        $SimpleAction();
+        return 1;
+    }
+
+    public boolean actionReturnBoolean() {
+        $SimpleAction();
+        return true;
+    }
+
+    public int actionReturnInBlock() {
+        {$SimpleAction();}
         return 1;
     }
 
