@@ -54,10 +54,13 @@ public class ActionsMethodBuilder {
 
     private AndroidAnnotationsEnvironment environment;
 
-    public ActionsMethodBuilder(boolean isValidating, ExpressionsHelper expressionsHelper, ActionsLogger logger, AndroidAnnotationsEnvironment environment) {
+    public ActionsMethodBuilder(boolean isValidating, ActionsLogger logger, AndroidAnnotationsEnvironment environment) {
         this.isValidating = isValidating;
         this.logger = logger;
         this.environment = environment;
+    }
+
+    public void setExpressionsHelper(ExpressionsHelper expressionsHelper) {
         this.expressionsHelper = expressionsHelper;
     }
 

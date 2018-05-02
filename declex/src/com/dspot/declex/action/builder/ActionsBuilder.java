@@ -31,7 +31,6 @@ import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
 import com.helger.jcodemodel.*;
 import com.sun.source.tree.*;
-import com.sun.source.util.TreePath;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.ModelConstants;
@@ -76,7 +75,11 @@ public class ActionsBuilder {
     private String actionInFieldWithoutInitializer = null;
     private int actionInFieldWithoutInitializerPosition;
 
+    private AssignmentTree assignment;
+
     private List<MethodInvocationTree> subMethods = new LinkedList<>();
+
+    private boolean processStarted = false;
 
     private boolean isValidating;
 
@@ -97,7 +100,7 @@ public class ActionsBuilder {
     private ADIHelper adiHelper;
 
     public ActionsBuilder(boolean isValidating, Element element, EComponentHolder holder, ActionsLogger logger,
-                          TreePath treePath, AndroidAnnotationsEnvironment environment) {
+                          AndroidAnnotationsEnvironment environment) {
 
         this.isValidating = isValidating;
         this.element = element;
@@ -107,12 +110,23 @@ public class ActionsBuilder {
 
         this.codeModelHelper = new DeclexAPTCodeModelHelper(environment);
         this.adiHelper = new ADIHelper(environment);
-        this.expressionsHelper = new ExpressionsHelper(isValidating, this, holder, treePath);
 
     }
 
     public void setMethodBuilder(ActionsMethodBuilder methodBuilder) {
         this.methodBuilder = methodBuilder;
+    }
+
+    public void setExpressionsHelper(ExpressionsHelper expressionsHelper) {
+        this.expressionsHelper = expressionsHelper;
+    }
+
+    public void startProcess() {
+        processStarted = true;
+    }
+
+    public boolean doesProcessStarted() {
+        return processStarted;
     }
 
     public boolean hasPendingAction() {
@@ -207,7 +221,7 @@ public class ActionsBuilder {
 
     }
 
-    public boolean searchAction(MethodInvocationTree invoke, int sourcePosition) {
+    public boolean searchAction(MethodInvocationTree invoke, int sourcePosition, boolean isVisitingVariable) {
 
         String methodSelect = invoke != null? invoke.getMethodSelect().toString() : actionInFieldWithoutInitializer;
 
@@ -227,7 +241,7 @@ public class ActionsBuilder {
 
                         if (!(element instanceof ExecutableElement)) {
                             pushAction();
-                            processStarted = true;
+                            startProcess();
                         }
 
                     } else {
@@ -249,7 +263,7 @@ public class ActionsBuilder {
                             holder.getInitBody().assign(ref(element.getSimpleName().toString()), _new(anonymous));
 
                             pushAction();
-                            processStarted = true;
+                            startProcess();
 
                             logger.info("FieldStart:" + subMethods);
                             logger.increaseIndex();
@@ -267,6 +281,11 @@ public class ActionsBuilder {
 
                 buildAction();
                 actionsTree.add(methodSelect);
+
+                VariableTree visitedVariable = null;
+                if (isVisitingVariable) {
+                    visitedVariable = (VariableTree) methodBuilder.getLastStatement();
+                }
 
                 //Remove last statement (represents this Action)
                 methodBuilder.removeLastStatement();
@@ -437,7 +456,7 @@ public class ActionsBuilder {
                         }
 
                         if (externalInvoke != null) {
-                            externalInvokeInBlock(block, externalInvoke);
+                            externalInvokeInBlock(block, externalInvoke, visitedVariable);
                         }
 
                         ActionMethod buildMethod = buildMethods.get(0);
@@ -476,7 +495,7 @@ public class ActionsBuilder {
                         setCurrentBuildInvocation(null);
 
                         if (externalInvoke != null) {
-                            externalInvokeInBlock(block, externalInvoke);
+                            externalInvokeInBlock(block, externalInvoke, visitedVariable);
                         }
                     }
                 }
@@ -497,8 +516,16 @@ public class ActionsBuilder {
 
     }
 
-    public void stopActionSearch() {
+    public void clearActionSearch() {
         subMethods.clear();
+    }
+
+    public void registerAssignment(AssignmentTree assignment) {
+        this.assignment = assignment;
+    }
+
+    public void clearAssignment() {
+        this.assignment = null;
     }
 
     public boolean hasActionFinished(BlockTree blockTree) {
@@ -826,12 +853,11 @@ public class ActionsBuilder {
 
     }
 
-    private void externalInvokeInBlock(JBlock block, JInvocation invocation) {
+    private void externalInvokeInBlock(JBlock block, JInvocation invocation, VariableTree visitedVariable) {
 
-        if (visitingVariable) {
+        if (visitedVariable != null) {
 
-            VariableTree variable = (VariableTree) methodBuilder.getLastStatement();
-            methodBuilder.addVariable(variable, block, invocation);
+            methodBuilder.addVariable(visitedVariable, block, invocation);
 
         } else {
 

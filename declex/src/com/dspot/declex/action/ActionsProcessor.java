@@ -64,7 +64,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private boolean omitParallel;
 	
-	private boolean visitingVariable;
+	private boolean isVisitingVariable;
 	
 	private AndroidAnnotationsEnvironment env;
 	private EComponentHolder holder;
@@ -74,9 +74,6 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	
 	private boolean ignoreActions;
 	private ClassTree anonymousClassTree;
-	private boolean processStarted = false;
-
-	private AssignmentTree assignment;
 	
 	private ElementValidation valid;
 	
@@ -255,17 +252,18 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		this.valid = valid;
 
         this.logger = new ActionsLogger(isValidating(), env);
-        this.actionsBuilder = new ActionsBuilder(isValidating(), element, holder, logger, treePath, env);
+        this.actionsBuilder = new ActionsBuilder(isValidating(), element, holder, logger, env);
         this.expressionsHelper = new ExpressionsHelper(isValidating(), actionsBuilder, holder, treePath);
-		this.methodBuilder = new ActionsMethodBuilder(isValidating(), expressionsHelper, logger, env);
+		this.methodBuilder = new ActionsMethodBuilder(isValidating(), logger, env);
+
+		methodBuilder.setExpressionsHelper(expressionsHelper);
+		actionsBuilder.setExpressionsHelper(expressionsHelper);
 		actionsBuilder.setMethodBuilder(methodBuilder);
 
 		compilationUnit = treePath.getCompilationUnit();
 
 		if (overrideAction.contains(element)) {
-
 			actionsBuilder.buildActionMethod(true);
-			
 			return;
 		}
 		
@@ -303,7 +301,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (ignoreActions) return super.visitVariable(variable, trees);
 		
 		//Ignore variables out of the method
-		if (!processStarted) return super.visitVariable(variable, trees);
+		if (!actionsBuilder.doesProcessStarted()) return super.visitVariable(variable, trees);
 		
 		if (visitingCatch) {
 			visitingCatch = false;
@@ -312,18 +310,18 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 
 		methodBuilder.addStatement(variable);
 
-		visitingVariable = true;
+		isVisitingVariable = true;
 		Boolean result = super.visitVariable(variable, trees);
 		addAnonymousStatements(variable.toString());
-		visitingVariable = false;
+		isVisitingVariable = false;
 		
 		return result;
 	}
 	
 	@Override
-	public Boolean visitAssignment(AssignmentTree assignment, Trees arg1) {
-		if (!visitingVariable) this.assignment  = assignment;
-		return super.visitAssignment(assignment, arg1);
+	public Boolean visitAssignment(AssignmentTree assignment, Trees trees) {
+		if (!isVisitingVariable) actionsBuilder.registerAssignment(assignment);
+		return super.visitAssignment(assignment, trees);
 	}
 	
 	@Override
@@ -371,8 +369,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		if (ignoreActions) return super.visitExpressionStatement(expr, trees);
 
 		methodBuilder.addStatement(expr);
+        actionsBuilder.clearAssignment();
 
-		assignment = null;
 		Boolean result = super.visitExpressionStatement(expr, trees);
 		addAnonymousStatements(expr.toString());
 		
@@ -398,13 +396,12 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	public Boolean visitIdentifier(IdentifierTree id, Trees trees) {
 		
 		//This will happen with identifiers prior to the main block (ex. Annotations)
-		if (!processStarted) return true;
+		if (!actionsBuilder.doesProcessStarted()) return true;
 				
 		final String idName = id.toString();
 		
 		//If it is used one of the method parameters, then use sharedVariablesHolder
-		if ((actionsBuilder.hasPendingAction() || anonymousClassTree != null)
-			&& methodActionParamNames.contains(idName)) {
+		if ((actionsBuilder.hasPendingAction() || anonymousClassTree != null) && methodActionParamNames.contains(idName)) {
 
 		    methodBuilder.needsSharedVariablesHolder();
 		}
@@ -416,7 +413,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				);
 		}
 
-		actionsBuilder.stopActionSearch();
+		actionsBuilder.clearActionSearch();
 			
 		//Ensure import of all the identifiers
 		expressionsHelper.variableClassFromImports(idName, true);
@@ -551,7 +548,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		}
 
 		final int sourcePosition = (int) trees.getSourcePositions().getStartPosition(compilationUnit, invoke);
-		if (actionsBuilder.searchAction(invoke, sourcePosition)) {
+		if (actionsBuilder.searchAction(invoke, sourcePosition, isVisitingVariable)) {
             finishBlock();
 		    return true;
         }
@@ -634,7 +631,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			isParallelBlock = false;
 		}
 	
-		if (!processStarted) {
+		if (!actionsBuilder.doesProcessStarted()) {
 
 		    logger.info("MethodStart: " + element);
 		    logger.increaseIndex();
@@ -665,8 +662,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 			JBlock block = methodBuilder.getCurrentBlock();
             methodBuilder.pushBlock(block.block(), "newBlock: ");
 		}
-		
-		processStarted = true;
+
+		actionsBuilder.startProcess();
 		
 		Boolean result = super.visitBlock(blockTree, tree); 
 		

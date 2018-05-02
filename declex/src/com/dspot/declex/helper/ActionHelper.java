@@ -11,6 +11,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 
+import com.dspot.declex.action.exception.ActionCallSuperException;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.AnnotationHandler;
@@ -21,7 +22,6 @@ import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 
 import com.dspot.declex.action.ActionsProcessor;
-import com.dspot.declex.action.ActionsProcessor.ActionCallSuperException;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import org.androidannotations.internal.virtual.VirtualElement;
 

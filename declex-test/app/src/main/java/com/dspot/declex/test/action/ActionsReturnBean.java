@@ -62,9 +62,34 @@ public class ActionsReturnBean {
         return true;
     }
 
+    public ActionsReturnBean actionReturnObject() {
+        $SimpleAction();
+        return this;
+    }
+
     public int actionReturnInBlock() {
         {$SimpleAction();}
         return 1;
+    }
+
+    public int actionReturnWithSelectors(String initParam) {
+
+        $SimpleAction(initParam);
+
+        if ($SimpleAction.Selector1) {
+            return 1;
+        }
+
+        if ($SimpleAction.Selector2) {
+            return 2;
+        }
+
+        if ($SimpleAction.Selector3) {
+            return 3;
+        }
+
+        return 0;
+
     }
 
 }
