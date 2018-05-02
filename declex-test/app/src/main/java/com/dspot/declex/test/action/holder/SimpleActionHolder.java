@@ -15,15 +15,7 @@
  */
 package com.dspot.declex.test.action.holder;
 
-import org.androidannotations.annotations.RootContext;
-
-import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
-import android.widget.Toast;
-
 import com.dspot.declex.annotation.action.ActionFor;
-import com.dspot.declex.annotation.action.FormattedExpression;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,7 +29,7 @@ public class SimpleActionHolder {
 	String param1;
 
 	void init() {
-        init("0");
+        this.initParam = "0";
 	}
 
     void init(String initParam) {
