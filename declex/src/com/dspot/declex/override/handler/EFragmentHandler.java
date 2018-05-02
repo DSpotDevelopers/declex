@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	@Override
 	public void validate(Element element, ElementValidation valid) {
 		super.validate(element, valid);
-		
-		if (!filesCacheHelper.isAncestor(element.asType().toString())) {
+
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
 			FragmentActionHolder.createInformationForActionHolder(element, getEnvironment());
 		}
 	}
@@ -43,8 +43,10 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 	public void process(Element element, EFragmentHolder holder) {
 		super.process(element, holder);
 		
-		FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
-		actionHolder.getFragmentAction();
+		if (!getEnvironment().getValidatedElements().isAncestor(element)) {
+			FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
+			actionHolder.getFragmentAction();
+		}
 	}
 
 }

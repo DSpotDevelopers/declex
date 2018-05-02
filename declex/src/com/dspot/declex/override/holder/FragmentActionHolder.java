@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,34 +22,32 @@ import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static org.androidannotations.helper.ModelConstants.generationSuffix;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.RootContext;
+import org.androidannotations.helper.APTCodeModelHelper;
 import org.androidannotations.helper.CanonicalNameConstants;
 import org.androidannotations.holder.EFragmentHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
 import com.dspot.declex.action.Actions;
-import com.dspot.declex.api.action.annotation.ActionFor;
+import com.dspot.declex.annotation.action.ActionFor;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.helper.FilesCacheHelper;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
 import com.dspot.declex.util.TypeUtils;
-import com.dspot.declex.util.TypeUtils.ClassInformation;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JAnnotationUse;
 import com.helger.jcodemodel.JConditional;
@@ -84,24 +82,16 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	private JFieldVar transactionMethodField;
 	
 	public FragmentActionHolder(EFragmentHolder holder) {
-		super(holder);
+		super(holder);		
 	}
 	
-	public static void createInformationForActionHolder(Element element,
-			AndroidAnnotationsEnvironment env) {
+	public static void createInformationForActionHolder(Element element, AndroidAnnotationsEnvironment env) {
 		
 		final String clsName = element.asType().toString();
 		final int index = clsName.lastIndexOf('.');
 		final String pkg = clsName.substring(0, index);
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
-		
-		FilesCacheHelper.getInstance().addGeneratedClass(DeclexConstant.ACTION, element, true);
-		FilesCacheHelper.getInstance().addGeneratedClass(actionName, element);
-		FilesCacheHelper.getInstance().addGeneratedClass(
-				TypeUtils.getGeneratedClassName(actionName, env, false), 
-				null
-			);
 		
 		ActionInfo actionInfo = new ActionInfo(actionName);
 		actionInfo.isTimeConsuming = false;
@@ -140,21 +130,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		actionInfo.addMethod(BUILDER_NAME, actionName + ".FragmentBuilder" + generationSuffix());
 		
-		addFragmentArgFieldsInformation(actionInfo, element, env);
-	}
-
-	private static void addFragmentArgFieldsInformation(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
-		List<Element> fragmentArgFields = new LinkedList<>();
-		findFragmentArgFields(element, fragmentArgFields, env.getProcessingEnvironment());
-		
-		for (Element fragmentArgField : fragmentArgFields) {
-			addFieldInformationToActionHolder(actionInfo, fragmentArgField, env);
-		}
 	}
 	
-	private static void addFieldInformationToActionHolder(
-			ActionInfo actionInfo, Element element,
-			AndroidAnnotationsEnvironment env) {
+	public static void addFragmentArg(ActionInfo actionInfo, Element element, AndroidAnnotationsEnvironment env) {
+		
+		APTCodeModelHelper codeModelHelper = new DeclexAPTCodeModelHelper(env);
 		
 		final String clsName = element.getEnclosingElement().asType().toString();
 		final int index = clsName.lastIndexOf('.');
@@ -162,35 +142,28 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		final String fragmentName = clsName.substring(index + 1);
 		final String actionName = pkg + "." + fragmentName + "ActionHolder";
 
-		ClassInformation classInformation = TypeUtils.getClassInformation(element, env);
-		final String className = classInformation.originalClassName;
-		final String fieldName = element.getSimpleName().toString();
-		
-		actionInfo.addMethod(
-				fieldName, 
-				actionName, 
-				Arrays.asList(new ActionMethodParam(fieldName, env.getJClass(className)))
-			);
-	}
-	
-	private static void findFragmentArgFields(Element element, List<Element> fragmentArgFields, ProcessingEnvironment env) {
-		
-		List<? extends Element> elems = element.getEnclosedElements();
-		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.FIELD) {
-				if (elem.getAnnotation(FragmentArg.class) != null) {
-					fragmentArgFields.add(elem);
-				}
-			}
-		}
-		
-		List<? extends TypeMirror> superTypes = env.getTypeUtils().directSupertypes(element.asType());
-		for (TypeMirror type : superTypes) {
-			TypeElement superElement = env.getElementUtils().getTypeElement(type.toString());
-			
-			findFragmentArgFields(superElement, fragmentArgFields, env);
-		}
+		final String elementName = element.getSimpleName().toString();
+		if (element.getKind().isField()) {
+			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(element);
+			actionInfo.addMethod(
+					elementName, 
+					actionName, 
+					Arrays.asList(new ActionMethodParam(elementName, clazz))
+				);
 
+		} else if (element.getKind() == ElementKind.METHOD) {
+			
+			List<? extends VariableElement> elementParams = ((ExecutableElement)element).getParameters();
+			List<ActionMethodParam> params = new ArrayList<>(elementParams.size());
+			
+			for (VariableElement param : elementParams) {
+				final String paramName = param.getSimpleName().toString();
+				final AbstractJClass paramClass = codeModelHelper.elementTypeToJClass(param);
+				params.add(new ActionMethodParam(paramName, paramClass));
+			}
+			
+			actionInfo.addMethod(elementName, actionName, params);
+		}
 	}
 	
 	public JDefinedClass getFragmentAction() {
@@ -275,10 +248,14 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 					transactionField, 
 					invoke(cast(AppCompatActivity, contextField), getFragmentManager).invoke("beginTransaction")
 				);
-			ifIsActivity._elseif(contextField._instanceof(ActionBarActivity))._then().assign(
-					transactionField, 
-					invoke(cast(ActionBarActivity, contextField), getFragmentManager).invoke("beginTransaction")
+
+			if (hasActionBarActivityInClasspath()) {
+				ifIsActivity._elseif(contextField._instanceof(ActionBarActivity))._then().assign(
+						transactionField,
+						invoke(cast(ActionBarActivity, contextField), getFragmentManager).invoke("beginTransaction")
 				);
+			}
+
 		} else {
 			transactionField = FragmentAction.field(JMod.PRIVATE, FragmentTransaction, TRANSACTION_NAME);
 					
@@ -291,6 +268,10 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		
 		JMethod transactionMethodMethod = FragmentAction.method(JMod.PUBLIC, FragmentTransaction, TRANSACTION_NAME);
 		transactionMethodMethod.body()._return(transactionField);
+	}
+
+	private boolean hasActionBarActivityInClasspath() {
+		return processingEnv().getElementUtils().getTypeElement("android.support.v7.app.ActionBarActivity") != null;
 	}
 	
 	private void setTransactionMethods() {
@@ -353,9 +334,15 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	private void setAddToBackStack() {
 		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
+		JVar tag = addToBackStackMethod.param(getClasses().STRING, "tag");
 		addToBackStackMethod.body()._if(transactionField.neNull())._then()
-		                           .invoke(transactionField, "addToBackStack").arg(_null());
+		                           .invoke(transactionField, "addToBackStack").arg(tag);
 		addToBackStackMethod.body()._return(_this());
+		
+		JMethod addToBackStackNullMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
+		addToBackStackNullMethod.body().invoke(addToBackStackMethod).arg(_null());
+		addToBackStackNullMethod.body()._return(_this());
+		
 	}
 	
 	private void setBuilder() {

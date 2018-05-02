@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,7 @@ public class FileUtils {
 			File rootProject = FileHelper.findRootProject(processingEnv);
 			folderPath = rootProject.getAbsolutePath();
 		} catch (FileNotFoundException e) {
+			
 			//Try with gradle
 			File gradle = new File("app" + File.separator + "build" + File.separator + "generated" + File.separator + "source" + File.separator + "apt");
 			

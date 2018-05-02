@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.dspot.declex.util;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.ref;
 
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
 import com.helger.jcodemodel.JInvocation;
 
 public class ParamUtils {

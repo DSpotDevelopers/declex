@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.helger.jcodemodel.JBlock;
@@ -55,7 +55,7 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		
 		uniquePriorityCounter++;
 		
-		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder, annotationHelper));
+		final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder(holder));
 		final String methodName = element.getSimpleName().toString();
 		
 		JBlock block = new JBlock();

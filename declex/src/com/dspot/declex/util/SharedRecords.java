@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.internal.model.AnnotationElements;
 
-import com.dspot.declex.api.eventbus.UseEvents;
-import com.dspot.declex.api.localdb.LocalDBModel;
+import com.dspot.declex.annotation.LocalDBModel;
+import com.dspot.declex.annotation.UseEvents;
 import com.helger.jcodemodel.IJStatement;
 import com.helger.jcodemodel.JBlock;
 
@@ -53,11 +53,16 @@ public class SharedRecords {
 		db_models = null;
 	}
 	
-	public static void priorityAdd(JBlock method, IJStatement code, int priority) {
-		Map<Integer, IJStatement> statements = priorityMethods.get(method);
+	public static void priorityAdd(JBlock block, IJStatement code, int priority) {
+		
+		if (block == null) {
+			throw new IllegalArgumentException("\"block\" cannot be null");
+		}
+		
+		Map<Integer, IJStatement> statements = priorityMethods.get(block);
 		if (statements == null) {
 			statements = new TreeMap<>();
-			priorityMethods.put(method, statements);
+			priorityMethods.put(block, statements);
 		}
 		
 		statements.put(priority, code);

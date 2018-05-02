@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ public class AfterInjectHandler extends org.androidannotations.internal.core.han
 	
 	@Override
 	public void validate(Element element, ElementValidation valid) {
-		validatorHelper.enclosingElementHasEnhancedViewSupportAnnotation(element, valid);
+		validatorHelper.enclosingElementHasEnhancedComponentAnnotation(element, valid);
 
 		ExecutableElement executableElement = (ExecutableElement) element;
 

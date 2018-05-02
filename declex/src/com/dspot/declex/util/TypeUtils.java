@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,38 +15,23 @@
  */
 package com.dspot.declex.util;
 
+import com.helger.jcodemodel.JAnnotationUse;
+import com.helger.jcodemodel.JVar;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.helper.ADIHelper;
+import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.helper.ADIHelper;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.helper.TargetAnnotationHelper;
-
-import com.dspot.declex.helper.FilesCacheHelper;
-import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.JAnnotationUse;
-import com.helger.jcodemodel.JVar;
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.ExpressionTree;
-import com.sun.source.util.TreePath;
-import com.sun.source.util.TreePathScanner;
-import com.sun.source.util.Trees;
 
 public class TypeUtils {
 	
@@ -101,87 +86,27 @@ public class TypeUtils {
 				fieldAnnotation.param(name, (String)value);
 		}
 	}
-	
-	public static AbstractJClass classFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
-		
-		AbstractJClass elemClass;
-		
-		Matcher matcher = Pattern.compile("<([a-zA-Z_][a-zA-Z_0-9.]+(,[a-zA-Z_][a-zA-Z_0-9.]+)*)>$").matcher(type);
-		if (matcher.find()) {
-			elemClass = environment.getJClass(type.substring(0, type.length() - matcher.group(0).length()));
-			
-			String[] innerElems = matcher.group(1).split(",");
-			for (String innerElem : innerElems) {
-				elemClass = elemClass.narrow(environment.getJClass(
-						typeFromTypeString(innerElem, environment)
-					));
-			}
-		} else {
-			elemClass = environment.getJClass(typeFromTypeString(type, environment));
-		}
-		
-		return elemClass;
-	}
-	
-	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment) {
-		return typeFromTypeString(type, environment, true);
-	}
 
-	public static String typeFromTypeString(String type, AndroidAnnotationsEnvironment environment, boolean parseList) {
-		
-		String toInfereIfNeeded = type;
-
-		if (parseList) {
-			Matcher matcher = Pattern.compile("(<((\\w|\\.)+)>)$").matcher(type);
-			if (matcher.find()) {
-				toInfereIfNeeded = matcher.group(2);
-			}
-		} else {
-			if (toInfereIfNeeded.contains("<")) {
-				toInfereIfNeeded = toInfereIfNeeded.substring(0, toInfereIfNeeded.indexOf('<'));
-				type = type.substring(0, type.indexOf('<'));
-			}
-		}
-
-		//This means that an inference over the type is need it
-		if (!toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
-				if (generatedClass.endsWith("." + toInfereIfNeeded)) {
-					return type.replace(toInfereIfNeeded, generatedClass);
-				}
-			}
-
-		}
-		
-		//Check the inference over the type for inner classes
-		if (toInfereIfNeeded.contains(".") && toInfereIfNeeded.endsWith(ModelConstants.generationSuffix())) {
-			String prevClass = toInfereIfNeeded.substring(0, toInfereIfNeeded.lastIndexOf("."));
-			if (!prevClass.contains(".") && prevClass.endsWith(ModelConstants.generationSuffix())) {
-				for (String generatedClass : FilesCacheHelper.getInstance().getGeneratedClasses()) {
-					if (generatedClass.endsWith("." + prevClass)) {
-						return type.replace(
-							toInfereIfNeeded, 
-							generatedClass + "." + toInfereIfNeeded.substring(toInfereIfNeeded.lastIndexOf(".") + 1));
-					}
-				}
-			}
-		}
-		
-		return type;
-	}
-	
 	public static String getGeneratedClassName(Element element, AndroidAnnotationsEnvironment environment) {
 		boolean checkNested = true;
 		if (element.getEnclosingElement().getKind().equals(ElementKind.PACKAGE)) checkNested = false;
-		return  getGeneratedClassName(element.asType().toString(), environment, checkNested);
+		return getGeneratedClassName(element.asType().toString(), element, environment, checkNested);
 	}
-	
+
 	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment) {
-		return getGeneratedClassName(clazz, environment, true);
+		return getGeneratedClassName(clazz, null, environment);
 	}
-	
+
+	public static String getGeneratedClassName(String clazz, Element referenceElement, AndroidAnnotationsEnvironment environment) {
+		return getGeneratedClassName(clazz, referenceElement, environment, true);
+	}
+
 	public static String getGeneratedClassName(String clazz, AndroidAnnotationsEnvironment environment, boolean checkNested) {
-		
+		return getGeneratedClassName(clazz, null, environment, checkNested);
+	}
+
+	public static String getGeneratedClassName(String clazz, Element referenceElement, AndroidAnnotationsEnvironment environment, boolean checkNested) {
+
 		if (clazz.trim().equals("")) return "";
 		
 		if (!clazz.endsWith(ModelConstants.generationSuffix())) {
@@ -189,7 +114,8 @@ public class TypeUtils {
 		}
 		
 		if (!clazz.contains(".")) {
-			return typeFromTypeString(clazz, environment);
+			APTCodeModelHelper codeModelHelper = new APTCodeModelHelper(environment);
+			return codeModelHelper.typeStringToClassName(clazz, referenceElement);
 		}		
 		
 		if (checkNested) {
@@ -206,68 +132,8 @@ public class TypeUtils {
 		
 		return clazz;
 	}
-	
-	public static String getClassFieldValue(Element element, final String annotationName, String methodName, AndroidAnnotationsEnvironment environment) {
-		TargetAnnotationHelper helper = new TargetAnnotationHelper(environment, annotationName);
-		
-		AnnotationMirror annotationMirror = helper.findAnnotationMirror(element, annotationName);
-		Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = annotationMirror.getElementValues();
 
-		for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValues.entrySet()) {
-			/*
-			 * "methodName" is unset when the default value is used
-			 */
-			if (methodName.equals(entry.getKey().getSimpleName().toString())) {
-
-				AnnotationValue annotationValue = entry.getValue();
-				
-				String result = annotationValue + "";
-				if (result.endsWith(".class")) result = result.substring(0, result.length()-6);
-			
-				if (result.equals("<error>")) {
-					
-					final StringBuilder resultBuilder = new StringBuilder();
-					
-					//Try to get the value using Compiler API Tree
-					Trees trees = Trees.instance(environment.getProcessingEnvironment());
-		        	TreePath treePath = trees.getPath(element);
-		        	TreePathScanner<Object, Trees> scanner = new TreePathScanner<Object, Trees>() {
-		        		
-		        		private Pattern pattern = Pattern.compile("value\\s*=\\s*([a-zA-Z_][a-zA-Z_0-9.]+)\\.class$");
-		        		
-		        		@Override
-		        		public Object visitAnnotation(AnnotationTree annotationTree,
-		        				Trees trees) {
-		        			
-		        			if (!annotationName.endsWith("." + annotationTree.getAnnotationType().toString()))
-		        				return super.visitAnnotation(annotationTree, trees);
-		        			
-		        			List<? extends ExpressionTree> args = annotationTree.getArguments();
-		        			for (ExpressionTree arg : args) {
-		        				Matcher matcher = pattern.matcher(arg.toString());
-		        				if (matcher.find()) {
-		        					resultBuilder.append(matcher.group(1));
-		        					break;
-		        				}
-		        			}
-		        			
-		        			return super.visitAnnotation(annotationTree, trees);
-		        		}
-		        		
-		        	};
-		        	
-		        	scanner.scan(treePath, trees);
-		        	result = resultBuilder.toString();
-				}
-				
-				return result;				
-			}
-		}
-		
-		return null;
-	}
-	
-	public static boolean isSubTypeRecusive(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
+	public static boolean isSubTypeRecursive(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
 		String subType = potentialSubtype.toString();
 		String superType = potentialSupertype.toString();
 		
@@ -282,18 +148,30 @@ public class TypeUtils {
 		
 		List<? extends TypeMirror> superTypes = processingEnv.getTypeUtils().directSupertypes(potentialSubtype);
 		for (TypeMirror type : superTypes) {
-			if (isSubTypeRecusive(type, potentialSupertype, processingEnv)) return true;
+			if (isSubTypeRecursive(type, potentialSupertype, processingEnv)) return true;
 		}
 		
 		return false;
 	}
 	
-	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {
+	public static boolean isSubtype(TypeMirror potentialSubtype, TypeMirror potentialSupertype, ProcessingEnvironment processingEnv) {		
 		
 		//This is because isSubtype is failing with generic classes in gradle
-		return isSubTypeRecusive(potentialSubtype, potentialSupertype, processingEnv);
+		return isSubTypeRecursive(potentialSubtype, potentialSupertype, processingEnv);
 	}
 
+	public static boolean isSubtype(TypeMirror t1, String t2, ProcessingEnvironment processingEnv) {
+		if (t2.contains("<")) t2 = t2.substring(0, t2.indexOf('<'));
+		
+		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(t2);
+		if (typeElement != null) {
+			TypeMirror expectedType = typeElement.asType();
+			return isSubtype(t1, expectedType, processingEnv);
+		}
+		
+		return false;
+	}
+	
 	public static boolean isSubtype(TypeElement t1, TypeElement t2, ProcessingEnvironment processingEnv) {
 		return isSubtype(t1.asType(), t2.asType(), processingEnv);
 	}
@@ -339,6 +217,21 @@ public class TypeUtils {
 		return false;
 	}
 	
+	public static Element fieldElementInElement(String fieldName, Element element) {
+		List<? extends Element> elems = element.getEnclosedElements();
+		for (Element elem : elems)
+			if (elem.getKind() == ElementKind.FIELD) {
+				if (elem.getSimpleName().toString().equals(fieldName)) {
+					if (elem.getModifiers().contains(Modifier.PRIVATE)) continue;
+					
+					return elem;
+				}
+				
+			}
+		
+		return null;
+	}
+	
 	public static boolean isClassAnnotatedWith(String className, Class<? extends Annotation> annotation, AndroidAnnotationsEnvironment environment) {
 		ADIHelper adiHelper = new ADIHelper(environment);
 		
@@ -363,10 +256,16 @@ public class TypeUtils {
 	}
 	
 	public static ClassInformation getClassInformation(Element element, AndroidAnnotationsEnvironment environment, boolean getElement) {
-		String className = element.asType().toString();
 		
-		//Detect when the method is a List, in order to generate all the Adapters structures
-		final boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
+		TypeMirror elementTypeMirror;
+		if (element instanceof ExecutableElement) {
+			elementTypeMirror = ((ExecutableElement) element).getReturnType();			
+		} else {
+			elementTypeMirror = element.asType();
+		}
+		String className = elementTypeMirror.toString();
+		
+		final boolean isList = TypeUtils.isSubtype(elementTypeMirror, CanonicalNameConstants.LIST, environment.getProcessingEnvironment());		
 		if (isList) {
 			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 			if (matcher.find()) {
@@ -376,10 +275,10 @@ public class TypeUtils {
 		
 		String originalClassName = className;
 		if (className.endsWith(ModelConstants.generationSuffix())) {
-			className = TypeUtils.typeFromTypeString(className, environment);
+			APTCodeModelHelper codeModelHelper = new APTCodeModelHelper(environment);
+			className = codeModelHelper.elementTypeToJClass(element, true).fullName();
 			originalClassName = className;
 			className = className.substring(0, className.length()-1);
-			
 		}
 		
 		TypeElement typeElement = null;

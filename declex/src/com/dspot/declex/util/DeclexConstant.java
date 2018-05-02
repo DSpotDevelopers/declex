@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package com.dspot.declex.util;
 
 public class DeclexConstant {
 	public final static String VIEW = "$view";
-	public final static String ACTION = "com.dspot.declex.Action";
 	
-	public static final String EVENT_PATH = "com.dspot.declex.event.";
+	public static String ACTION = "com.dspot.declex.Action";
+	public static String EVENT_PATH = "com.dspot.declex.event.";
 }

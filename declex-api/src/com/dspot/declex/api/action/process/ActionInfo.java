@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,14 @@ public class ActionInfo {
 	public boolean isGlobal;
 	public boolean isTimeConsuming;
 	
+	public boolean isExternal;
+	
 	public boolean handleViewChanges;
 	
+	/**
+	 * This flag controls to include the action in the Action object.<br>
+	 * The default value is "true"
+	 */
 	public boolean generated;
 	
 	public ActionInfo(String holderClass) {

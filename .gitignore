@@ -1,2 +1,5 @@
 /.metadata
 /.recommenders
+/declex-test/.declex
+/.idea
+*.iml

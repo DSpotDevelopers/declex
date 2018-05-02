@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 import org.androidannotations.holder.BaseGeneratedClassHolder;
 
-import com.dspot.declex.share.holder.EnsureImportsHolder;
+import com.dspot.declex.holder.EnsureImportsHolder;
 import com.dspot.declex.transform.writer.BaseTemplateTransformWriter;
 
 import freemarker.template.TemplateModelException;

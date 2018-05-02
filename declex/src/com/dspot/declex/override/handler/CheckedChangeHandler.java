@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.CheckedChange;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.event.holder.CheckedChangeHolder;
-import com.dspot.declex.event.holder.ViewListenerHolder;
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.view_listener.CheckedChangeHolder;
+import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 

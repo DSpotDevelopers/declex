@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -43,13 +44,14 @@ import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.rclass.IRClass.Res;
 
-import com.dspot.declex.api.model.UseModel;
-import com.dspot.declex.api.viewsinjection.Populate;
-import com.dspot.declex.runwith.RunWithHandler;
-import com.dspot.declex.share.holder.ViewsHolder;
-import com.dspot.declex.share.holder.ViewsHolder.IdInfoHolder;
+import com.dspot.declex.annotation.Populate;
+import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.handler.RunWithHandler;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
 import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.TypeUtils;
+import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.IJStatement;
@@ -84,42 +86,41 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 			Element element, ViewsHolder viewsHolder) {
 		
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-		for (Element elem : elems) {				
+		List<Element> allElems = new LinkedList<>(elems);
+		allElems.addAll(VirtualElement.getVirtualEnclosedElements(element.getEnclosingElement()));
+		
+		for (Element elem : allElems) {				
 			if (elem.getKind() == ElementKind.FIELD) {
 				
 				if (elem.getSimpleName().toString().equals(referecedId)) {
 					
-					Populate populator = elem.getAnnotation(Populate.class);
+					Populate populator = adiHelper.getAnnotation(elem, Populate.class);
 					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
 						
 						String className = elem.asType().toString();
-						String fieldName = elem.getSimpleName().toString();
 						
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
 							className = matcher.group(1);
 						}
 						
-						boolean castNeeded = false;
 						if (!className.endsWith(ModelConstants.generationSuffix())) {
 							if (TypeUtils.isClassAnnotatedWith(className, UseModel.class, getEnvironment())) {
 								className = TypeUtils.getGeneratedClassName(className, getEnvironment());
-								castNeeded = true;
 							}
 						}
-						className = TypeUtils.typeFromTypeString(className, getEnvironment());
+						className = codeModelHelper.typeStringToClassName(className, element);
 						
 						//Get the model
-						JFieldRef position = ref("position");
-						IJExpression modelAssigner = ref(fieldName).invoke("get").arg(position);
-						AbstractJClass Model = getJClass(className);
-						if (castNeeded) modelAssigner = cast(Model, ref(fieldName).invoke("get").arg(position));
+						final JFieldRef position = ref("position");
+						final AbstractJClass Model = getJClass(className);
+						IJExpression modelAssigner = cast(Model, ref("parent").invoke("getItemAtPosition").arg(position));
 						declForListener.put(Model, modelAssigner);
 					}
 					
 					break;
-				} else 	if (referecedId.startsWith(elem.getSimpleName().toString()) && 
-						    elem.getAnnotation(Populate.class)!=null) {
+				} else if (referecedId.startsWith(elem.getSimpleName().toString()) && 
+						adiHelper.hasAnnotation(elem, Populate.class)) {
 					
 					String className = elem.asType().toString();
 					String fieldName = elem.getSimpleName().toString();
@@ -139,7 +140,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					if (isPrimitive || isList) continue;
 					
 					if (className.endsWith(ModelConstants.generationSuffix())) {
-						className = TypeUtils.typeFromTypeString(className, getEnvironment());
+						className = codeModelHelper.typeStringToClassName(className, element);
 						className = className.substring(0, className.length()-1);
 					}
 					
@@ -150,17 +151,25 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					
 					String composedField = null;
 					for (String field : fields.keySet()) {
-						if (!fields.get(field).idName.equals(referecedId)) continue;
+						
+						final IdInfoHolder info = fields.get(field);
+						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
+						if (!info.idName.equals(referecedId)) continue;
 							
 						composedField = "";
 						for (String fieldPart : field.split("\\."))
 							composedField = composedField + "." + fieldToGetter(fieldPart);
 						
-						className = fields.get(field).type.toString();
+						className = info.type.toString();
+						
+						break;
 					}
 					
 					for (String method : methods.keySet()) {
-						if (!methods.get(method).idName.equals(referecedId)) continue;
+						
+						final IdInfoHolder info = methods.get(method);
+						if (!info.idName.equals(referecedId)) continue;
+						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
 						
 						composedField = "";
 						String[] methodSplit = method.split("\\.");
@@ -169,7 +178,9 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						}
 						composedField = composedField + "." + methodSplit[methodSplit.length-1];
 						
-						className = methods.get(method).type.toString();
+						className = info.type.toString();
+						
+						break;
 					}
 					
 					if (composedField == null) continue;
@@ -180,25 +191,15 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						if (matcher.find()) {
 							className = matcher.group(1);
 							if (className.endsWith(ModelConstants.generationSuffix())) {
-								className = TypeUtils.typeFromTypeString(className, getEnvironment());
+								className = codeModelHelper.typeStringToClassName(className, element);
 							}
 						}
 					} 
 					
-					IJExpression assignRef = ref(fieldName);
-					
-					String[] methodSplit = composedField.split("\\.");
-					for (int i = 0; i < methodSplit.length; i++) {
-						String methodPart = methodSplit[i];
-						if (!methodPart.equals("")) {
-							assignRef = assignRef.invoke(methodPart);		
-						}			
-					}
-					
 					//Get the model
-					JFieldRef position = ref("position");
-					IJExpression modelAssigner = assignRef.invoke("get").arg(position);
-					AbstractJClass Model = getJClass(className);
+					final JFieldRef position = ref("position");
+					final AbstractJClass Model = getJClass(className);
+					IJExpression modelAssigner = cast(Model, ref("parent").invoke("getItemAtPosition").arg(position));
 					declForListener.put(Model, modelAssigner);
 				}
 

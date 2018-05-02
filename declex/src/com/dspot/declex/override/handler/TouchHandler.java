@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.Touch;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
-import com.dspot.declex.event.holder.TouchHolder;
-import com.dspot.declex.event.holder.ViewListenerHolder;
-import com.dspot.declex.share.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.view_listener.TouchHolder;
+import com.dspot.declex.holder.view_listener.ViewListenerHolder;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 

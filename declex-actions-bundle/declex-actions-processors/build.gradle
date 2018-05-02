@@ -1,0 +1,12 @@
+apply plugin: 'java'
+def DECLEX_VERSION = '2.0.a.23'
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+
+    compile "com.dspot:declex-api:$DECLEX_VERSION"
+    compile 'com.helger:jcodemodel:2.8.0'
+}
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"

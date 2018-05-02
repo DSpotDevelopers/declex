@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2017 DSpot Sp. z o.o
+ * Copyright (C) 2016-2018 DSpot Sp. z o.o
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dspot.declex.api.action.processor;
 
 import static com.helger.jcodemodel.JExpr._null;
+import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -24,8 +25,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.androidannotations.annotations.EFragment;
+
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
+import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JMethod;
 import com.helger.jcodemodel.JVar;
@@ -48,8 +52,14 @@ public class ActivityActionProcessor extends BaseActionProcessor {
 	public void process(ActionInfo actionInfo) {
 		super.process(actionInfo);
 				
-		
-		addPostInitBlock(getAction().invoke("setBuilder").arg(getGeneratedClass().staticRef("this")));
+		IJExpression context = (IJExpression)getMethodInHolder("getContextRef");
+		if (getAnnotatedElement().getAnnotation(EFragment.class) != null) {
+			context = _this();
+		}
+		if (context == _this()) {
+			context = getGeneratedClass().staticRef("this");
+		}
+		addPostInitBlock(getAction().invoke("setBuilder").arg(context));
 			
 		for (ActionMethod withResult : actionInfo.methods.get("withResult")) {
 			if (withResult.metaData != null) {
