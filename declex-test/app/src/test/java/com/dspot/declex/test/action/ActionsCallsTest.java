@@ -35,7 +35,10 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -100,6 +103,12 @@ public class ActionsCallsTest {
 
         mockStatic(SimpleActionHolder_.class);
         when(SimpleActionHolder_.getInstance_(any(Context.class))).thenReturn(simpleHolder);
+    }
+
+    private class CallsRegisterRunnable implements Runnable {
+        AtomicBoolean called = new AtomicBoolean(false);
+        public void run() { called.set(true); }
+        public boolean wasCalled() { return called.get();}
     }
 
     @Test
@@ -235,6 +244,189 @@ public class ActionsCallsTest {
         }
 
 
+    }
+
+    @Test
+    public void testDefaultSelector() {
+
+        mockSimpleHolder();
+
+        final AtomicBoolean selector1Called = new AtomicBoolean(false);
+
+        bean.callSimpleActionAndCheckDefaultSelector(new Runnable() {
+            @Override
+            public void run() {
+                selector1Called.set(true);
+            }
+        });
+
+        assertTrue(selector1Called.get());
+    }
+
+    @Test
+    public void testIfElseWithDefaultSelector() {
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithDefaultSelector("any", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithDefaultSelector("2", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(afterSecondSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithDefaultSelector("3", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+        }
+    }
+
+    @Test
+    public void testIfElseWithSecondSelector() {
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithSecondSelector("any", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithSecondSelector("2", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(afterSecondSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithSecondSelector("3", afterDefaultSelector, afterSecondSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+        }
+    }
+
+    @Test
+    public void testIfElseWithThirdSelector() {
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithThirdSelector("any", afterDefaultSelector, afterThirdSelector);
+
+            assertTrue(afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterThirdSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithThirdSelector("2", afterDefaultSelector, afterThirdSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterThirdSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckIfElseWithThirdSelector("3", afterDefaultSelector, afterThirdSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(afterThirdSelector.wasCalled()) ;
+        }
+    }
+
+    @Test
+    public void testSelectors() {
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckSelectors("any", afterDefaultSelector, afterSecondSelector, afterThirdSelector);
+
+            assertTrue(afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+            assertTrue(!afterThirdSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckSelectors("2", afterDefaultSelector, afterSecondSelector, afterThirdSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(afterSecondSelector.wasCalled()) ;
+            assertTrue(!afterThirdSelector.wasCalled()) ;
+        }
+
+        {
+            mockSimpleHolder();
+
+            CallsRegisterRunnable afterDefaultSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterSecondSelector = new CallsRegisterRunnable();
+            CallsRegisterRunnable afterThirdSelector = new CallsRegisterRunnable();
+
+            bean.callSimpleActionAndCheckSelectors("3", afterDefaultSelector, afterSecondSelector, afterThirdSelector);
+
+            assertTrue(!afterDefaultSelector.wasCalled()) ;
+            assertTrue(!afterSecondSelector.wasCalled()) ;
+            assertTrue(afterThirdSelector.wasCalled()) ;
+        }
     }
 
 }
