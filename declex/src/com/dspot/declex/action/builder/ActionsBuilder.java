@@ -23,7 +23,6 @@ import com.dspot.declex.annotation.action.*;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
-import com.dspot.declex.api.action.structure.ActionResult;
 import com.dspot.declex.api.util.FormatsUtils;
 import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
 import com.dspot.declex.util.DeclexConstant;
@@ -41,6 +40,7 @@ import org.androidannotations.internal.helper.ViewNotifierHelper;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;
@@ -62,18 +62,18 @@ public class ActionsBuilder {
     private List<JInvocation> currentBuildInvocation = new LinkedList<>();
     private List<Map<String, ParamInfo>> currentBuildParams = new LinkedList<>();
 
+    /**
+     * It keeps the "tree" inside the actions in a given code,
+     * this is important to keep the correct track of the exact position of the current block
+     * within the actions.
+     */
     private List<String> actionsTree = new LinkedList<>();
     private List<JBlock> actionsTreeAfterExecute = new LinkedList<>();
 
-    private JFieldRef delegatingMethodResultValueVar;
-    private JFieldRef delegatingMethodFinishedVar;
-    private JMethod delegatingMethod;
-    private JBlock delegatingMethodStart;
-    private JBlock delegatingMethodEnd;
-    private JBlock delegatingMethodBody = null;
-
     private String actionInFieldWithoutInitializer = null;
     private int actionInFieldWithoutInitializerPosition;
+
+    private ActionsMethodHolder methodHolder;
 
     private AssignmentTree assignment;
 
@@ -111,14 +111,18 @@ public class ActionsBuilder {
         this.codeModelHelper = new DeclexAPTCodeModelHelper(environment);
         this.adiHelper = new ADIHelper(environment);
 
+        this.methodHolder = new ActionsMethodHolder(element, holder, environment);
+
     }
 
     public void setMethodBuilder(ActionsMethodBuilder methodBuilder) {
         this.methodBuilder = methodBuilder;
+        methodHolder.setMethodBuilder(methodBuilder);
     }
 
     public void setExpressionsHelper(ExpressionsHelper expressionsHelper) {
         this.expressionsHelper = expressionsHelper;
+        methodHolder.setExpressionsHelper(expressionsHelper);
     }
 
     public void startProcess() {
@@ -159,20 +163,9 @@ public class ActionsBuilder {
 
     public void buildActionMethod(boolean isOverrideAction) {
 
-        delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, true);
+        methodHolder.buildDelegatingMethod(isOverrideAction);
 
-        if (!isOverrideAction) {
-            codeModelHelper.removeBody(delegatingMethod);
-
-            delegatingMethodBody = delegatingMethod.body();
-            delegatingMethodStart = delegatingMethodBody.blockVirtual();
-        } else {
-            delegatingMethod.annotate(Override.class);
-        }
-
-        String javaDocRef = "<br><hr><br>\nAction Method " + JavaDocUtils.referenceFromElement(element);
-        delegatingMethod.javadoc().add(javaDocRef);
-
+        //Here it is built the "@Override" annotated method, which calls the delegating method
         JMethod overrideMethod = codeModelHelper.findAlreadyGeneratedMethod((ExecutableElement) element, holder, false);
         if (overrideMethod != null) {
 
@@ -187,16 +180,16 @@ public class ActionsBuilder {
             codeModelHelper.removeBody(overrideMethod);
 
             if (isOverrideAction) {
-                javaDocRef = "<br><hr><br>\nOverride Action Method " + JavaDocUtils.referenceFromElement(element);
+                String javaDocRef = "<br><hr><br>\nOverride Action Method " + JavaDocUtils.referenceFromElement(element);
                 overrideMethod.javadoc().add(javaDocRef);
             }
 
-            JInvocation actionInvoke = invoke(delegatingMethod);
+            JInvocation actionInvoke = invoke(methodHolder.getDelegatingMethod());
             for (JVar param : overrideMethod.params()) {
                 actionInvoke.arg(ref(param.name()));
             }
 
-            if (((ExecutableElement)element).getReturnType().toString().equals("void")) {
+            if (((ExecutableElement)element).getReturnType().getKind() == TypeKind.VOID) {
                 overrideMethod.body().add(actionInvoke);
             } else {
                 overrideMethod.body()._return(actionInvoke);
@@ -234,10 +227,12 @@ public class ActionsBuilder {
                 String actionClass = Actions.getInstance().getActionNames().get(methodSelect);
                 ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(actionClass);
 
-                if (delegatingMethodBody == null) {
+                if (!methodHolder.hasDelegatingMethodBody()) {
+
                     if (isValidating) {
+
                         //This block is not going to be used
-                        delegatingMethodBody = new JBlock();
+                        methodHolder.setDelegatingMethodBody(new JBlock());
 
                         if (!(element instanceof ExecutableElement)) {
                             pushAction();
@@ -258,7 +253,7 @@ public class ActionsBuilder {
 
                             JMethod fire = anonymous.method(JMod.PUBLIC, getCodeModel().VOID, "fire");
                             fire.annotate(Override.class);
-                            delegatingMethodBody = fire.body();
+                            methodHolder.setDelegatingMethodBody(fire.body());
 
                             holder.getInitBody().assign(ref(element.getSimpleName().toString()), _new(anonymous));
 
@@ -269,6 +264,7 @@ public class ActionsBuilder {
                             logger.increaseIndex();
                         }
                     }
+
                 }
 
                 final int position = invoke == null ? actionInFieldWithoutInitializerPosition : sourcePosition;
@@ -584,54 +580,9 @@ public class ActionsBuilder {
 
         }
 
-        if (!isValidating && (insideAction || delegatingMethodFinishedVar != null)) {
+        if (!isValidating && (insideAction || methodHolder.didInitializedResults())) {
 
-            final String resultName = delegatingMethod.name() + "_result";
-
-            if (delegatingMethodFinishedVar == null) {
-
-                AbstractJClass ActionResult = environment.getJClass(ActionResult.class);
-                JVar result = delegatingMethodStart.decl(
-                    JMod.FINAL,
-                    ActionResult,
-                    resultName,
-                    _new(ActionResult)
-                );
-
-                delegatingMethodFinishedVar = result.ref("finished");
-
-                String resultRef;
-                if (((ExecutableElement)element).getReturnType().getKind().isPrimitive()) {
-                    resultRef = ((ExecutableElement)element).getReturnType().toString() + "Val";
-                } else {
-                    resultRef = "objectVal";
-                }
-
-                if (!((ExecutableElement)element).getReturnType().toString().equals("void")) {
-                    delegatingMethodResultValueVar = result.ref(resultRef);
-
-                    delegatingMethodEnd = new JBlock();
-                    delegatingMethodEnd._return(result.ref(resultRef));
-                }
-            }
-
-            //Assign value and return
-            if (delegatingMethodResultValueVar != null) {
-                methodBuilder.addStatement(
-                    resultName + "." + delegatingMethodResultValueVar.name() + " = " + returnTree.getExpression() + ";");
-            }
-
-            if (delegatingMethodFinishedVar != null) {
-                methodBuilder.addStatement(
-                    resultName + "." + delegatingMethodFinishedVar.name() + " = true;");
-            }
-
-            if (insideAction || delegatingMethodResultValueVar == null || methodBuilder.hasSharedVariableHolder()) {
-                methodBuilder.addStatement("return;");
-            } else {
-                methodBuilder.addStatement(
-                    "return " + resultName + "." + delegatingMethodResultValueVar.name() + ";");
-            }
+            methodHolder.addReturn(insideAction, returnTree);
 
             for (int i = 0; i < actionsTreeAfterExecute.size(); i++) {
                 JBlock block = actionsTreeAfterExecute.get(i);
@@ -639,12 +590,7 @@ public class ActionsBuilder {
                 //This block contains only this condition
                 if (!block.isEmpty()) continue;
 
-                JBlock finishBlock = block._if(delegatingMethodFinishedVar)._then();
-                if (delegatingMethodResultValueVar != null && i == 0 && !methodBuilder.hasSharedVariableHolder()) {
-                    finishBlock._return(delegatingMethodResultValueVar);
-                } else {
-                    finishBlock._return();
-                }
+                methodHolder.addBlockReturn(block, i == 0);
             }
 
             return true;
@@ -693,31 +639,9 @@ public class ActionsBuilder {
         currentBuildInvocation.remove(0);
         currentBuildParams.remove(0);
 
+        //Check if the method ended
         if (currentAction.size() == 0) {
-
-            //Crate the parameter variables
-            if (delegatingMethodStart != null) {
-
-                for (JVar param : delegatingMethod.listParams()) {
-
-                    String paramName = param.name();
-                    if (paramName.startsWith("$")) {
-                        paramName = paramName.substring(1);
-                    }
-
-                    if (methodBuilder.hasSharedVariableHolder()) {
-                        methodBuilder.getSharedVariablesHolder().field(JMod.NONE, param.type(), paramName, param);
-                    } else {
-                        delegatingMethodStart.decl(param.type(), paramName, param);
-                    }
-                }
-
-            }
-
-            delegatingMethodBody.add(methodBuilder.getInitialBlock());
-            if (delegatingMethodEnd != null) {
-                delegatingMethodBody.add(delegatingMethodEnd);
-            }
+            methodHolder.completeActionMethod();
         }
 
     }

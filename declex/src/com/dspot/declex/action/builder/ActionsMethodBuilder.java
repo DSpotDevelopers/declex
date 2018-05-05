@@ -32,7 +32,7 @@ import java.util.Map;
 import static com.helger.jcodemodel.JExpr.*;
 
 /**
- * This class builds the Actions Method. It contains the method object, which its variables, blocks and statements.
+ * This class builds the Actions Method. It contains the method object, with its variables, blocks and statements.
  */
 public class ActionsMethodBuilder {
 

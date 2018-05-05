@@ -382,7 +382,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 
 	    if (ignoreActions) return super.visitReturn(returnTree, trees);
 
-        if (actionsBuilder.hasActionFinished(returnTree)) {
+        if (!actionsBuilder.hasActionFinished(returnTree)) {
 		    methodBuilder.addStatement(returnTree.toString());
 		}
 		

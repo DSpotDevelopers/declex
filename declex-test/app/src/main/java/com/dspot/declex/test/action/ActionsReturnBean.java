@@ -17,6 +17,8 @@ package com.dspot.declex.test.action;
 
 import org.androidannotations.annotations.EBean;
 
+import java.util.Random;
+
 import static com.dspot.declex.Action.$SimpleAction;
 
 @EBean
@@ -67,9 +69,26 @@ public class ActionsReturnBean {
         return this;
     }
 
-    public int actionReturnInBlock() {
+    public int actionReturnOutsideBlock() {
         {$SimpleAction();}
         return 1;
+    }
+
+    protected int actionReturnOutsideMultipleBlock() {
+
+        boolean firstCondition = new Random().nextBoolean();
+        boolean secondCondition = new Random().nextBoolean();
+
+        if (firstCondition) {
+            {$SimpleAction();}
+            return 0;
+        } else if (!secondCondition) {
+            {$SimpleAction();}
+            return 1;
+        }
+
+        return 2;
+
     }
 
     public int actionReturnWithSelectors(String initParam) {
@@ -90,6 +109,31 @@ public class ActionsReturnBean {
 
         return 0;
 
+    }
+
+    public void actionReturnVoidWithSelectors(String initParam) {
+
+        $SimpleAction(initParam);
+
+        if ($SimpleAction.Selector1) {
+            return;
+        }
+
+        if ($SimpleAction.Selector2) {
+            return;
+        }
+
+        if ($SimpleAction.Selector3) {
+            return;
+        }
+
+    }
+
+    public int actionReturnWithVariables() {
+        final String someVariable = "";
+        $SimpleAction();
+        System.out.println(someVariable);
+        return 1;
     }
 
 }
