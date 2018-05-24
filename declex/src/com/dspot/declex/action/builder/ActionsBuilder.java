@@ -73,11 +73,9 @@ public class ActionsBuilder {
     private String actionInFieldWithoutInitializer = null;
     private int actionInFieldWithoutInitializerPosition;
 
-    private ActionsMethodHolder methodHolder;
-
     private AssignmentTree assignment;
 
-    private List<MethodInvocationTree> subMethods = new LinkedList<>();
+    private List<MethodInvocationTree> actionInvocationSubMethods = new LinkedList<>();
 
     private boolean processStarted = false;
 
@@ -111,18 +109,14 @@ public class ActionsBuilder {
         this.codeModelHelper = new DeclexAPTCodeModelHelper(environment);
         this.adiHelper = new ADIHelper(environment);
 
-        this.methodHolder = new ActionsMethodHolder(element, holder, environment);
-
     }
 
     public void setMethodBuilder(ActionsMethodBuilder methodBuilder) {
         this.methodBuilder = methodBuilder;
-        methodHolder.setMethodBuilder(methodBuilder);
     }
 
     public void setExpressionsHelper(ExpressionsHelper expressionsHelper) {
         this.expressionsHelper = expressionsHelper;
-        methodHolder.setExpressionsHelper(expressionsHelper);
     }
 
     public void startProcess() {
@@ -163,7 +157,7 @@ public class ActionsBuilder {
 
     public void buildActionMethod(boolean isOverrideAction) {
 
-        methodHolder.buildDelegatingMethod(isOverrideAction);
+        methodBuilder.buildDelegatingMethod(isOverrideAction);
 
         //Here it is built the "@Override" annotated method, which calls the delegating method
         JMethod overrideMethod = codeModelHelper.findAlreadyGeneratedMethod((ExecutableElement) element, holder, false);
@@ -184,7 +178,7 @@ public class ActionsBuilder {
                 overrideMethod.javadoc().add(javaDocRef);
             }
 
-            JInvocation actionInvoke = invoke(methodHolder.getDelegatingMethod());
+            JInvocation actionInvoke = invoke(methodBuilder.getDelegatingMethod());
             for (JVar param : overrideMethod.params()) {
                 actionInvoke.arg(ref(param.name()));
             }
@@ -219,7 +213,7 @@ public class ActionsBuilder {
         String methodSelect = invoke != null? invoke.getMethodSelect().toString() : actionInFieldWithoutInitializer;
 
         if (methodSelect.contains(".")) {
-            subMethods.add(invoke);
+            actionInvocationSubMethods.add(invoke);
         } else {
 
             if (Actions.getInstance().hasActionNamed(methodSelect)) {
@@ -227,12 +221,12 @@ public class ActionsBuilder {
                 String actionClass = Actions.getInstance().getActionNames().get(methodSelect);
                 ActionInfo actionInfo = Actions.getInstance().getActionInfos().get(actionClass);
 
-                if (!methodHolder.hasDelegatingMethodBody()) {
+                if (!methodBuilder.hasDelegatingMethodBody()) {
 
                     if (isValidating) {
 
                         //This block is not going to be used
-                        methodHolder.setDelegatingMethodBody(new JBlock());
+                        methodBuilder.setDelegatingMethodBody(new JBlock());
 
                         if (!(element instanceof ExecutableElement)) {
                             pushAction();
@@ -240,6 +234,7 @@ public class ActionsBuilder {
                         }
 
                     } else {
+
                         if (element instanceof ExecutableElement) {
 
                             //Create the Action method
@@ -253,16 +248,17 @@ public class ActionsBuilder {
 
                             JMethod fire = anonymous.method(JMod.PUBLIC, getCodeModel().VOID, "fire");
                             fire.annotate(Override.class);
-                            methodHolder.setDelegatingMethodBody(fire.body());
+                            methodBuilder.setDelegatingMethodBody(fire.body());
 
                             holder.getInitBody().assign(ref(element.getSimpleName().toString()), _new(anonymous));
 
                             pushAction();
                             startProcess();
 
-                            logger.info("FieldStart:" + subMethods);
+                            logger.info("FieldStart:" + actionInvocationSubMethods);
                             logger.increaseIndex();
                         }
+
                     }
 
                 }
@@ -337,13 +333,13 @@ public class ActionsBuilder {
                 }
                 JBlock postInit = block.blockVirtual();
 
-                Collections.reverse(subMethods);
+                Collections.reverse(actionInvocationSubMethods);
                 JInvocation externalInvoke = null;
 
                 String[] stopOn = null;
                 boolean buildAndExecute = true;
 
-                for (MethodInvocationTree invocation : subMethods) {
+                for (MethodInvocationTree invocation : actionInvocationSubMethods) {
                     String name = invocation.getMethodSelect().toString();
                     int index = name.lastIndexOf('.');
                     name = name.substring(index+1);
@@ -505,7 +501,7 @@ public class ActionsBuilder {
 
             }
 
-            subMethods.clear();
+            clearActionSearch();
         }
 
         return false;
@@ -513,7 +509,7 @@ public class ActionsBuilder {
     }
 
     public void clearActionSearch() {
-        subMethods.clear();
+        actionInvocationSubMethods.clear();
     }
 
     public void registerAssignment(AssignmentTree assignment) {
@@ -526,30 +522,37 @@ public class ActionsBuilder {
 
     public boolean hasActionFinished(BlockTree blockTree) {
 
-        if (blockTree.getStatements().size() == 1 && actionsTree.size() > 0
-            && blockTree.getStatements().get(0).toString().startsWith("return")) {
+        if (blockTree.getStatements().size() == 1 && actionsTree.size() > 0) {
 
-            if (blockTree.getStatements().get(0).toString().equals("return;")) {
-                JBlock block = methodBuilder.getCurrentBlock();
-                block._return();
-                return true;
-            } else {
-                if (blockTree.getStatements().get(0).toString().equals("return null;")
-                    || blockTree.getStatements().get(0).toString().equals("return 0;")
-                    || blockTree.getStatements().get(0).toString().equals("return false;")
-                    || blockTree.getStatements().get(0).toString().equals("return 0.0")) {
+            final String blockStatement = blockTree.getStatements().get(0).toString();
 
+            if (blockStatement.startsWith("return") && !hasSelector()) {
+
+                if (blockStatement.equals("return;")) {
                     JBlock block = methodBuilder.getCurrentBlock();
-                    block._return(direct(blockTree.getStatements().get(0).toString()));
+                    block._return();
                     return true;
-
                 } else {
-                    throw new ActionProcessingException(
-                        "A return block for an action can only contain a default value or none for \"void\" methods."
-                            + "Error in: " + blockTree.getStatements().get(0)
-                    );
+
+                    //Default handler
+                    if (blockStatement.equals("return null;") || blockStatement.equals("return 0;")
+                        || blockStatement.equals("return false;") || blockStatement.equals("return 0.0")) {
+
+                        JBlock block = methodBuilder.getCurrentBlock();
+                        block._return(direct(blockTree.getStatements().get(0).toString()));
+                        return true;
+
+                    } else if (blockStatement.startsWith("return ")) {
+                        throw new ActionProcessingException(
+                            "A return block for an action can only contain a default value or none for \"void\" methods."
+                                + "Error in: " + blockTree.getStatements().get(0)
+                        );
+                    }
+
                 }
+
             }
+
         }
 
         return false;
@@ -568,7 +571,7 @@ public class ActionsBuilder {
 
             if (actionInfo.isTimeConsuming) {
                 throw new ActionProcessingException(
-                    "The return statement of action method cannot be inside a time consumming action."
+                    "The return statement of action method cannot be inside a time consuming action."
                         + " The action " + action + " will finish it's operation in a different thread. "
                         + "Error: \"" + returnTree + "\" is inside \"" + actionsTree + "\". "
                         + "If you want to simply break the action \"" + action + "\" execution, consider using instead: "
@@ -580,9 +583,9 @@ public class ActionsBuilder {
 
         }
 
-        if (!isValidating && (insideAction || methodHolder.didInitializedResults())) {
+        if (!isValidating && (insideAction || methodBuilder.didInitializedResults())) {
 
-            methodHolder.addReturn(insideAction, returnTree);
+            methodBuilder.addReturn(insideAction, returnTree);
 
             for (int i = 0; i < actionsTreeAfterExecute.size(); i++) {
                 JBlock block = actionsTreeAfterExecute.get(i);
@@ -590,7 +593,7 @@ public class ActionsBuilder {
                 //This block contains only this condition
                 if (!block.isEmpty()) continue;
 
-                methodHolder.addBlockReturn(block, i == 0);
+                methodBuilder.addBlockReturn(block, i == 0);
             }
 
             return true;
@@ -638,11 +641,6 @@ public class ActionsBuilder {
         currentAction.remove(0);
         currentBuildInvocation.remove(0);
         currentBuildParams.remove(0);
-
-        //Check if the method ended
-        if (currentAction.size() == 0) {
-            methodHolder.completeActionMethod();
-        }
 
     }
 
@@ -906,7 +904,7 @@ public class ActionsBuilder {
 
                                 if (!currentParam.equals(((Field) annotation).ignoreExpression())) {
                                     throw new ActionProcessingException(
-                                        "There's no an accesible field named: " + currentParam + " in " + invocation
+                                        "There's no an accessible field named: " + currentParam + " in " + invocation
                                     );
                                 }
 

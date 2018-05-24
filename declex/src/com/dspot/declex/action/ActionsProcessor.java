@@ -254,7 +254,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
         this.logger = new ActionsLogger(isValidating(), env);
         this.actionsBuilder = new ActionsBuilder(isValidating(), element, holder, logger, env);
         this.expressionsHelper = new ExpressionsHelper(isValidating(), actionsBuilder, holder, treePath);
-		this.methodBuilder = new ActionsMethodBuilder(isValidating(), logger, env);
+		this.methodBuilder = new ActionsMethodBuilder(element, holder, isValidating(), logger, env);
 
 		methodBuilder.setExpressionsHelper(expressionsHelper);
 		actionsBuilder.setExpressionsHelper(expressionsHelper);
@@ -346,8 +346,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 				}
 				if (!parameters.equals("")) parametersCount++;
 				
-				List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
-				for (Element elem : elems) {
+				List<? extends Element> elements = element.getEnclosingElement().getEnclosedElements();
+				for (Element elem : elements) {
 					final String elemName = elem.getSimpleName().toString();
 					
 					if (elem.getModifiers().contains(Modifier.STATIC)
@@ -383,7 +383,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 	    if (ignoreActions) return super.visitReturn(returnTree, trees);
 
         if (!actionsBuilder.hasActionFinished(returnTree)) {
-		    methodBuilder.addStatement(returnTree.toString());
+        	methodBuilder.addReturnStatement(returnTree);
 		}
 		
 		Boolean result = super.visitReturn(returnTree, trees);
@@ -401,7 +401,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		final String idName = id.toString();
 		
 		//If it is used one of the method parameters, then use sharedVariablesHolder
-		if ((actionsBuilder.hasPendingAction() || anonymousClassTree != null) && methodActionParamNames.contains(idName)) {
+		if ((actionsBuilder.hasPendingAction() || anonymousClassTree != null)
+			&& methodActionParamNames.contains(idName)) {
 
 		    methodBuilder.needsSharedVariablesHolder();
 		}

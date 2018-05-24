@@ -17,11 +17,18 @@ package com.dspot.declex.action.builder;
 
 import com.dspot.declex.action.util.ActionsLogger;
 import com.dspot.declex.action.util.ExpressionsHelper;
+import com.dspot.declex.override.helper.DeclexAPTCodeModelHelper;
+import com.dspot.declex.util.JavaDocUtils;
 import com.helger.jcodemodel.*;
 import com.sun.source.tree.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.holder.EComponentHolder;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.util.HashMap;
@@ -37,6 +44,7 @@ import static com.helger.jcodemodel.JExpr.*;
 public class ActionsMethodBuilder {
 
     private JBlock initialBlock = new JBlock();
+    public JBlock actionMethodStartBlock = new JBlock();
 
     private List<JBlock> blocks = new LinkedList<>();
     private List<JBlock> originalBlocks = new LinkedList<>();
@@ -46,22 +54,181 @@ public class ActionsMethodBuilder {
 
     private JAnonymousClass sharedVariablesHolder = null;
 
+    private JMethod delegatingMethod;
+    private JBlock delegatingMethodEnd;
+    private JBlock delegatingMethodBody = null;
+
+    private JFieldRef delegatingMethodResultValueVar;
+    private IJExpression delegatingMethodResultValueVarExpression;
+    private JFieldRef delegatingMethodFinishedVar;
+
+    private boolean shouldBuildCreateParametersVariables;
+
     private boolean isValidating;
 
     private ActionsLogger logger;
+
+    private EComponentHolder holder;
+
+    private Element element;
 
     private ExpressionsHelper expressionsHelper;
 
     private AndroidAnnotationsEnvironment environment;
 
-    public ActionsMethodBuilder(boolean isValidating, ActionsLogger logger, AndroidAnnotationsEnvironment environment) {
+    private DeclexAPTCodeModelHelper codeModelHelper;
+
+    public ActionsMethodBuilder(Element element, EComponentHolder holder, boolean isValidating,
+                                ActionsLogger logger, AndroidAnnotationsEnvironment environment) {
         this.isValidating = isValidating;
         this.logger = logger;
+        this.element = element;
+        this.holder = holder;
         this.environment = environment;
+
+        this.codeModelHelper = new DeclexAPTCodeModelHelper(environment);
     }
 
     public void setExpressionsHelper(ExpressionsHelper expressionsHelper) {
         this.expressionsHelper = expressionsHelper;
+    }
+
+    public boolean didInitializedResults() {
+        return  delegatingMethodFinishedVar != null;
+    }
+
+    public void buildDelegatingMethod(boolean isOverrideAction) {
+
+        delegatingMethod = codeModelHelper.overrideAnnotatedMethod((ExecutableElement) element, holder, true);
+
+        if (!isOverrideAction) {
+
+            codeModelHelper.removeBody(delegatingMethod);
+
+            delegatingMethodBody = delegatingMethod.body();
+            actionMethodStartBlock = delegatingMethodBody.blockVirtual().add(actionMethodStartBlock);
+
+            shouldBuildCreateParametersVariables = true;
+
+        } else {
+            delegatingMethod.annotate(Override.class);
+        }
+
+        String javaDocRef = "<br><hr><br>\nAction Method " + JavaDocUtils.referenceFromElement(element);
+        delegatingMethod.javadoc().add(javaDocRef);
+
+    }
+
+    public void addReturn(boolean insideAction, ReturnTree returnTree) {
+
+        if (isValidating) return;
+
+        final String resultName = element.getSimpleName().toString() + "Result";
+
+        if (delegatingMethodFinishedVar == null) {
+
+            final TypeMirror returnType = ((ExecutableElement)element).getReturnType();
+            final AbstractJClass ActionResult = environment.getJClass(com.dspot.declex.api.action.structure.ActionResult.class);
+            final JVar result = actionMethodStartBlock.decl(
+                JMod.FINAL,
+                ActionResult,
+                resultName,
+                _new(ActionResult)
+            );
+
+            delegatingMethodFinishedVar = result.ref("finished");
+
+            IJExpression resultReference;
+            JFieldRef resultReferenceAsVariable;
+            if (returnType.getKind().isPrimitive()) {
+                final String primitiveValueHolder = ((ExecutableElement)element).getReturnType().toString() + "Val";
+                resultReferenceAsVariable = result.ref(primitiveValueHolder);
+                resultReference = resultReferenceAsVariable;
+            } else {
+                resultReferenceAsVariable =result.ref("objectVal");
+                resultReference = cast(codeModelHelper.typeMirrorToJClass(returnType), resultReferenceAsVariable);
+            }
+
+            if (returnType.getKind() != TypeKind.VOID) {
+                delegatingMethodResultValueVar = resultReferenceAsVariable;
+                delegatingMethodResultValueVarExpression = resultReference;
+
+                delegatingMethodEnd = new JBlock();
+                delegatingMethodEnd.virtual(true);
+                delegatingMethodEnd._return(resultReference);
+            }
+        }
+
+        //Assign value and return
+        if (delegatingMethodResultValueVar != null) {
+            addStatement(expressionsHelper.expressionToString(delegatingMethodResultValueVar) + " = " + returnTree.getExpression() + ";");
+        }
+
+        if (delegatingMethodFinishedVar != null) {
+            addStatement(resultName + "." + delegatingMethodFinishedVar.name() + " = true;");
+        }
+
+        if (insideAction || delegatingMethodResultValueVar == null || hasSharedVariableHolder()) {
+            addStatement("return;");
+        } else {
+            addStatement("return " + expressionsHelper.expressionToString(delegatingMethodResultValueVarExpression) + ";");
+        }
+
+    }
+
+    public void addBlockReturn(JBlock block, boolean shouldReturnResultValue) {
+
+        JBlock finishBlock = block._if(delegatingMethodFinishedVar)._then();
+        if (delegatingMethodResultValueVar != null && shouldReturnResultValue && !hasSharedVariableHolder()) {
+            finishBlock._return(delegatingMethodResultValueVarExpression);
+        } else {
+            finishBlock._return();
+        }
+
+    }
+
+    public void finalizeActionMethod() {
+
+        //Crate the parameter variables
+        if (shouldBuildCreateParametersVariables) {
+
+            for (JVar param : delegatingMethod.listParams()) {
+
+                String paramName = param.name();
+                if (paramName.startsWith("$")) {
+                    paramName = paramName.substring(1);
+                }
+
+                if (hasSharedVariableHolder()) {
+                    getSharedVariablesHolder().field(JMod.NONE, param.type(), paramName, param);
+                } else {
+                    actionMethodStartBlock.decl(param.type(), paramName, param);
+                }
+            }
+
+        }
+
+        if (delegatingMethod != null) {
+
+            delegatingMethodBody.add(initialBlock);
+            if (delegatingMethodEnd != null) {
+                delegatingMethodBody.add(delegatingMethodEnd);
+            }
+
+        }
+
+    }
+
+    public boolean hasDelegatingMethodBody() {
+        return delegatingMethodBody != null;
+    }
+
+    public void setDelegatingMethodBody(JBlock delegatingMethodBody) {
+        this.delegatingMethodBody = delegatingMethodBody;
+    }
+
+    public JMethod getDelegatingMethod() {
+        return delegatingMethod;
     }
 
     public void buildStatements() {
@@ -171,7 +338,9 @@ public class ActionsMethodBuilder {
     }
 
     public void needsSharedVariablesHolder() {
+
         if (sharedVariablesHolder == null) {
+
             sharedVariablesHolder = getCodeModel().anonymousClass(Runnable.class);
             JMethod anonymousRunnableRun = sharedVariablesHolder.method(JMod.PUBLIC, getCodeModel().VOID, "run");
             anonymousRunnableRun.annotate(Override.class);
@@ -186,7 +355,9 @@ public class ActionsMethodBuilder {
                 _new(sharedVariablesHolder)
             );
             initialBlock.invoke(sharedVariablesHolderVar, "run");
+
         }
+
     }
 
     public boolean hasSharedVariableHolder() {
@@ -237,6 +408,7 @@ public class ActionsMethodBuilder {
 
     public void pushInitialBlock() {
         pushBlock(initialBlock, null);
+        actionMethodStartBlock = initialBlock.blockVirtual();
     }
 
     public void pushBlock(JBlock block, String blockName) {
@@ -250,11 +422,18 @@ public class ActionsMethodBuilder {
     }
 
     public void popBlock() {
+
         logger.decreaseIndex();
         logger.info("end");
 
         blocks.remove(0);
         originalBlocks.remove(0);
+
+        //Check if the method ended
+        if (blocks.size() == 0 && originalBlocks.size() == 0) {
+            finalizeActionMethod();
+        }
+
     }
 
     public JBlock getCurrentBlock() {
@@ -263,10 +442,6 @@ public class ActionsMethodBuilder {
 
     public void setCurrentBlock(JBlock block) {
         blocks.set(0, block);
-    }
-
-    public JBlock getInitialBlock() {
-        return initialBlock;
     }
 
     public JBlock getCurrentOriginalBlock() {
@@ -279,6 +454,16 @@ public class ActionsMethodBuilder {
 
     public void addStatement(String statement) {
         statements.add(new StringExpressionStatement(statement));
+    }
+
+    public void addReturnStatement(ReturnTree returnTree) {
+
+        if (hasSharedVariableHolder()) {
+            addReturn(false, returnTree);
+        } else {
+            addStatement(returnTree.toString());
+        }
+
     }
 
     public void addStatementVariableWithoutInitializer(VariableTree variableTree) {
