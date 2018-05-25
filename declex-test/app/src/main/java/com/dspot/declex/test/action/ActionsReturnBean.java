@@ -93,18 +93,20 @@ public class ActionsReturnBean {
 
     public int actionReturnWithSelectors(String initParam) {
 
-        $SimpleAction(initParam);
+        {
+            $SimpleAction(initParam);
 
-        if ($SimpleAction.Selector1) {
-            return 1;
-        }
+            if ($SimpleAction.Selector1) {
+                return 1;
+            }
 
-        if ($SimpleAction.Selector2) {
-            return 2;
-        }
+            if ($SimpleAction.Selector2) {
+                return 2;
+            }
 
-        if ($SimpleAction.Selector3) {
-            return 3;
+            if ($SimpleAction.Selector3) {
+                return 3;
+            }
         }
 
         return 0;
@@ -129,11 +131,33 @@ public class ActionsReturnBean {
 
     }
 
-    public int actionReturnWithVariables() {
+    public String actionReturnWithVariables(String param) {
         final String someVariable = "";
-        $SimpleAction();
-        System.out.println(someVariable);
-        return 1;
+        $SimpleAction(someVariable).param1(param);
+        return param;
+    }
+
+    public void methodReturnVoidBeforeAction(String param) {
+
+        final String someVariable = "";
+        if (!someVariable.equals(param)) {
+            return;
+        }
+
+        $SimpleAction(someVariable).param1(param);
+
+    }
+
+    public String methodReturnBeforeAction(String param) {
+
+        final String someVariable = "";
+        if (!someVariable.equals(param)) {
+            return someVariable;
+        }
+
+        $SimpleAction(someVariable).param1(param);
+        return someVariable;
+
     }
 
 }

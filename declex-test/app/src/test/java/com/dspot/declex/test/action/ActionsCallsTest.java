@@ -234,7 +234,6 @@ public class ActionsCallsTest {
             assertEquals("any param", simpleHolder.getParam1());
         }
 
-
     }
 
 }
