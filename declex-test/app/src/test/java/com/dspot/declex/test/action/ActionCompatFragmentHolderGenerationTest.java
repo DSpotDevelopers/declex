@@ -15,7 +15,6 @@
  */
 package com.dspot.declex.test.action;
 
-import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 
@@ -28,7 +27,9 @@ import org.robolectric.RuntimeEnvironment;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -45,13 +46,13 @@ public class ActionCompatFragmentHolderGenerationTest {
 
     @Test
     public void testInitMethods() throws Exception {
-        FragmentTransaction transaction = mock(FragmentTransaction.class);
+        android.app.FragmentTransaction transaction = mock(android.app.FragmentTransaction.class);
 
-        FragmentManager fragmentManager = mock(FragmentManager.class);
+        android.app.FragmentManager fragmentManager = mock(android.app.FragmentManager.class);
         when(fragmentManager.beginTransaction()).thenReturn(transaction);
 
         AppCompatActivity activity = mock(AppCompatActivity.class);
-        when(activity.getSupportFragmentManager()).thenReturn(fragmentManager);
+        when(activity.getFragmentManager()).thenReturn(fragmentManager);
 
         {
             ActionFragmentActionHolder_ holder = ActionFragmentActionHolder_.getInstance_(activity);
