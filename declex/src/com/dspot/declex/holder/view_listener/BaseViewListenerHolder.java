@@ -134,8 +134,9 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 			else view = view.ref(viewField);
 		}
 
-		if (viewFieldName.endsWith(DeclexConstant.VIEW)) 
+		if (viewFieldName.endsWith(DeclexConstant.VIEW)) {
 			viewFieldName = viewFieldName.substring(0, viewFieldName.length() - DeclexConstant.VIEW.length());
+		}
 				
 		ListenerInfo listenerInfo = getListenerInfo(viewFieldName);
 		if (listenerInfo.block == null) {

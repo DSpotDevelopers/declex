@@ -82,7 +82,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 		
 	}
 	
-	protected void createDeclarationForLists(String referecedId, Map<AbstractJClass, IJExpression> declForListener, 
+	protected void createDeclarationForLists(String referencedId, Map<AbstractJClass, IJExpression> declForListener,
 			Element element, ViewsHolder viewsHolder) {
 		
 		List<? extends Element> elems = element.getEnclosingElement().getEnclosedElements();
@@ -92,7 +92,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 		for (Element elem : allElems) {				
 			if (elem.getKind() == ElementKind.FIELD) {
 				
-				if (elem.getSimpleName().toString().equals(referecedId)) {
+				if (elem.getSimpleName().toString().equals(referencedId)) {
 					
 					Populate populator = adiHelper.getAnnotation(elem, Populate.class);
 					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
@@ -119,7 +119,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					}
 					
 					break;
-				} else if (referecedId.startsWith(elem.getSimpleName().toString()) && 
+				} else if (referencedId.startsWith(elem.getSimpleName().toString()) &&
 						adiHelper.hasAnnotation(elem, Populate.class)) {
 					
 					String className = elem.asType().toString();
@@ -154,7 +154,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						
 						final IdInfoHolder info = fields.get(field);
 						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
-						if (!info.idName.equals(referecedId)) continue;
+						if (!info.idName.equals(referencedId)) continue;
 							
 						composedField = "";
 						for (String fieldPart : field.split("\\."))
@@ -168,7 +168,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					for (String method : methods.keySet()) {
 						
 						final IdInfoHolder info = methods.get(method);
-						if (!info.idName.equals(referecedId)) continue;
+						if (!info.idName.equals(referencedId)) continue;
 						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
 						
 						composedField = "";
@@ -220,9 +220,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 		}
     	
 		final String methodName = element.getSimpleName().toString();
-		
 		JInvocation invoke = JExpr.invoke(methodName);
-		
 		ExecutableElement exeElem = (ExecutableElement) element;
 		
 		parameters:

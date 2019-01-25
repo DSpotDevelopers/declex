@@ -204,7 +204,7 @@ public class ViewsHolder extends
 	}
 
 	public JInvocation checkFieldNameInInvocation(final String fieldName, final String fieldType, final JInvocation invocation) {
-		
+
 		for (String layoutId : layoutObjects.keySet()) {
 			
 			if (this.layoutContainsId(fieldName, layoutId)) {
@@ -225,13 +225,13 @@ public class ViewsHolder extends
 				final LayoutObject layoutObject = entry.getValue();
 				
 				if (fieldName.startsWith(viewId)) {
-					
+
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
 					propertiesHelper.readGettersAndSetters(layoutObject.className, getters, setters);
-										
+
 					final String property = fieldName.substring(viewId.length());
-					
+
 					boolean isProperty = false;
 					boolean callPropertyGetter = false;
 					boolean callPropertySetter = false;
@@ -356,7 +356,7 @@ public class ViewsHolder extends
 			}
 						
 		}
-		
+
 		//Not found properties
 		if (TypeUtils.isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
 			

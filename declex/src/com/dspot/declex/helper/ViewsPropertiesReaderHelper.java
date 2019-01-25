@@ -50,13 +50,17 @@ public class ViewsPropertiesReaderHelper {
 			gettersAndSetters = Pair.of(getters, setters);
 			gettersAndSettersPerClass.put(fromClass, gettersAndSetters);
 		}
-		
+
 		if (fromClass.contains("<")) fromClass = fromClass.substring(0, fromClass.indexOf('<'));
 
 		Element classElement = processingEnv().getElementUtils().getTypeElement(fromClass);
 		if (classElement == null && fromClass.endsWith(ModelConstants.generationSuffix())) {
 			classElement = processingEnv().getElementUtils().getTypeElement(fromClass.substring(0, fromClass.length() - 1));
 		}
+
+		if (classElement == null) return;
+
+		readGettersAndSetters(classElement, getters, setters);
 
 		List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(classElement.asType());
 		
