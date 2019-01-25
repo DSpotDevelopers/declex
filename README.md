@@ -5,8 +5,10 @@
 
 [![DecleX](https://raw.githubusercontent.com/wiki/smaugho/declex/img/Declex144.png)](https://github.com/smaugho/declex/wiki) 
 
-DecleX is a framework that aims to get closer to the idea of a fully Declarative Language for Android Development. 
-It is totally based on <a href="https://github.com/excilys/androidannotations/wiki" target="_blank">AndroidAnnotations</a>; in a similar fashion, we want to facilitate the writing and the maintenance of 
+DecleX is a powerful framework which reduces the verbosity of Java language, and enhances the dependencies/views injections
+to permitting the creation of Android applications at record speeds. 
+It is totally based on <a href="https://github.com/excilys/androidannotations/wiki" target="_blank">AndroidAnnotations</a>; 
+in a similar fashion, we want to facilitate the writing and the maintenance of 
 Android applications to the highest level which has not been achieved up to now.
 
 
@@ -21,8 +23,9 @@ Place the following lines in your app module build.gradle file:
 ```gradle
 
 dependencies {
-    annotationProcessor 'com.dspot:declex:1.3'
-    compile 'com.dspot:declex-api:1.3'
+    annotationProcessor 'com.dspot:declex:2.0.a.24'
+    implementation 'com.dspot:declex-api:2.0.a.24'
+    implementation 'com.dspot:declex-actions:2.0.a.21'
 }
 
 ```
