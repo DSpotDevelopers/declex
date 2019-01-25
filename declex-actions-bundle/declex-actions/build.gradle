@@ -1,5 +1,5 @@
 apply plugin: 'com.android.library'
-def DECLEX_VERSION = '2.0.a.23'
+def DECLEX_VERSION = '2.0.a.24'
 
 ext {
     PUBLISH_GROUP_ID = 'com.dspot'

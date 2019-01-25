@@ -15,6 +15,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.helper.ModelConstants;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class ViewsPropertiesReaderHelper {
@@ -51,10 +52,12 @@ public class ViewsPropertiesReaderHelper {
 		}
 		
 		if (fromClass.contains("<")) fromClass = fromClass.substring(0, fromClass.indexOf('<'));
-		
+
 		Element classElement = processingEnv().getElementUtils().getTypeElement(fromClass);
-		readGettersAndSetters(classElement, getters, setters);
-		
+		if (classElement == null && fromClass.endsWith(ModelConstants.generationSuffix())) {
+			classElement = processingEnv().getElementUtils().getTypeElement(fromClass.substring(0, fromClass.length() - 1));
+		}
+
 		List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(classElement.asType());
 		
 		for (TypeMirror type : superTypes) {
@@ -126,4 +129,5 @@ public class ViewsPropertiesReaderHelper {
 	private ProcessingEnvironment processingEnv() {
 		return environment.getProcessingEnvironment();
 	}
+
 }
