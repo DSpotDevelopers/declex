@@ -34,7 +34,6 @@ import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EBeanHolder;
-import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 import org.androidannotations.internal.helper.ViewNotifierHelper;
 

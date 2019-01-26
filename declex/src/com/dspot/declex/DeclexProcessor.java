@@ -59,6 +59,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 import java.util.*;
@@ -306,7 +307,19 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		    	
 		    	//Scan all the Beans used
             	for (Element elem : element.getEnclosedElements()) {
-            		if (elem.getKind().isField() && elem.getAnnotation(Bean.class) != null) {
+
+            		boolean shouldScanImporter = false;
+
+					List<? extends AnnotationMirror> elemAnnotations = elem.getAnnotationMirrors();
+					for (AnnotationMirror annotationMirror : elemAnnotations) {
+						DeclaredType annotationType = annotationMirror.getAnnotationType();
+						if (annotationType.asElement().getAnnotation(Import.class) != null) {
+							shouldScanImporter = true;
+							break;
+						}
+					}
+
+            		if (elem.getKind().isField() && shouldScanImporter) {
 	            		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
 	            		
 	            		if (typeElement != null) {

@@ -12,7 +12,7 @@
 
     <groupId>com.dspot</groupId>
     <artifactId>declex-parent</artifactId>
-    <version>2.0.a.24</version>
+    <version>2.0.a.26</version>
     <packaging>pom</packaging>
 
     <name>DecleX Parent</name>
@@ -58,6 +58,8 @@
         <module>declex</module>
         <module>declex-api</module>
         <module>declex-actions-bundle</module>
+        <module>declex-architecture</module>
+        <module>declex-architecture-api</module>
     </modules>
 
     <repositories>

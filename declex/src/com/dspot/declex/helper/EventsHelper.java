@@ -45,7 +45,6 @@ import org.androidannotations.holder.BaseGeneratedClassHolder;
 import org.androidannotations.holder.EActivityHolder;
 import org.androidannotations.holder.EApplicationHolder;
 import org.androidannotations.holder.EBeanHolder;
-import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EFragmentHolder;
 import org.androidannotations.holder.EProviderHolder;
 import org.androidannotations.holder.EReceiverHolder;

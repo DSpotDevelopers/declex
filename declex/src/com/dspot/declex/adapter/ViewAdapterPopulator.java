@@ -126,7 +126,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			if (className.endsWith(ModelConstants.generationSuffix())) {
 				className = className.substring(0, className.length()-1);
 			}
-			viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, true, true, listItemId);
+			viewsHolder.findFieldsAndMethods(className, fieldName, fields, methods, true, true, listItemId);
 		}
 
 		

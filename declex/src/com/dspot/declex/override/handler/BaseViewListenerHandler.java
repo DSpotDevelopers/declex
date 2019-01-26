@@ -147,7 +147,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					//Find all the fields and methods that are presented in the layouts
 					Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 					Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
-					viewsHolder.findFieldsAndMethods(className, fieldName, elem, fields, methods, true);
+					viewsHolder.findFieldsAndMethods(className, fieldName, fields, methods, true);
 					
 					String composedField = null;
 					for (String field : fields.keySet()) {

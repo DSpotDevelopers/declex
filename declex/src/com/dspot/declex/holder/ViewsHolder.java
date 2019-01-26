@@ -41,6 +41,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+import com.sun.codemodel.internal.JClass;
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.helper.ADIHelper;
 import org.androidannotations.helper.APTCodeModelHelper;
@@ -200,6 +201,71 @@ public class ViewsHolder extends
 			
 			onViewChangedHasViewsParamValues.put(layoutId, holder().getOnViewChangedHasViewsParam());
 		}
+
+	}
+
+	public ViewProperty getPropertySetterForFieldName(final String fieldName, final String fieldType) {
+
+		for (String layoutId : layoutObjects.keySet()) {
+
+			if (this.layoutContainsId(fieldName, layoutId)) {
+
+				final String savedDefLayoutId = defLayoutId;
+				defLayoutId = layoutId;
+
+				JFieldRef view = this.createAndAssignView(fieldName);
+
+				defLayoutId = savedDefLayoutId;
+
+				AbstractJClass viewClass = getJClass(getClassNameFromId(fieldName));
+				return new ViewProperty(fieldName, viewClass, view, null);
+			}
+
+			for (Entry<String, LayoutObject> entry : layoutObjects.get(layoutId).entrySet()) {
+
+				final String viewId = entry.getKey();
+				final LayoutObject layoutObject = entry.getValue();
+
+				if (fieldName.startsWith(viewId)) {
+
+					final Map<String, TypeMirror> getters = new HashMap<>();
+					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
+					propertiesHelper.readGettersAndSetters(layoutObject.className, getters, setters);
+
+					final String property = fieldName.substring(viewId.length());
+
+					if (setters.containsKey(property)) {
+
+						boolean hasSetter = false;
+
+						for (TypeMirror setter : setters.get(property)) {
+							hasSetter = TypeUtils.isSubtype(fieldType, setter.toString(), processingEnv())
+									|| TypeUtils.isSubtype(wrapperToPrimitive(fieldType), setter.toString(), processingEnv());
+							if (hasSetter) break;
+						}
+
+						if (hasSetter) {
+
+							final String savedDefLayoutId = defLayoutId;
+							defLayoutId = layoutId;
+
+							JFieldRef view = this.createAndAssignView(viewId);
+
+							defLayoutId = savedDefLayoutId;
+
+							AbstractJClass viewClass = getJClass(getClassNameFromId(viewId));
+							return new ViewProperty(fieldName, viewClass, view, null);
+
+						}
+
+					}
+				}
+
+			}
+
+		}
+
+		return null;
 
 	}
 
@@ -532,17 +598,16 @@ public class ViewsHolder extends
 		return view;
 	}
 	
-	public void findFieldsAndMethods(String className, String fieldName,
-			Element element, Map<String, IdInfoHolder> fields,
-			Map<String, IdInfoHolder> methods, boolean getter) {
+	public void findFieldsAndMethods(
+			String className, String fieldName,
+			Map<String, IdInfoHolder> fields, Map<String, IdInfoHolder> methods, boolean getter) {
 		
-		findFieldsAndMethods(className, fieldName, element, fields, methods, getter, false, null);
+		findFieldsAndMethods(className, fieldName, fields, methods, getter, false, null);
 	}
 
 	public void findFieldsAndMethods(
 			String className, String fieldName,
-			Element element, Map<String, IdInfoHolder> fields,
-			Map<String, IdInfoHolder> methods, boolean getter, 
+			Map<String, IdInfoHolder> fields, Map<String, IdInfoHolder> methods, boolean getter,
 			boolean isList, String layoutId) {
 		
 		TypeElement typeElement = environment().getProcessingEnvironment()
@@ -568,7 +633,7 @@ public class ViewsHolder extends
 			
 			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
 				findFieldsAndMethods(
-					type.toString(), fieldName, element,
+					type.toString(), fieldName,
 					fields, methods, getter, isList, layoutId
 				);
 			}
@@ -764,7 +829,7 @@ public class ViewsHolder extends
 						if (getter && setters.containsKey(property)) {
 							for (TypeMirror propertyType : setters.get(property)) {
 								if (TypeUtils.isSubtype(paramType, propertyType, processingEnv())
-									|| TypeUtils.isSubtype(wrapperToPrimitive(paramType.toString()), getters.get(property).toString(), processingEnv())) {
+									|| TypeUtils.isSubtype(wrapperToPrimitive(paramType.toString()), propertyType.toString(), processingEnv())) {
 									methods.put(
 										completeElemName, 
 										new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
@@ -843,6 +908,29 @@ public class ViewsHolder extends
 		}
 	}
 
+	public static class ViewProperty {
+
+		public String idName;
+
+		public AbstractJClass viewClass;
+
+		public JFieldRef view;
+
+		public String property;
+
+		public ViewProperty(String idName, AbstractJClass viewClass, JFieldRef view, String property) {
+			this.idName = idName;
+			this.viewClass = viewClass;
+			this.view = view;
+			this.property = property;
+		}
+
+		@Override
+		public String toString() {
+			return idName + (property != null? "<" + property + ">" : "") + ": " + viewClass.name();
+		}
+	}
+
 	public static class IdInfoHolder {
 
 		public String idName;
@@ -888,9 +976,9 @@ public class ViewsHolder extends
 		}
 	}
 
-	public static interface IWriteInBloc {
-		public void writeInBlock(String viewName, AbstractJClass viewClass,
-				JFieldRef view, JBlock block);
+	public interface IWriteInBloc {
+		void writeInBlock(String viewName, AbstractJClass viewClass,
+						  JFieldRef view, JBlock block);
 	}
 
 	public static abstract class WriteInBlockWithResult<T> implements
@@ -903,7 +991,7 @@ public class ViewsHolder extends
 	}
 	
 	public interface ICreateViewListener {
-		public JFieldRef createView(String viewId, String viewName, AbstractJClass viewClass, JBlock declBlock);
+		JFieldRef createView(String viewId, String viewName, AbstractJClass viewClass, JBlock declBlock);
 	}
 
 	private class ViewInfo {

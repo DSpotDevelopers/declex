@@ -179,15 +179,15 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 			JBlock methodBody = modelHolder.getAfterLoadModelBlock(element);
 			
 			if (model.async()) {
-				JDefinedClass annonimousRunnable = getCodeModel().anonymousClass(Runnable.class);
-				JMethod annonimousRunnableRun = annonimousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
-				annonimousRunnableRun.annotate(Override.class);
+				JDefinedClass anonymousRunnable = getCodeModel().anonymousClass(Runnable.class);
+				JMethod anonymousRunnableRun = anonymousRunnable.method(JMod.PUBLIC, getCodeModel().VOID, "run");
+				anonymousRunnableRun.annotate(Override.class);
 				
 				JVar handler = methodBody.decl(getClasses().HANDLER, "handler", 
 						_new(getClasses().HANDLER).arg(getClasses().LOOPER.staticInvoke("getMainLooper")));
-				methodBody.invoke(handler, "post").arg(_new(annonimousRunnable));
+				methodBody.invoke(handler, "post").arg(_new(anonymousRunnable));
 				
-				methodBody = annonimousRunnableRun.body();
+				methodBody = anonymousRunnableRun.body();
 			} 
 			
 			JBlock ifPopulate = methodBody._if(

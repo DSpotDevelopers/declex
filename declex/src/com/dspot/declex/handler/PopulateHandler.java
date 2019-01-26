@@ -336,7 +336,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
 		viewsHolder.findFieldsAndMethods(
 				viewsHolder.holder().getAnnotatedElement().asType().toString(), 
-				null, element, allFields, allMethods, true);
+				null, allFields, allMethods, true);
 		
 		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 			final IdInfoHolder fieldInfo = entry.getValue();
@@ -386,7 +386,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final Map<String, IdInfoHolder> allMethods = new HashMap<String, IdInfoHolder>();		
 		viewsHolder.findFieldsAndMethods(
 				viewsHolder.holder().getAnnotatedElement().asType().toString(), 
-				null, element, allFields, allMethods, true);
+				null, allFields, allMethods, true);
 		for (Entry<String, IdInfoHolder> entry : allFields.entrySet()) {
 			
 			IdInfoHolder info = entry.getValue();
@@ -644,7 +644,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		//Find all the fields and methods that are presented in the layouts
 		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
 		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
-		viewsHolder.findFieldsAndMethods(className, fieldName, element, fields, methods, true);
+		viewsHolder.findFieldsAndMethods(className, fieldName, fields, methods, true);
 		
 		if (adiHelper.getAnnotation(element, Populate.class).debug())
 			LOGGER.warn("\nClass: " + className + "\nFields: " + fields + "\nMethods: " + methods, element, adiHelper.getAnnotation(element, Populate.class));

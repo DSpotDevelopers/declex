@@ -142,8 +142,7 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 			if (className.endsWith(ModelConstants.generationSuffix())) {
 				className = className.substring(0, className.length() - 1);
 			}
-			viewsHolder.findFieldsAndMethods(className, fieldName, element,
-					fields, methods, true, true, listItemId);
+			viewsHolder.findFieldsAndMethods(className, fieldName, fields, methods, true, true, listItemId);
 		}
 		
 		JMethod inflaterMethod = AdapterClass.getMethod("inflate", new AbstractJType[]{getCodeModel().INT, getClasses().VIEW_GROUP, getClasses().LAYOUT_INFLATER});
