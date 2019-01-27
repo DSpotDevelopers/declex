@@ -38,7 +38,7 @@ public class ObserverHandler extends BaseAnnotationHandler<EComponentHolder> {
             TypeElement rootElement = getRootElement(element);
             if (!isSubtype(rootElement, LIFECYCLE_OWNER, getProcessingEnvironment())
                     && !isSubtype(rootElement, VIEW_MODEL, getProcessingEnvironment())) {
-                validation.addError("@Observer can be placed only inside classes which implement LifeCycleOwner or ViewModel"
+                validation.addError("@Observer can be placed only inside classes which implement LifeCycleOwner or ViewModel, or should be marked with \"observerForever\"."
                                     + "\nIf you are aware of the consequences of observing another class forever, you can manually set \"observeForever = true\"");
             }
         }
@@ -101,7 +101,7 @@ public class ObserverHandler extends BaseAnnotationHandler<EComponentHolder> {
 
         final String fieldName = element.getSimpleName().toString();
         final List<? extends VariableElement> params = ((ExecutableElement) element).getParameters();
-        AbstractJClass ReferencedClass = codeModelHelper.elementTypeToJClass(params.get(0));
+        AbstractJClass ReferencedClass = codeModelHelper.elementTypeToJClass(params.get(0)).erasure();
 
         return "observerFor" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1) + "$" + ReferencedClass.name();
     }

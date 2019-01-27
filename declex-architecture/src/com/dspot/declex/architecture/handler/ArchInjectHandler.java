@@ -2,10 +2,9 @@ package com.dspot.declex.architecture.handler;
 
 import com.dspot.declex.architecture.annotation.ArchInject;
 import com.dspot.declex.architecture.annotation.EViewModel;
-import com.dspot.declex.holder.ViewsHolder;
-import com.dspot.declex.util.TypeUtils;
+import com.dspot.declex.architecture.helper.ViewsLinkingListenersHelper;
+import com.dspot.declex.architecture.helper.ViewsLinkingObservablesHelper;
 import com.helger.jcodemodel.*;
-import javafx.scene.shape.Arc;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.Bean;
@@ -17,22 +16,22 @@ import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.EComponentWithViewSupportHolder;
 
 import javax.lang.model.element.Element;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
-import static com.dspot.declex.architecture.ArchCanonicalNameConstants.*;
-import static com.dspot.declex.util.TypeUtils.isSubtype;
+import static com.dspot.declex.architecture.ArchCanonicalNameConstants.VIEW_MODEL_PROVIDERS;
 import static com.helger.jcodemodel.JExpr.*;
-import static org.androidannotations.helper.CanonicalNameConstants.BOOLEAN;
 import static org.androidannotations.helper.CanonicalNameConstants.FRAGMENT_ACTIVITY;
 
-public class ArchInjectHandler extends BaseInjectionHandler<EComponentWithViewSupportHolder> implements MethodInjectionHandler<EComponentWithViewSupportHolder> {
+public class ArchInjectHandler extends ObserversLinkingHandler<EComponentWithViewSupportHolder> implements MethodInjectionHandler<EComponentWithViewSupportHolder> {
 
     private final InjectHelper<EComponentWithViewSupportHolder> injectHelper;
+
+    private final ViewsLinkingObservablesHelper viewsLinkingObservablesHelper;
+
+    private final ViewsLinkingListenersHelper viewsLinkingListenersHelper;
 
     private final Map<EActivityHolder, JBlock> blockAfterSuperCallPerHolder = new HashMap<>();
 
@@ -40,6 +39,8 @@ public class ArchInjectHandler extends BaseInjectionHandler<EComponentWithViewSu
         super(ArchInject.class, environment);
 
         injectHelper = new InjectHelper<>(validatorHelper, this);
+        viewsLinkingObservablesHelper = new ViewsLinkingObservablesHelper(environment);
+        viewsLinkingListenersHelper = new ViewsLinkingListenersHelper(environment);
 
     }
 
@@ -92,6 +93,16 @@ public class ArchInjectHandler extends BaseInjectionHandler<EComponentWithViewSu
     }
 
     @Override
+    protected void process(String generatorClassName, Element injectingElement, AbstractJClass injectingEnhancedClass,
+                           EComponentHolder injectingElementHolder) {
+
+        super.process(generatorClassName, injectingElement, injectingEnhancedClass, injectingElementHolder);
+
+        viewsLinkingListenersHelper.process(generatorClassName, injectingElement, injectingEnhancedClass,
+                (EComponentWithViewSupportHolder) injectingElementHolder);
+    }
+
+    @Override
     public void assignValue(JBlock targetBlock, IJAssignmentTarget fieldRef, EComponentWithViewSupportHolder holder, Element element, Element param) {
 
         TypeMirror typeMirror = annotationHelper.extractAnnotationClassParameter(element);
@@ -111,10 +122,10 @@ public class ArchInjectHandler extends BaseInjectionHandler<EComponentWithViewSu
             case Activity:
 
                 //Add check for Lifecycle Owner Content
-                JBlock checkLifcycleBlock = holder.getInitBodyBeforeInjectionBlock()
+                JBlock checkLifecycleBlock = holder.getInitBodyBeforeInjectionBlock()
                         ._if(holder.getContextRef()._instanceof(getJClass(FRAGMENT_ACTIVITY)).not())._then();
 
-                checkLifcycleBlock._throw(_new(getJClass(IllegalStateException.class))
+                checkLifecycleBlock._throw(_new(getJClass(IllegalStateException.class))
                         .arg("This Bean can only be injected in the context of a FragmentActivity"));
 
                 archInstance = getJClass(VIEW_MODEL_PROVIDERS)
@@ -147,84 +158,15 @@ public class ArchInjectHandler extends BaseInjectionHandler<EComponentWithViewSu
     }
 
     @Override
-    protected void performObservation(String fieldName, String referencedClass, Element element, AbstractJClass enhancedClass, EComponentHolder holder) {
+    protected void performObservation(String observableFieldName, String observableTypeName,
+                                      Element injectingElement, AbstractJClass injectingEnhancedClass, EComponentHolder injectingElementHolder) {
 
-        super.performObservation(fieldName, referencedClass, element, enhancedClass, holder);
+        super.performObservation(observableFieldName, observableTypeName, injectingElement, injectingEnhancedClass, injectingElementHolder);
 
-        final ViewsHolder viewsHolder = holder.getPluginHolder(new ViewsHolder((EComponentWithViewSupportHolder) holder));
-
-        //Determine if the observer can be bound to a visual component property
-        ViewsHolder.ViewProperty viewProperty = viewsHolder.getPropertySetterForFieldName(fieldName, referencedClass);
-        if (viewProperty != null) {
-
-            bindObserver(viewProperty,  fieldName, referencedClass, element, enhancedClass, viewsHolder.holder());
-
-        }
+        viewsLinkingObservablesHelper.linkViewToObservable(observableFieldName, observableTypeName, injectingElement, injectingEnhancedClass, injectingElementHolder);
 
     }
 
-    private void bindObserver(ViewsHolder.ViewProperty viewProperty, String fieldName, String referencedClass,
-                              Element element, AbstractJClass enhancedClass, EComponentWithViewSupportHolder holder) {
-
-        AbstractJClass Observer = getJClass(OBSERVER);
-        AbstractJClass ReferencedClass = getJClass(referencedClass);
-
-        JDefinedClass AnonymousObserver = getCodeModel().anonymousClass(Observer.narrow(ReferencedClass));
-        JMethod anonymousOnChanged = AnonymousObserver.method(JMod.PUBLIC, getCodeModel().VOID, "onChanged");
-        anonymousOnChanged.annotate(Override.class);
-        JVar param = anonymousOnChanged.param(ReferencedClass, "value");
-
-        assignProperty(viewProperty, referencedClass, param, anonymousOnChanged.body());
-
-        JBlock block = holder.getOnViewChangedBodyAfterInjectionBlock().block();
-        JVar observer = block.decl(Observer.narrow(ReferencedClass), "observer", _new(AnonymousObserver));
-
-        IJExpression archField;
-        if (element.asType().toString().endsWith(ModelConstants.generationSuffix())) {
-            archField = ref(element.getSimpleName().toString());
-        } else {
-            archField = cast(enhancedClass, ref(element.getSimpleName().toString()));
-        }
-
-
-        block.add(invoke(archField, fieldToGetter(fieldName)).invoke("observe").arg(_this()).arg(observer));
-
-    }
-
-    private void assignProperty(ViewsHolder.ViewProperty viewProperty, String referencedClass, JVar param, JBlock block) {
-
-        final String viewClass = viewProperty.viewClass.fullName();
-        final JFieldRef view = viewProperty.view;
-
-        if (viewProperty.property == null) {
-
-            //CompoundButtons, if the param is boolean, it will set the checked state
-            if (TypeUtils.isSubtype(viewClass, "android.widget.CompoundButton", getProcessingEnvironment())) {
-                if (referencedClass.equals("boolean") || referencedClass.equals(BOOLEAN)) {
-                    block.invoke(view, "setChecked").arg(param);
-
-                    //This ensures not to check against TextView (since a CompoundButton is a TextView descendant)
-                    return;
-                }
-            }
-
-            if (isSubtype(viewClass, "android.widget.TextView", getProcessingEnvironment())) {
-                if (isSubtype(referencedClass, "android.text.Spanned", getProcessingEnvironment())) {
-                    block.invoke(view, "setText").arg(param);
-                } else if (isSubtype(referencedClass, CharSequence.class.getCanonicalName(), getProcessingEnvironment())) {
-                    block.invoke(view, "setText").arg(param);
-                } else {
-                    block.invoke(view, "setText").arg(getJClass(String.class).staticInvoke("valueOf").arg(param));
-                }
-            }
-
-        } else {
-
-            block.invoke(view, "set" + viewProperty.property).arg(param);
-
-        }
-
-    }
 
     private JBlock getBlockAfterSuperCall(EActivityHolder holder) {
 
