@@ -154,7 +154,7 @@ public class LayoutsParser {
 					if (containsField(id, Res.ID))	{
 						foundObjects.put(
 								id,
-								new LayoutObject(fragmentClassName, node)
+								new LayoutObject(id, fragmentClassName, node)
 						);
 					}
 				}
@@ -186,7 +186,7 @@ public class LayoutsParser {
 			}
 			
 			if (containsField(id, Res.ID))	{
-				LayoutObject layoutObject = new LayoutObject(className, node);
+				LayoutObject layoutObject = new LayoutObject(id, className, node);
 				foundObjects.put(id, layoutObject);
 				
 				//Support for new NavigationView
@@ -259,12 +259,16 @@ public class LayoutsParser {
 	}
 	
 	public static class LayoutObject {
+
+		public String id;
+
 		public String className;
 		public Element domElement;
 		
 		public String holderId; //Used by NavigationView
 		
-		public LayoutObject(String className, Element domElement) {
+		public LayoutObject(String id, String className, Element domElement) {
+			this.id = id;
 			this.className = className;
 			this.domElement = domElement;
 		}

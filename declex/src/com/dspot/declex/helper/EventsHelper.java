@@ -41,15 +41,7 @@ import javax.lang.model.type.TypeMirror;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
-import org.androidannotations.holder.EActivityHolder;
-import org.androidannotations.holder.EApplicationHolder;
-import org.androidannotations.holder.EBeanHolder;
-import org.androidannotations.holder.EFragmentHolder;
-import org.androidannotations.holder.EProviderHolder;
-import org.androidannotations.holder.EReceiverHolder;
-import org.androidannotations.holder.EServiceHolder;
-import org.androidannotations.holder.EViewHolder;
+import org.androidannotations.holder.*;
 
 import com.dspot.declex.action.Actions;
 import com.dspot.declex.annotation.UseEvents;

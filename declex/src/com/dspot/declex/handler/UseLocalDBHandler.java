@@ -15,20 +15,6 @@
  */
 package com.dspot.declex.handler;
 
-import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.Map;
-
-import javax.lang.model.element.Element;
-
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
-import org.androidannotations.annotations.EApplication;
-import org.androidannotations.handler.BaseAnnotationHandler;
-import org.androidannotations.holder.BaseGeneratedClassHolder;
-import org.androidannotations.holder.EApplicationHolder;
-import org.androidannotations.holder.EComponentHolder;
-
 import com.dspot.declex.annotation.LocalDBModel;
 import com.dspot.declex.annotation.UseLocalDB;
 import com.dspot.declex.util.SharedRecords;
@@ -37,6 +23,17 @@ import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JInvocation;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
+import org.androidannotations.annotations.EApplication;
+import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EApplicationHolder;
+import org.androidannotations.holder.EComponentHolder;
+
+import javax.lang.model.element.Element;
+import java.util.Collection;
+import java.util.Map;
 
 public class UseLocalDBHandler extends BaseAnnotationHandler<BaseGeneratedClassHolder> {
 

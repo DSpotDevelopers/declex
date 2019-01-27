@@ -29,6 +29,7 @@ import org.androidannotations.ElementValidation;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.handler.BaseAnnotationHandler;
 import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
 

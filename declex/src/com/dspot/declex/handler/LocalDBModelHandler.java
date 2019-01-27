@@ -15,37 +15,6 @@
  */
 package com.dspot.declex.handler;
 
-import static com.helger.jcodemodel.JExpr._new;
-import static com.helger.jcodemodel.JExpr._null;
-import static com.helger.jcodemodel.JExpr._this;
-import static com.helger.jcodemodel.JExpr.cast;
-import static com.helger.jcodemodel.JExpr.dotclass;
-import static com.helger.jcodemodel.JExpr.invoke;
-import static com.helger.jcodemodel.JExpr.lit;
-import static com.helger.jcodemodel.JExpr.ref;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.holder.EComponentHolder;
-import org.atteo.evo.inflector.English;
-
 import com.dspot.declex.annotation.LocalDBModel;
 import com.dspot.declex.annotation.Model;
 import com.dspot.declex.annotation.UseLocalDB;
@@ -55,11 +24,24 @@ import com.dspot.declex.handler.base.BaseTemplateHandler;
 import com.dspot.declex.holder.UseModelHolder;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
-import com.helger.jcodemodel.JBlock;
-import com.helger.jcodemodel.JConditional;
-import com.helger.jcodemodel.JFieldRef;
-import com.helger.jcodemodel.JMethod;
-import com.helger.jcodemodel.JMod;
+import com.helger.jcodemodel.*;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
+import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentHolder;
+import org.atteo.evo.inflector.English;
+
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.helger.jcodemodel.JExpr.*;
 
 public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 	

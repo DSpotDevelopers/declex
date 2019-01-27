@@ -187,7 +187,7 @@ public class ViewsHolder extends
 
 			layoutObjects.get(layoutIdString).put(
 					layoutIdString,
-					new LayoutObject(CanonicalNameConstants.VIEW, null)
+					new LayoutObject(layoutIdString, CanonicalNameConstants.VIEW, null)
 					
 			);
 		}
@@ -479,6 +479,10 @@ public class ViewsHolder extends
 
 		return layoutObjects.get(layoutId).get(id).domElement;
 	}
+
+	public LayoutObject getLayoutObject(String id) {
+	    return getLayoutObjects(defLayoutId).get(id);
+    }
 	
 	private Map<String, LayoutObject> getLayoutObjects(String layoutId) {
 		if (layoutId == null)
