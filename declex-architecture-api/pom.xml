@@ -135,7 +135,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
@@ -149,7 +148,6 @@
 
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>2.5</version>
                 <executions>
                     <execution>
                         <id>default-clean</id>
@@ -163,7 +161,6 @@
 
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>2.6</version>
                 <executions>
                     <execution>
                         <id>default-resources</id>
@@ -177,7 +174,6 @@
 
             <plugin>
                 <artifactId>maven-install-plugin</artifactId>
-                <version>2.4</version>
                 <executions>
                     <execution>
                         <id>default-install</id>
@@ -191,7 +187,6 @@
 
             <plugin>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.7</version>
                 <executions>
                     <execution>
                         <id>default-deploy</id>
