@@ -64,6 +64,10 @@ import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 import java.util.*;
 
+import static com.dspot.declex.util.TypeUtils.getGeneratedClassName;
+import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.ref;
+
 public class DeclexProcessor extends org.androidannotations.internal.AndroidAnnotationProcessor {
 	
 	private static final boolean PRE_GENERATION_ENABLED = false;
@@ -120,7 +124,7 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 			return super.process(annotations, roundEnv);
 			
 		} catch (Throwable e) {
-			LOGGER.error("An error occured", e);
+			LOGGER.error("An error occurred", e);
 			LoggerContext.getInstance().close(true);
 			
 			e.printStackTrace();
@@ -290,8 +294,8 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
                                                 actionHolderElement,
                                                 (TypeElement)element,
                                                 null,
-                                                JExpr.ref(actionName),
-                                                JExpr.ref(actionName),
+                                                ref(actionName),
+                                                ref(actionName),
                                                 virtualAnnotatedElements,
                                                 false);
                                     }
@@ -305,8 +309,11 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	            	} //for
 		    	} //if (actionScanNeeded)
 		    	
-		    	//Scan all the Beans used
+		    	//Scan all the Injectors which Import exported methods (ie. Bean) used
             	for (Element elem : element.getEnclosedElements()) {
+
+					if (!elem.getKind().isField()) continue;
+
 
             		boolean shouldScanImporter = false;
 
@@ -319,18 +326,19 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 						}
 					}
 
-            		if (elem.getKind().isField() && shouldScanImporter) {
+            		if (shouldScanImporter) {
 	            		TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
 	            		
 	            		if (typeElement != null) {
 
-	            			JFieldRef beanReference = JExpr.ref(elem.getSimpleName().toString());
-	            			IJExpression castedBeanReference = JExpr.cast(
-	            					androidAnnotationsEnv.getJClass(TypeUtils.getGeneratedClassName(typeElement, androidAnnotationsEnv)), beanReference);
+	            			JFieldRef importerReference = ref(elem.getSimpleName().toString());
+	            			IJExpression castedImporterReference = cast(
+	            					androidAnnotationsEnv.getJClass(getGeneratedClassName(typeElement, androidAnnotationsEnv)),
+									importerReference);
 	            			
         					scanForExports(
         							typeElement, (TypeElement)element, elem,
-        							beanReference, castedBeanReference, virtualAnnotatedElements, true);
+        							importerReference, castedImporterReference, virtualAnnotatedElements, true);
 	            		}
 	            	}
             	}
@@ -379,29 +387,38 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 						
 					}						
 				}
+
+				if (!elem.getKind().isField()) continue;
+
+
+				boolean shouldScanImporter = false;
+
+				List<? extends AnnotationMirror> elemAnnotations = elem.getAnnotationMirrors();
+				for (AnnotationMirror annotationMirror : elemAnnotations) {
+					DeclaredType annotationType = annotationMirror.getAnnotationType();
+					if (annotationType.asElement().getAnnotation(Import.class) != null) {
+						shouldScanImporter = true;
+						break;
+					}
+				}
 				
 				//Scan exported subfields beans
-				if (elem.getKind().isField() && elem.getAnnotation(Bean.class) != null) {
+				if (shouldScanImporter) {
 					TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elem.asType().toString());
             		
 					IJExpression forwardExpression;
 					if (castToForward) {
 						forwardExpression = 
-								JExpr.cast(androidAnnotationsEnv.getJClass(TypeUtils.getGeneratedClassName(element, androidAnnotationsEnv)), referenceExpression)
+								cast(androidAnnotationsEnv.getJClass(getGeneratedClassName(element, androidAnnotationsEnv)), referenceExpression)
 								     .invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString()));
 					} else {
 						forwardExpression = referenceExpression.invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString()));
 					}
 					
             		if (typeElement != null) {
-    					scanForExports(
-    							typeElement, 
-    							enclosingElement, 
-    							referenceElement,
-    							forwardExpression,
+    					scanForExports(typeElement, enclosingElement, referenceElement, forwardExpression,
     							castedReferenceExpression.invoke(FormatsUtils.fieldToGetter(elem.getSimpleName().toString())),
-    							virtualAnnotatedElements, 
-    							true);
+    							virtualAnnotatedElements, true);
             		}
 				}
 			}
