@@ -2,8 +2,11 @@ package com.dspot.declex.architecture.handler;
 
 import com.dspot.declex.architecture.annotation.ArchInject;
 import com.dspot.declex.architecture.annotation.EViewModel;
+import com.dspot.declex.architecture.annotation.EViewPresenter;
 import com.dspot.declex.architecture.helper.ViewsLinkingListenersHelper;
 import com.dspot.declex.architecture.helper.ViewsLinkingObservablesHelper;
+import com.dspot.declex.architecture.holder.ViewModelHolder;
+import com.dspot.declex.architecture.holder.ViewPresenterHolder;
 import com.helger.jcodemodel.*;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -11,9 +14,7 @@ import org.androidannotations.annotations.Bean;
 import org.androidannotations.handler.MethodInjectionHandler;
 import org.androidannotations.helper.InjectHelper;
 import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.holder.EActivityHolder;
-import org.androidannotations.holder.EComponentHolder;
-import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.holder.*;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeMirror;
@@ -21,7 +22,9 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.dspot.declex.architecture.ArchCanonicalNameConstants.VIEW_MODEL_PROVIDERS;
+import static com.dspot.declex.util.TypeUtils.getGeneratedClassName;
 import static com.helger.jcodemodel.JExpr.*;
 import static org.androidannotations.helper.CanonicalNameConstants.FRAGMENT_ACTIVITY;
 
@@ -55,25 +58,33 @@ public class ArchInjectHandler extends ObserversLinkingHandler<EComponentWithVie
             return;
         }
 
-        validatorHelper.typeOrTargetValueHasAnnotation(EViewModel.class, element, validation);
+        if (isViewPresenter(element)) {
+            return;
+        }
 
-        validatorHelper.isNotPrivate(element, validation);
+        //Validator for View Models
+        {
+            validatorHelper.typeOrTargetValueHasAnnotation(EViewModel.class, element, validation);
 
-        ArchInject archInject = adiHelper.getAnnotation(element, ArchInject.class);
-        if (archInject.scope() == ArchInject.Scope.Default) {
-            boolean wasValid = validation.isValid();
-            validatorHelper.enclosingElementHasEActivityOrEFragmentOrEViewOrEViewGroup(element, validation);
+            validatorHelper.isNotPrivate(element, validation);
 
-            if (wasValid && !validation.isValid()) {
-                validation.addWarning("If you intend to inject it from within an activity context, use implicitly \"scope = Activity\"");
+            ArchInject archInject = adiHelper.getAnnotation(element, ArchInject.class);
+            if (archInject.scope() == ArchInject.Scope.Default) {
+                boolean wasValid = validation.isValid();
+                validatorHelper.enclosingElementHasEActivityOrEFragmentOrEViewOrEViewGroup(element, validation);
+
+                if (wasValid && !validation.isValid()) {
+                    validation.addWarning("If you intend to inject it from within an activity context, use implicitly \"scope = Activity\"");
+                }
             }
         }
+
     }
 
     @Override
-    public JBlock getInvocationBlock(EComponentWithViewSupportHolder holder) {
+    public JBlock getInvocationBlock(Element element, EComponentWithViewSupportHolder holder) {
 
-        if (holder instanceof EActivityHolder) {
+        if (holder instanceof EActivityHolder && !isViewPresenter(element)) {
             return getBlockAfterSuperCall((EActivityHolder) holder);
         }
 
@@ -114,41 +125,64 @@ public class ArchInjectHandler extends ObserversLinkingHandler<EComponentWithVie
         String typeQualifiedName = typeMirror.toString();
         AbstractJClass enhancedClass = getJClass(annotationHelper.generatedClassQualifiedNameFromQualifiedName(typeQualifiedName));
 
-        //Inject the ViewModel
-        ArchInject archInject = adiHelper.getAnnotation(element, ArchInject.class);
-
-        JInvocation archInstance;
-        switch (archInject.scope()) {
-            case Activity:
-
-                //Add check for Lifecycle Owner Content
-                JBlock checkLifecycleBlock = holder.getInitBodyBeforeInjectionBlock()
-                        ._if(holder.getContextRef()._instanceof(getJClass(FRAGMENT_ACTIVITY)).not())._then();
-
-                checkLifecycleBlock._throw(_new(getJClass(IllegalStateException.class))
-                        .arg("This Bean can only be injected in the context of a FragmentActivity"));
-
-                archInstance = getJClass(VIEW_MODEL_PROVIDERS)
-                        .staticInvoke("of").arg(cast(getJClass(FRAGMENT_ACTIVITY), holder.getContextRef()))
-                        .invoke("get").arg(enhancedClass.dotclass());
-                break;
-
-            default:
-                archInstance = getJClass(VIEW_MODEL_PROVIDERS)
-                        .staticInvoke("of").arg(_this())
-                        .invoke("get").arg(enhancedClass.dotclass());
-        }
-
-        IJStatement assignment = fieldRef.assign(archInstance);
-        targetBlock.add(assignment);
-
-        IJExpression archField;
+        IJExpression injectingField;
         if (element.asType().toString().endsWith(ModelConstants.generationSuffix())) {
-            archField = fieldRef;
+            injectingField = fieldRef;
         } else {
-            archField = cast(enhancedClass, fieldRef);
+            injectingField = cast(enhancedClass, fieldRef);
         }
-        targetBlock.invoke(archField, "rebind").arg(holder.getContextRef());
+
+        if (isViewPresenter(element)) {
+            IJStatement assignment = fieldRef.assign(_new(enhancedClass));
+            targetBlock.add(assignment);
+        } else {
+
+            //Inject the ViewModel
+            ArchInject archInject = adiHelper.getAnnotation(element, ArchInject.class);
+
+            JInvocation archInstance;
+            switch (archInject.scope()) {
+                case Activity:
+
+                    //Add check for Lifecycle Owner Content
+                    JBlock checkLifecycleBlock = holder.getInitBodyBeforeInjectionBlock()
+                            ._if(holder.getContextRef()._instanceof(getJClass(FRAGMENT_ACTIVITY)).not())._then();
+
+                    checkLifecycleBlock._throw(_new(getJClass(IllegalStateException.class))
+                            .arg("This Bean can only be injected in the context of a FragmentActivity"));
+
+                    archInstance = getJClass(VIEW_MODEL_PROVIDERS)
+                            .staticInvoke("of").arg(cast(getJClass(FRAGMENT_ACTIVITY), holder.getContextRef()))
+                            .invoke("get").arg(enhancedClass.dotclass());
+                    break;
+
+                default:
+                    archInstance = getJClass(VIEW_MODEL_PROVIDERS)
+                            .staticInvoke("of").arg(_this())
+                            .invoke("get").arg(enhancedClass.dotclass());
+            }
+
+            IJStatement assignment = fieldRef.assign(archInstance);
+            targetBlock.add(assignment);
+
+        }
+
+        //Call the rebind method
+        JInvocation rebindInvoke = targetBlock.invoke(injectingField, ViewModelHolder.REBIND_NAME).arg(holder.getContextRef());
+        if (holder instanceof EActivityHolder || holder instanceof EFragmentHolder) {
+            rebindInvoke.arg(_this());
+        } else {
+
+            //Could be @EViewModel or @EViewPresenter
+            if (adiHelper.hasAnnotation(holder.getAnnotatedElement(), EViewModel.class)) {
+                ViewModelHolder viewModelHolder = holder.getPluginHolder(new ViewModelHolder(holder));
+                rebindInvoke.arg(viewModelHolder.getRootViewField());
+            } else if (adiHelper.hasAnnotation(holder.getAnnotatedElement(), EViewPresenter.class)) {
+                ViewPresenterHolder viewPresenterHolder = holder.getPluginHolder(new ViewPresenterHolder(holder));
+                rebindInvoke.arg(viewPresenterHolder.getRootViewField());
+            }
+
+        }
 
     }
 
@@ -158,10 +192,10 @@ public class ArchInjectHandler extends ObserversLinkingHandler<EComponentWithVie
     }
 
     @Override
-    protected void performObservation(String observableFieldName, String observableTypeName,
-                                      Element injectingElement, AbstractJClass injectingEnhancedClass, EComponentHolder injectingElementHolder) {
+    protected void performObservation(String observableFieldName, String observableTypeName, Element injectingElement,
+                                      IJExpression injectingField, AbstractJClass injectingEnhancedClass, EComponentHolder injectingElementHolder) {
 
-        super.performObservation(observableFieldName, observableTypeName, injectingElement, injectingEnhancedClass, injectingElementHolder);
+        super.performObservation(observableFieldName, observableTypeName, injectingElement, injectingField, injectingEnhancedClass, injectingElementHolder);
 
         viewsLinkingObservablesHelper.linkViewToObservable(observableFieldName, observableTypeName, injectingElement, injectingEnhancedClass, injectingElementHolder);
 

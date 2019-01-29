@@ -46,6 +46,10 @@ public class ViewsLinkingListenersHelper {
                         EComponentWithViewSupportHolder injectingElementHolder) {
 
         TypeElement generatorTypeElement = getProcessingEnvironment().getElementUtils().getTypeElement(generatorClassName);
+        if (generatorTypeElement == null) return;
+        if (generatorTypeElement.getKind().equals(ElementKind.INTERFACE)) return;
+        if (generatorTypeElement.asType().toString().equals(Object.class.getCanonicalName())) return;
+
         for (Element elem : generatorTypeElement.getEnclosedElements()) {
 
             List<? extends AnnotationMirror> elemAnnotations = elem.getAnnotationMirrors();
@@ -105,6 +109,7 @@ public class ViewsLinkingListenersHelper {
         //Look for Listeners in the super classes
         List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(generatorTypeElement.asType());
         for (TypeMirror type : superTypes) {
+            type = getProcessingEnvironment().getTypeUtils().erasure(type);
             process(type.toString(), injectingElement, injectingEnhancedClass, injectingElementHolder);
         }
 

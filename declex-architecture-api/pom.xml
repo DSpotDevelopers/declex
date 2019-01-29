@@ -14,6 +14,18 @@
 	<name>DecleX Architecture API</name>
 	<description>The annotation processor for DecleX</description>
 
+    <repositories>
+        <repository>
+            <id>google</id>
+            <name>Google</name>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </snapshots>
+            <url>https://maven.google.com</url>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
             <id>bintray-declex</id>
@@ -36,6 +48,7 @@
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
+
 
     </dependencies>
 

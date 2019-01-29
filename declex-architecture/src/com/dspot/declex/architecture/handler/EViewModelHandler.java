@@ -38,8 +38,7 @@ public class EViewModelHandler extends BaseAnnotationHandler<EBeanHolder> {
 
     @Override
     public void validate(Element element, ElementValidation valid) {
-        if (!isSubtype(element, VIEW_MODEL, getProcessingEnvironment())
-                && !isSubtype(element, ANDROID_VIEW_MODEL, getProcessingEnvironment())) {
+        if (!isSubtype(element, VIEW_MODEL, getProcessingEnvironment())) {
             valid.addError("The class " + element + " should be a subclass of ViewModel");
         }
         
@@ -64,13 +63,15 @@ public class EViewModelHandler extends BaseAnnotationHandler<EBeanHolder> {
 
         ViewModelHolder viewModelHolder = holder.getPluginHolder(new ViewModelHolder(holder));
 
-        if (isSubtype(element, VIEW_MODEL, getProcessingEnvironment())) {
-            //Create a zero argument constructor
-            holder.getGeneratedClass().constructor(PUBLIC);
-        }
+        viewModelHolder.getConstructorMethod();
+
+        viewModelHolder.getRebindMethod();
 
         //Clear the context variable after the injections, to avoid that the class hold references to the Context
         holder.getInitBodyAfterInjectionBlock().assign(holder.getContextField(), _null());
+
+        //Clear the rootView variable after the injection
+        holder.getInitBodyAfterInjectionBlock().assign(viewModelHolder.getRootViewField(), _null());
 
         //Search for all the injections, and set them to null in the "onCleared", so no reference is kept
         //after the ViewModel was marked as not needed

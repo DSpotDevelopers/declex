@@ -25,7 +25,11 @@ public class DeclexArchitecturePlugin extends AndroidAnnotationsPlugin {
         handlers.add(new ObservableHandler(androidAnnotationEnv));
         handlers.add(new ObserverHandler(androidAnnotationEnv));
 
+        handlers.add(new EViewPresenterHandler(androidAnnotationEnv));
+        handlers.add(new PresenterMethodHandler(androidAnnotationEnv));
+
         handlers.add(new ArchInjectHandler(androidAnnotationEnv));
+        handlers.add(new RootViewHandler(androidAnnotationEnv));
 
         return handlers;
     }

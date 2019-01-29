@@ -16,18 +16,25 @@
 package com.dspot.declex.architecture.holder;
 
 import com.helger.jcodemodel.JBlock;
+import com.helger.jcodemodel.JFieldVar;
 import com.helger.jcodemodel.JMethod;
+import com.helger.jcodemodel.JVar;
 import org.androidannotations.helper.APTCodeModelHelper;
+import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.GeneratedClassHolder;
 import org.androidannotations.plugin.PluginClassHolder;
+import org.omg.CORBA.PUBLIC_MEMBER;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
 import static com.dspot.declex.architecture.ArchCanonicalNameConstants.VIEW_MODEL;
+import static com.helger.jcodemodel.JMod.PRIVATE;
+import static com.helger.jcodemodel.JMod.PUBLIC;
 
-public class ViewModelHolder extends PluginClassHolder<GeneratedClassHolder> {
+public class ViewModelHolder extends BaseArchitecturalHolder {
 
 	private JMethod onClearedMethod;
 	private JBlock onClearedMethodBlock;
@@ -35,7 +42,7 @@ public class ViewModelHolder extends PluginClassHolder<GeneratedClassHolder> {
 
 	private APTCodeModelHelper codeModelHelper;
 
-	public ViewModelHolder(GeneratedClassHolder holder) {
+	public ViewModelHolder(EComponentHolder holder) {
 		super(holder);
 		codeModelHelper = new APTCodeModelHelper(environment());
 	}
