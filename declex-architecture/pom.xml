@@ -31,12 +31,6 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.google.android</groupId>
-            <artifactId>android</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>com.dspot</groupId>
             <artifactId>declex</artifactId>
             <version>${project.version}</version>
@@ -46,11 +40,6 @@
             <groupId>com.dspot</groupId>
             <artifactId>declex-architecture-api</artifactId>
             <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.helger</groupId>
-            <artifactId>jcodemodel</artifactId>
         </dependency>
 
     </dependencies>
@@ -124,14 +113,9 @@
                         </goals>
                     </execution>
                 </executions>
-				<configuration>
+                <configuration>
                     <compilerArgument>-proc:none</compilerArgument>
-					<source>1.7</source>
-					<target>1.7</target>
-					<excludes>
-						<exclude>**/*.ftl.java</exclude>
-					</excludes>
-				</configuration>
+                </configuration>
 			</plugin>
 
 			<plugin>
