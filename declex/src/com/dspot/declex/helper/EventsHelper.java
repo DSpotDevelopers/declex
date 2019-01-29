@@ -224,13 +224,13 @@ public class EventsHelper {
         	} else if (holder instanceof EApplicationHolder) {
         		holder.getInitBody().invoke(registerMethod);
         	} else if (holder instanceof EServiceHolder) {
-        		((EServiceHolder) holder).getOnCreateAfterSuperBlock().invoke(registerMethod);
+        		((EServiceHolder) holder).getStartLifecycleAfterSuperBlock().invoke(registerMethod);
         	} else if (holder instanceof EProviderHolder) {
         		((EProviderHolder) holder).getOnCreateBody().invoke(registerMethod);
         	} else if (holder instanceof EReceiverHolder) {
         		//Not supported
         	} else if (holder instanceof EViewHolder) {
-        		((EViewHolder) holder).getOnAttachAfterSuperBlock().invoke(registerMethod);
+        		((EViewHolder) holder).getStartLifecycleAfterSuperBlock().invoke(registerMethod);
         	} 
 			
 		}
@@ -251,13 +251,13 @@ public class EventsHelper {
         	} else if (holder instanceof EApplicationHolder) {
         		//Not supported
         	} else if (holder instanceof EServiceHolder) {
-        		((EServiceHolder) holder).getOnDestroyBeforeSuperBlock().invoke(unregisterMethod);
+        		((EServiceHolder) holder).getEndLifecycleBeforeSuperBlock().invoke(unregisterMethod);
         	} else if (holder instanceof EProviderHolder) {
         		//Not supported
         	} else if (holder instanceof EReceiverHolder) {
         		//Not supported
         	} else if (holder instanceof EViewHolder) {
-        		((EViewHolder) holder).getOnDetachBeforeSuperBlock().invoke(unregisterMethod);
+        		((EViewHolder) holder).getEndLifecycleBeforeSuperBlock().invoke(unregisterMethod);
         	} 
 		}
 		
