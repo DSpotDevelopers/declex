@@ -1,5 +1,5 @@
 apply plugin: 'java'
-def DECLEX_VERSION = '2.0.a.26'
+def DECLEX_VERSION = '2.0.a.27'
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
