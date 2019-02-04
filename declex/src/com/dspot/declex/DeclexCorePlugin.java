@@ -31,9 +31,11 @@ import org.androidannotations.internal.core.handler.AnimationResHandler;
 import org.androidannotations.internal.core.handler.AppHandler;
 import org.androidannotations.internal.core.handler.BeanHandler;
 import org.androidannotations.internal.core.handler.BeforeTextChangeHandler;
+import org.androidannotations.internal.core.handler.BindingObjectHandler;
 import org.androidannotations.internal.core.handler.ColorResHandler;
 import org.androidannotations.internal.core.handler.ColorStateListResHandler;
 import org.androidannotations.internal.core.handler.CustomTitleHandler;
+import org.androidannotations.internal.core.handler.DataBoundHandler;
 import org.androidannotations.internal.core.handler.DefaultResHandler;
 import org.androidannotations.internal.core.handler.DrawableResHandler;
 import org.androidannotations.internal.core.handler.EApplicationHandler;
@@ -179,7 +181,7 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 	@Override
 	public List<AnnotationHandler<?>> getHandlers(AndroidAnnotationsEnvironment androidAnnotationEnv) {
 		
-		List<AnnotationHandler<?>> annotationHandlers = new ArrayList<>();
+		List<AnnotationHandler<?>> annotationHandlers = new LinkedList<>();
 		
 		//Generating Annotations Handlers
 		annotationHandlers.add(new EApplicationHandler(androidAnnotationEnv));
@@ -230,9 +232,10 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		//Parameters Injection Handler
 		annotationHandlers.add(new FragmentArgHandler(androidAnnotationEnv));
 		annotationHandlers.add(new ExtraHandler(androidAnnotationEnv));
+		annotationHandlers.add(new BindingObjectHandler(androidAnnotationEnv));
 		
 		//Actions and its plugins
-		annotationHandlers.add(new RunWithHandler<EComponentHolder>(androidAnnotationEnv));
+		annotationHandlers.add(new RunWithHandler<>(androidAnnotationEnv));
 
 		//Listeners Handlers
 		annotationHandlers.add(new ClickHandler(androidAnnotationEnv));
@@ -325,6 +328,8 @@ public class DeclexCorePlugin extends AndroidAnnotationsPlugin {
 		annotationHandlers.add(new PreferenceChangeHandler(androidAnnotationEnv));
 		annotationHandlers.add(new PreferenceClickHandler(androidAnnotationEnv));
 		annotationHandlers.add(new AfterPreferencesHandler(androidAnnotationEnv));
+
+		annotationHandlers.add(new DataBoundHandler(androidAnnotationEnv));
 
 		annotationHandlers.add(new TraceHandler(androidAnnotationEnv));
 		

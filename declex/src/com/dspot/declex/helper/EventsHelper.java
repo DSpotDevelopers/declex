@@ -224,6 +224,7 @@ public class EventsHelper {
         	} else if (holder instanceof EApplicationHolder) {
         		holder.getInitBody().invoke(registerMethod);
         	} else if (holder instanceof EServiceHolder) {
+				holder.getInit();
         		((EServiceHolder) holder).getStartLifecycleAfterSuperBlock().invoke(registerMethod);
         	} else if (holder instanceof EProviderHolder) {
         		((EProviderHolder) holder).getOnCreateBody().invoke(registerMethod);

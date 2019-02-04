@@ -1,5 +1,5 @@
 apply plugin: 'com.android.library'
-def DECLEX_VERSION = '2.0.a.27'
+def DECLEX_VERSION = '2.0.a.28'
 
 ext {
     PUBLISH_GROUP_ID = 'com.dspot'
@@ -8,11 +8,11 @@ ext {
 }
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion "26.0.3"
+    compileSdkVersion 27
+    buildToolsVersion "27.0.3"
     defaultConfig {
         minSdkVersion 9
-        targetSdkVersion 26
+        targetSdkVersion 27
         versionCode 1
         versionName "$DECLEX_VERSION"
 
@@ -35,12 +35,12 @@ android {
 
 dependencies {
     annotationProcessor "com.dspot:declex:$DECLEX_VERSION"
-    compile "com.dspot:declex-api:$DECLEX_VERSION"
-    compile "com.dspot:declex-actions-processors:$DECLEX_VERSION"
+    implementation "com.dspot:declex-api:$DECLEX_VERSION"
+    implementation "com.dspot:declex-actions-processors:$DECLEX_VERSION"
 
-    provided 'com.android.support:appcompat-v7:26.0.0'
+    compileOnly 'com.android.support:appcompat-v7:27.1.1'
 
-    testCompile 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
 }
 
 apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'
