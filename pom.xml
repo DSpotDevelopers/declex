@@ -58,8 +58,6 @@
         <module>declex</module>
         <module>declex-api</module>
         <module>declex-actions-bundle</module>
-        <module>declex-architecture</module>
-        <module>declex-architecture-api</module>
     </modules>
 
     <repositories>
