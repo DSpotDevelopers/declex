@@ -17,6 +17,7 @@ package com.dspot.declex.override.handler;
 
 import javax.lang.model.element.Element;
 
+import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EActivityHolder;
@@ -47,6 +48,10 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 			ActivityActionHolder actionHolder = holder.getPluginHolder(new ActivityActionHolder(holder));
 			actionHolder.getActivityAction();
 		}
+
+		EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
+		eventHolder.setEventRegisteringBlock(holder.getOnResumeAfterSuperBlock());
+		eventHolder.setEventUnregisteringBlock(holder.getOnPauseBeforeSuperBlock());
 	}
 
 }

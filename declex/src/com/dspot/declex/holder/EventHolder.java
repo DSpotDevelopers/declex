@@ -20,8 +20,17 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.helger.jcodemodel.AbstractJType;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.holder.BaseGeneratedClassHolder;
+import org.androidannotations.holder.EActivityHolder;
+import org.androidannotations.holder.EApplicationHolder;
+import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.EFragmentHolder;
+import org.androidannotations.holder.EProviderHolder;
+import org.androidannotations.holder.EReceiverHolder;
+import org.androidannotations.holder.EServiceHolder;
+import org.androidannotations.holder.EViewHolder;
 import org.androidannotations.plugin.PluginClassHolder;
 
 import com.helger.jcodemodel.AbstractJClass;
@@ -33,10 +42,18 @@ import com.helger.jcodemodel.JMod;
 import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
+import static com.helger.jcodemodel.JExpr._this;
+
 public class EventHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
 	
 	private Map<String, JMethod> eventsMethod = new HashMap<>();
 	private Map<String, JBlock> eventsBlock = new HashMap<>();
+
+	private JMethod registerWithEventBusMethod;
+	private JMethod unregisterWithEventBusMethod;
+
+	private JBlock eventRegisteringBlock;
+	private JBlock eventUnregisteringBlock;
 	
 	public EventHolder(BaseGeneratedClassHolder holder) {
 		super(holder);
@@ -62,7 +79,22 @@ public class EventHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
 		return eventsBlock.get(clazz);
 	}
 
-	
+	public JBlock getEventRegisteringBlock() {
+		return eventRegisteringBlock;
+	}
+
+	public void setEventRegisteringBlock(JBlock eventRegisteringBlock) {
+		this.eventRegisteringBlock = eventRegisteringBlock;
+	}
+
+	public JBlock getEventUnregisteringBlock() {
+		return eventUnregisteringBlock;
+	}
+
+	public void setEventUnregisteringBlock(JBlock eventUnregisteringBlock) {
+		this.eventUnregisteringBlock = eventUnregisteringBlock;
+	}
+
 	private void setEventMethod(String clazz) {
 		final AndroidAnnotationsEnvironment environment = environment();
 		
@@ -97,5 +129,33 @@ public class EventHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
 		eventsMethod.put(clazz, eventMethod);
 		eventsBlock.put(clazz, eventBody);
 	}
-		
+
+	public void registerAsEventListener() {
+
+		AbstractJClass EventBus = getJClass("org.greenrobot.eventbus.EventBus");
+
+		if (eventRegisteringBlock != null && registerWithEventBusMethod == null) {
+
+			registerWithEventBusMethod = getGeneratedClass().method(JMod.PRIVATE, getCodeModel().VOID, "registerWithEventBus_");
+			JTryBlock tryBlock = registerWithEventBusMethod.body()._try();
+			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("register").arg(_this()));
+			tryBlock._catch(getClasses().THROWABLE);
+
+			eventRegisteringBlock.invoke(registerWithEventBusMethod);
+
+		}
+
+		if (eventUnregisteringBlock != null && unregisterWithEventBusMethod == null) {
+
+			unregisterWithEventBusMethod = getGeneratedClass().method(JMod.PRIVATE, getCodeModel().VOID, "unregisterWithEventBus_");
+			JTryBlock tryBlock = unregisterWithEventBusMethod.body()._try();
+			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("unregister").arg(_this()));
+			tryBlock._catch(getClasses().THROWABLE);
+
+			eventUnregisteringBlock.invoke(unregisterWithEventBusMethod);
+
+		}
+	}
+
+
 }

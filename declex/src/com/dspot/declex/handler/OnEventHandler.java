@@ -18,6 +18,7 @@ package com.dspot.declex.handler;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
+import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.helper.ModelConstants;
 import org.androidannotations.holder.EComponentHolder;
@@ -41,14 +42,16 @@ public class OnEventHandler extends BaseOnEventHandler {
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
+
+		EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
 		
 		if (adiHelper.hasAnnotation(element, Exported.class)
 			|| adiHelper.hasAnnotation(element, Export.class)) {
 			if (element instanceof VirtualElement) {
-				eventsHelper.registerAsEventListener(holder);
+				eventHolder.registerAsEventListener();
 			}
 		} else {
-			eventsHelper.registerAsEventListener(holder);
+			eventHolder.registerAsEventListener();
 		}
 		
 		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");

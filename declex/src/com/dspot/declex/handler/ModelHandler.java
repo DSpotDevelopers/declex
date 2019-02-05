@@ -50,8 +50,6 @@ import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.holder.ViewsHolder.WriteInBlockWithResult;
 import com.dspot.declex.holder.view_listener.ClickHolder;
 import com.dspot.declex.util.SharedRecords;
-import com.dspot.declex.util.TypeUtils;
-import org.androidannotations.internal.virtual.VirtualElement;
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;

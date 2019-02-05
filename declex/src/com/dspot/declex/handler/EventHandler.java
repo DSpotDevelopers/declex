@@ -16,6 +16,7 @@
 package com.dspot.declex.handler;
 
 import com.dspot.declex.annotation.Event;
+import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.annotations.export.Export;
 import org.androidannotations.annotations.export.Exported;
 import com.dspot.declex.api.util.FormatsUtils;
@@ -136,15 +137,17 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
+
+		EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
 		
 		if (adiHelper.hasAnnotation(element, Exported.class)
 			|| adiHelper.hasAnnotation(element, Export.class)) {
 			
 			if (element instanceof VirtualElement) {
-				eventsHelper.registerAsEventListener(holder);
+				eventHolder.registerAsEventListener();
 			}
 		} else {
-			eventsHelper.registerAsEventListener(holder);
+			eventHolder.registerAsEventListener();
 		}
 		
 		String className = element instanceof ExecutableElement ? 

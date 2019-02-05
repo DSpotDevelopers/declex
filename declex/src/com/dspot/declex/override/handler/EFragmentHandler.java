@@ -17,6 +17,7 @@ package com.dspot.declex.override.handler;
 
 import javax.lang.model.element.Element;
 
+import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.holder.EFragmentHolder;
@@ -47,6 +48,10 @@ public class EFragmentHandler extends org.androidannotations.internal.core.handl
 			FragmentActionHolder actionHolder = holder.getPluginHolder(new FragmentActionHolder(holder));
 			actionHolder.getFragmentAction();
 		}
+
+		EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
+		eventHolder.setEventRegisteringBlock(holder.getOnResumeAfterSuperBlock());
+		eventHolder.setEventUnregisteringBlock(holder.getOnPauseBeforeSuperBlock());
 	}
 
 }

@@ -15,6 +15,7 @@
  */
 package com.dspot.declex.helper;
 
+import static com.dspot.declex.util.ParamUtils.injectParam;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
@@ -54,7 +55,6 @@ import com.dspot.declex.holder.EventHolder;
 import com.dspot.declex.holder.ViewsHolder;
 import com.dspot.declex.util.DeclexConstant;
 import com.dspot.declex.util.JavaDocUtils;
-import com.dspot.declex.util.ParamUtils;
 import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import org.androidannotations.internal.virtual.VirtualElement;
@@ -205,65 +205,6 @@ public class EventsHelper {
 		fields.remove(paramName);
 	}
 
-	public void registerAsEventListener(EComponentHolder holder) {
-		AbstractJClass EventBus = environment.getJClass("org.greenrobot.eventbus.EventBus");
-		
-		JMethod registerMethod = holder.getGeneratedClass().getMethod("registerWithEventBus_", new AbstractJType[]{});
-		if (registerMethod == null) {
-			registerMethod = holder.getGeneratedClass().method(JMod.PRIVATE, environment.getCodeModel().VOID, "registerWithEventBus_");
-			JTryBlock tryBlock = registerMethod.body()._try();
-			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("register").arg(_this()));
-			tryBlock._catch(environment.getClasses().THROWABLE);
-			
-			if (holder instanceof EActivityHolder) {
-        		((EActivityHolder) holder).getOnResumeAfterSuperBlock().invoke(registerMethod);
-        	} else if (holder instanceof EFragmentHolder) {
-        		((EFragmentHolder) holder).getOnResumeAfterSuperBlock().invoke(registerMethod);
-        	} else if (holder instanceof EBeanHolder) {
-        		holder.getInitBody().invoke(registerMethod);
-        	} else if (holder instanceof EApplicationHolder) {
-        		holder.getInitBody().invoke(registerMethod);
-        	} else if (holder instanceof EServiceHolder) {
-				holder.getInit();
-        		((EServiceHolder) holder).getStartLifecycleAfterSuperBlock().invoke(registerMethod);
-        	} else if (holder instanceof EProviderHolder) {
-        		((EProviderHolder) holder).getOnCreateBody().invoke(registerMethod);
-        	} else if (holder instanceof EReceiverHolder) {
-        		//Not supported
-        	} else if (holder instanceof EViewHolder) {
-        		((EViewHolder) holder).getStartLifecycleAfterSuperBlock().invoke(registerMethod);
-        	} 
-			
-		}
-		
-		JMethod unregisterMethod = holder.getGeneratedClass().getMethod("unregisterWithEventBus_", new AbstractJType[]{});
-		if (unregisterMethod == null) {
-			unregisterMethod = holder.getGeneratedClass().method(JMod.PRIVATE, environment.getCodeModel().VOID, "unregisterWithEventBus_");
-			JTryBlock tryBlock = unregisterMethod.body()._try();
-			tryBlock.body().add(EventBus.staticInvoke("getDefault").invoke("unregister").arg(_this()));
-			tryBlock._catch(environment.getClasses().THROWABLE);
-			
-			if (holder instanceof EActivityHolder) {
-        		((EActivityHolder) holder).getOnPauseBeforeSuperBlock().invoke(unregisterMethod);
-        	} else if (holder instanceof EFragmentHolder) {
-        		((EFragmentHolder) holder).getOnPauseBeforeSuperBlock().invoke(unregisterMethod);
-        	} else if (holder instanceof EBeanHolder) {
-        		//Not supported
-        	} else if (holder instanceof EApplicationHolder) {
-        		//Not supported
-        	} else if (holder instanceof EServiceHolder) {
-        		((EServiceHolder) holder).getEndLifecycleBeforeSuperBlock().invoke(unregisterMethod);
-        	} else if (holder instanceof EProviderHolder) {
-        		//Not supported
-        	} else if (holder instanceof EReceiverHolder) {
-        		//Not supported
-        	} else if (holder instanceof EViewHolder) {
-        		((EViewHolder) holder).getEndLifecycleBeforeSuperBlock().invoke(unregisterMethod);
-        	} 
-		}
-		
-	}
-    
 	public AbstractJClass createEvent(String className, Element fromElement) {
 		return createEvent(className, fromElement, false);
 	}
@@ -299,8 +240,6 @@ public class EventsHelper {
 			
 			actionInfo.setReferences(reference);
 			EventClass.javadoc().add(actionInfo.references);
-			
-			Element rootElement = TypeUtils.getRootElement(fromElement);
 			
 		} catch (JClassAlreadyExistsException e) {
 			
@@ -515,7 +454,7 @@ public class EventsHelper {
 							
 							invocation = invocation.arg(ref("event"));
 						} else {
-							ParamUtils.injectParam(paramName, param.asType().toString(), invocation, viewsHolder);
+							injectParam(paramName, param.asType().toString(), invocation, viewsHolder);
 						}
 					}
 				}

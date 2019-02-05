@@ -17,6 +17,7 @@ package com.dspot.declex.handler.base;
 
 import javax.lang.model.element.Element;
 
+import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
 import org.androidannotations.handler.BaseAnnotationHandler;
@@ -61,13 +62,15 @@ public class BaseOnEventHandler extends BaseAnnotationHandler<EComponentHolder> 
 	@Override
 	public void process(Element element, EComponentHolder holder)
 			throws Exception {
-		
+
+		EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
+
 		if (adiHelper.hasAnnotation(element, Exported.class)) {
 			if (element instanceof VirtualElement) {
-				eventsHelper.registerAsEventListener(holder);
+				eventHolder.registerAsEventListener();
 			}
 		} else {
-			eventsHelper.registerAsEventListener(holder);
+			eventHolder.registerAsEventListener();
 		}
 		
 		String classField = annotationHelper.extractAnnotationClassNameParameter(element, getTarget(), "value");

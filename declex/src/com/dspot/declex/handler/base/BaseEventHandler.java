@@ -37,7 +37,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.management.openmbean.InvalidOpenTypeException;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -71,7 +70,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseEventHandler.class);
 	
-	private String referecedId;
+	private String referencedId;
 	
 	protected EventsHelper eventsHelper;
 	
@@ -95,8 +94,8 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			Element element, ViewsHolder viewsHolder, T holder) {
 		
 		//Check if it is an event, only permitted in fields
-		if (element.getKind().equals(ElementKind.FIELD) && referecedId.startsWith("on")) {
-			String eventClassName = SharedRecords.getEvent(referecedId.substring(2), getEnvironment()); 
+		if (element.getKind().equals(ElementKind.FIELD) && referencedId.startsWith("on")) {
+			String eventClassName = SharedRecords.getEvent(referencedId.substring(2), getEnvironment());
 			
 			if (eventClassName != null) {
 				JBlock eventBlock = eventsHelper.addEventListener(eventClassName, element.getEnclosingElement(), viewsHolder);
@@ -111,7 +110,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		}
 		
 		//Fallback as Method call
-		methodHandler(elementClass, referecedId, element, viewsHolder, holder);
+		methodHandler(elementClass, referencedId, element, viewsHolder, holder);
 		return null;		
 	}
 	
@@ -133,7 +132,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		
 		for (final String elementName : getNames(element)) { 
 			
-			referecedId = elementName;
+			referencedId = elementName;
 			
 			final ViewListenerHolder listenerHolder = 
 					getListenerHolder(elementName, elementClass, declForListener, element, viewsHolder, holder);
@@ -141,17 +140,17 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			
 			if (viewsHolder != null) {
 				for (AbstractJClass declClass : declForListener.keySet()) {
-					listenerHolder.addDecl(referecedId, JMod.FINAL, declClass, "model", declForListener.get(declClass));
+					listenerHolder.addDecl(referencedId, JMod.FINAL, declClass, "model", declForListener.get(declClass));
 				}
 				
 				listenerHolder.addStatement(
-						referecedId, 
+						referencedId,
 						new StatementCreator(elementClass==null ? null : getJClass(elementClass), element, viewsHolder, holder)
 					);
 			
 				//If it's found the the class associated layout, then process the event here	
-				if (viewsHolder.layoutContainsId(referecedId)) {				
-					viewsHolder.createAndAssignView(referecedId, new WriteInBlockWithResult<JBlock>() {
+				if (viewsHolder.layoutContainsId(referencedId)) {
+					viewsHolder.createAndAssignView(referencedId, new WriteInBlockWithResult<JBlock>() {
 		
 						@Override
 						public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
