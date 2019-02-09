@@ -1,5 +1,6 @@
 package com.dspot.declex.helper;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,10 @@ import org.androidannotations.helper.ModelConstants;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class ViewsPropertiesReaderHelper {
+
+	private final static Set<Modifier> INVALID_MODIFIERS = new HashSet<>(Arrays.asList(
+			Modifier.PRIVATE, Modifier.PROTECTED, Modifier.ABSTRACT
+	));
 
 	//<Class Id, <Getter<Name, Classes>, Setter<Name, Classes>>>
 	private Map<String, Pair<Map<String, TypeMirror>, Map<String, Set<TypeMirror>>>> gettersAndSettersPerClass = new HashMap<>();
@@ -85,15 +90,15 @@ public class ViewsPropertiesReaderHelper {
 	private void readGettersAndSetters(Element element, Map<String, TypeMirror> getters, Map<String, Set<TypeMirror>> setters) {
 
 		List<? extends Element> elems = element.getEnclosedElements();
-		
+
 		for (Element elem : elems) {
-			if (elem.getKind() == ElementKind.METHOD && elem.getModifiers().contains(Modifier.PUBLIC)) {
+			if (elem.getKind() == ElementKind.METHOD && hasValidModifiers(elem.getModifiers())) {
 
 				final String elemName = elem.getSimpleName().toString();
 				
 				if (elemName.length() >= 4) {
 					final String elemNameStart = elemName.substring(0, 4);
-					final String elemNameStartForBoolean = elemName.toString().substring(0, 3);
+					final String elemNameStartForBoolean = elemName.substring(0, 3);
 					
 					if (elemNameStart.matches("set[A-Z]")) {
 					
@@ -129,6 +134,13 @@ public class ViewsPropertiesReaderHelper {
 			}
 		}
 	}	
+
+	public boolean hasValidModifiers(Set<Modifier> modifiers) {
+		for (Modifier modifier : modifiers) {
+			if (INVALID_MODIFIERS.contains(modifier)) return false;
+		}
+		return true;
+	}
 
 	private ProcessingEnvironment processingEnv() {
 		return environment.getProcessingEnvironment();

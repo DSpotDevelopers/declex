@@ -26,6 +26,7 @@ import java.util.List;
 
 import javax.lang.model.element.Element;
 
+import com.dspot.declex.api.adapter.DeclexAdapterList;
 import org.androidannotations.holder.EComponentHolder;
 
 import com.dspot.declex.adapter.plugin.HolderClassCreator;
@@ -42,12 +43,13 @@ import com.helger.jcodemodel.JVar;
 
 public class AdapterClassCreator extends HolderClassCreator {
 	
-	AbstractJClass BaseAdapter;
+	private AbstractJClass BaseAdapter;
 	
-	final AbstractJClass ArrayList;	
-	final AbstractJClass Model;
-	final String className;
-		
+	private final AbstractJClass ArrayList;
+	private final AbstractJClass Model;
+	private final AbstractJClass DeclexAdapterList;
+	private final String className;
+
 	public AdapterClassCreator(String modelClassName, String className, Element element, EComponentHolder holder, 
 			List<JClassPlugin> adapterPlugins) {
 		super(element, holder);
@@ -55,6 +57,8 @@ public class AdapterClassCreator extends HolderClassCreator {
 		Model = getJClass(modelClassName);
 		BaseAdapter = getJClass("android.widget.BaseAdapter");
 		ArrayList = getJClass("java.util.ArrayList").narrow(Model);
+		DeclexAdapterList = getJClass(com.dspot.declex.api.adapter.DeclexAdapterList.class.getCanonicalName());
+
 		this.className = className;
 		
 		for (JClassPlugin plugin : adapterPlugins) {
@@ -75,7 +79,11 @@ public class AdapterClassCreator extends HolderClassCreator {
 		
 		JMethod constructor = AdapterClass.constructor(JMod.PUBLIC);
 		JVar paramModels = constructor.param(getClasses().LIST.narrow(Model), "models");
-		JConditional ifParamModelsNull = constructor.body()._if(paramModels.eq(_null()));
+
+		JConditional ifAdapterList =  constructor.body()._if(models._instanceof(DeclexAdapterList));
+		ifAdapterList._then().assign(_this().ref(models), models);
+
+		JConditional ifParamModelsNull =ifAdapterList._else()._if(paramModels.eq(_null()));
 		ifParamModelsNull._then().assign(
 				_this().ref(models), _new(ArrayList)				
 		);
@@ -86,7 +94,11 @@ public class AdapterClassCreator extends HolderClassCreator {
 		//setModels() METHOD
 		JMethod setModels = AdapterClass.method(JMod.PUBLIC, getCodeModel().VOID, "setModels");
 		JVar modelsParam = setModels.param(getClasses().LIST.narrow(Model), "models");
-		JConditional ifModels = setModels.body()._if(modelsParam.ne(_null()));
+
+		ifAdapterList = setModels.body()._if(models._instanceof(DeclexAdapterList));
+		ifAdapterList._then().assign(_this().ref(models), models);
+
+		JConditional ifModels = ifAdapterList._else()._if(modelsParam.ne(_null()));
 		ifModels._then().directStatement("//This permits the export modification of the model");
 		ifModels._then().directStatement("//without crashing the interface for concurrent modifications");
 		ifModels._then().assign(_this().ref(models), _new(ArrayList).arg(modelsParam));

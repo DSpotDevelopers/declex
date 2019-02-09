@@ -16,6 +16,8 @@
 package com.dspot.declex.handler;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+import static com.dspot.declex.util.TypeUtils.fieldInElement;
+import static com.dspot.declex.util.TypeUtils.isSubtype;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
@@ -163,7 +165,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 						VariableElement firstParameter = parameters.get(0);
 						VariableElement secondParameter = parameters.get(1);
 
-						if (!TypeUtils.isSubtype(firstParameter, CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
+						if (!isSubtype(firstParameter, CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
 							valid.addError("The first parameter should be an instance of View");									
 						}
 						
@@ -187,7 +189,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 
 		if (!(element instanceof ExecutableElement)) {
 			
-			boolean isList = TypeUtils.isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());		
+			boolean isList = isSubtype(element, CanonicalNameConstants.LIST, getProcessingEnvironment());
 			if (isList) {
 				String className = element.asType().toString();
 	
@@ -286,7 +288,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 					
 				} else {
 					
-					processDirectReference(info, className, element, viewsHolder, populateHolder);
+					processDirectReference(info, element, viewsHolder, populateHolder);
 					
 				}
 			} else if (isMethod) {
@@ -410,7 +412,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		final String property = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
 		if (setters.containsKey(property)) {
 			for (TypeMirror propertyType : setters.get(property)) {
-				if (TypeUtils.isSubtype(element.asType(), propertyType, getProcessingEnvironment())) {
+				if (isSubtype(element.asType(), propertyType, getProcessingEnvironment())) {
 					return new IdInfoHolder(null, element, annotatedElementClass, new ArrayList<VariableElement>(0), property);
 				}							
 			}
@@ -419,15 +421,15 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		return null;
 	}
 	
-	private boolean processDirectReference(final IdInfoHolder info, String className, Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder) {
+	private void processDirectReference(final IdInfoHolder info, Element element, ViewsHolder viewsHolder, PopulateHolder populateHolder) {
 		
 		final String fieldName = element.getSimpleName().toString();
 						
 		//Create getter
-		final String fieldGetter = FormatsUtils.fieldToGetter(fieldName);
+		final String fieldGetter = fieldToGetter(fieldName);
 
 		//Not coinciding field found
-		if (info == null) return false;	
+		if (info == null) return;
 
 		IJExpression assignRef = invoke(element instanceof ExecutableElement? fieldName : fieldGetter);				
 		if (info.getterOrSetter == null && !element.asType().toString().equals(String.class.getCanonicalName())) {
@@ -440,8 +442,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		IJExpression view = info.idName != null? viewsHolder.createAndAssignView(info.idName) : _this();
 		JBlock block = populateHolder.getPopulateMethodBlock(element).blockVirtual();
 		putAssignInBlock(info, block, view, assignRef, element, viewsHolder, populateHolder);
-		
-		return true;
+
 	}
 	
 	private void processList(String className, Element element, ViewsHolder viewsHolder, final PopulateHolder populateHolder) {
@@ -514,7 +515,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		JDefinedClass generatedClassForGetterAndSetter = viewsHolder.getGeneratedClass();
 		AbstractJClass classForGetterAndSetter = AdapterClass;
 				
-		boolean foundAdapterDeclaration = TypeUtils.fieldInElement(adapterName, element.getEnclosingElement());
+		boolean foundAdapterDeclaration = fieldInElement(adapterName, element.getEnclosingElement());
 		if (!foundAdapterDeclaration && element instanceof VirtualElement) {
 			
 			Element foundAdapterElementDeclaration = TypeUtils.fieldElementInElement(adapterName, ((VirtualElement) element).getElement().getEnclosingElement());
@@ -588,13 +589,13 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		//AdapterView
-		if (TypeUtils.isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())) {
 			//If the adapter was not assigned, then create a local adapter
 			createBaseAdapter(fieldName, className, element, viewsHolder);			
 		}
 		
 		//RecyclerView
-		if (TypeUtils.isSubtype(viewClass, "android.support.v7.widget.RecyclerView", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.support.v7.widget.RecyclerView", getProcessingEnvironment())) {
 			createRecyclerViewAdapter(fieldName, className, element, viewsHolder);
 		}
 	}
@@ -795,7 +796,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			if (info.extraParams.size() > 0) {	
 				
 				int startIndex = 0;
-				if (TypeUtils.isSubtype(info.extraParams.get(0), getClasses().VIEW.fullName(), getProcessingEnvironment())) {
+				if (isSubtype(info.extraParams.get(0), getClasses().VIEW.fullName(), getProcessingEnvironment())) {
 					assignRef = ((JInvocation)assignRef).arg(view);
 					startIndex = 1;
 				}
@@ -837,15 +838,15 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 		
 		//CompoundButtons, if the param is boolean, it will set the checked state
-		if (TypeUtils.isSubtype(viewClass, "android.widget.CompoundButton", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.widget.CompoundButton", getProcessingEnvironment())) {
 			if (type.getKind().equals(TypeKind.BOOLEAN)) {
 				block.invoke(view, "setChecked").arg(origAssignRef);
 				return;
 			}
 		}
 		
-		if (TypeUtils.isSubtype(viewClass, "android.widget.TextView", getProcessingEnvironment())) {
-			if (TypeUtils.isSubtype(type.toString(), "android.text.Spanned", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.widget.TextView", getProcessingEnvironment())) {
+			if (isSubtype(type.toString(), "android.text.Spanned", getProcessingEnvironment())) {
 				block.invoke(view, "setText").arg(origAssignRef);	
 			} else {
 				block.invoke(view, "setText").arg(assignRef);
@@ -853,7 +854,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			return;
 		}
 		
-		if (TypeUtils.isSubtype(viewClass, "android.widget.ImageView", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.widget.ImageView", getProcessingEnvironment())) {
 			AbstractJClass Picasso = getJClass("com.squareup.picasso.Picasso");
 			AbstractJClass RequestCreator = getJClass("com.squareup.picasso.RequestCreator");
 
@@ -939,11 +940,11 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			return;
 		}		
 		
-		if (TypeUtils.isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())
-			|| TypeUtils.isSubtype(viewClass, "android.support.v7.widget.RecyclerView", getProcessingEnvironment())) {
+		if (isSubtype(viewClass, "android.widget.AdapterView", getProcessingEnvironment())
+			|| isSubtype(viewClass, "android.support.v7.widget.RecyclerView", getProcessingEnvironment())) {
 			
 			String className = info.type.toString();
-			boolean isList = TypeUtils.isSubtype(className, "java.util.Collection", getProcessingEnvironment());		
+			boolean isList = isSubtype(className, "java.util.Collection", getProcessingEnvironment());
 			if (isList) {
 				Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 				if (matcher.find()) {

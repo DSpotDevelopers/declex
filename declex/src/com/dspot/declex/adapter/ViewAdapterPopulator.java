@@ -21,6 +21,7 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.ref;
+import static org.androidannotations.helper.ModelConstants.generationSuffix;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -62,7 +63,7 @@ import com.helger.jcodemodel.JVar;
 public class ViewAdapterPopulator extends BaseClassPlugin {
 	
 	protected static final Logger LOGGER = LoggerFactory.getLogger(ViewAdapterPopulator.class);
-	
+
 	private PopulateHandler handler;
 	private ViewsHolder viewsHolder;
 	
@@ -119,11 +120,11 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			throw new IllegalStateException("This should not happens, Validations not working");
 		}
 		
-		Map<String, IdInfoHolder> fields = new HashMap<String, IdInfoHolder>();
-		Map<String, IdInfoHolder> methods = new HashMap<String, IdInfoHolder>();
+		Map<String, IdInfoHolder> fields = new HashMap<>();
+		Map<String, IdInfoHolder> methods = new HashMap<>();
 		if (!modelClassName.equals(String.class.getCanonicalName())) {
 			String className = modelClassName;
-			if (className.endsWith(ModelConstants.generationSuffix())) {
+			if (className.endsWith(generationSuffix())) {
 				className = className.substring(0, className.length()-1);
 			}
 			viewsHolder.findFieldsAndMethods(className, fieldName, fields, methods, true, true, listItemId);
@@ -164,8 +165,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 				JVar viewField = ViewHolderClass.field(JMod.PUBLIC, idNameClass, holderFieldName + DeclexConstant.VIEW);
 				
 				IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
-				if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+				if (!idNameClass.equals(CanonicalNameConstants.VIEW)) {
 					findViewById = cast(idNameClass, findViewById);
+				}
 				
 				createViewBody.assign(viewHolder.ref(viewField), findViewById);
 				
@@ -215,7 +217,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 		
 		
 		boolean castNeeded = false;
-		if (!modelClassName.endsWith(ModelConstants.generationSuffix())) {
+		if (!modelClassName.endsWith(generationSuffix())) {
 			if (TypeUtils.isClassAnnotatedWith(modelClassName, UseModel.class, environment)) {
 				modelClassName = TypeUtils.getGeneratedClassName(modelClassName, environment);
 				castNeeded = true;
