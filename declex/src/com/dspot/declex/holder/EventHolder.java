@@ -43,6 +43,7 @@ import com.helger.jcodemodel.JTryBlock;
 import com.helger.jcodemodel.JVar;
 
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.invoke;
 
 public class EventHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
 	
@@ -124,7 +125,7 @@ public class EventHolder extends PluginClassHolder<BaseGeneratedClassHolder> {
 		JCatchBlock catchBlock = tryBlock._catch(getClasses().THROWABLE);
 		JVar e = catchBlock.param("e");				
 		ifBlock = catchBlock.body()._if(event.invoke("getFailedListener").neNull())._then();
-		ifBlock.invoke(event.invoke("getFailedListener"), "onFailed").arg(e);
+		ifBlock.add(invoke(event.invoke("getFailedListener"), "onFailed").arg(e));
 		
 		eventsMethod.put(clazz, eventMethod);
 		eventsBlock.put(clazz, eventBody);

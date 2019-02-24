@@ -1,15 +1,7 @@
 package com.dspot.declex.wrapper.generate;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.internal.generation.CodeModelGenerator;
-import org.androidannotations.internal.generation.ResourceCodeWriter;
-import org.androidannotations.internal.generation.SourceCodeWriter;
-import org.androidannotations.internal.process.ModelProcessor;
-
-import com.helger.jcodemodel.writer.PrologCodeWriter;
 
 public class DeclexCodeModelGenerator extends CodeModelGenerator {
 

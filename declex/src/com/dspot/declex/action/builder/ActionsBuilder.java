@@ -48,6 +48,8 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.dspot.declex.action.util.ExpressionsHelper.expressionToString;
+import static com.dspot.declex.action.util.ExpressionsHelper.statementToString;
 import static com.helger.jcodemodel.JExpr.*;
 import static com.helger.jcodemodel.JExpr.invoke;
 
@@ -316,8 +318,8 @@ public class ActionsBuilder {
                         JVar previousNotifier = viewNotifierHelper.replacePreviousNotifier(preInstantiate);
                         viewNotifierHelper.resetPreviousNotifier(block, previousNotifier);
                         viewNotifierHelper.ifWasCalledNotifier(block)
-                            .invoke(action, "onViewChanged")
-                            .arg(holder.getGeneratedClass().staticRef("this"));
+                            .add(invoke(action, "onViewChanged")
+                            .arg(holder.getGeneratedClass().staticRef("this")));
                     }
 
                 }
@@ -325,12 +327,13 @@ public class ActionsBuilder {
                 actionInfo.clearMetaData();
 
                 JBlock preInit = block.blockVirtual();
-                JInvocation initInvocation = block.invoke(action, "init");
+                JInvocation initInvocation = invoke(action, "init");
                 if (invoke != null) {
                     for (IJExpression arg : processArguments("init", invoke, action, actionInfo)) {
                         initInvocation.arg(arg);
                     }
                 }
+                block.add(initInvocation);
                 JBlock postInit = block.blockVirtual();
 
                 Collections.reverse(actionInvocationSubMethods);
@@ -368,9 +371,13 @@ public class ActionsBuilder {
                             }
                         }
 
-                        JInvocation subMethodInvocation = externalInvoke==null? block.invoke(action, name) : externalInvoke;
+                        JInvocation subMethodInvocation = externalInvoke == null? invoke(action, name) : externalInvoke;
                         for (IJExpression arg : processArguments(name, invocation, action, actionInfo)) {
                             subMethodInvocation = subMethodInvocation.arg(arg);
+                        }
+
+                        if (externalInvoke == null) {
+                            block.add(subMethodInvocation);
                         }
                     } else {
                         externalInvoke = externalInvoke.invoke(name);
@@ -437,7 +444,9 @@ public class ActionsBuilder {
                             }
                         }
 
-                        setCurrentBuildInvocation(block.invoke(action, "build"));
+                        JInvocation currentBuildInvocation = invoke(action, "build");
+                        setCurrentBuildInvocation(currentBuildInvocation);
+                        block.add(currentBuildInvocation);
 
                         @SuppressWarnings("unchecked")
                         List<IJStatement> postBuildBlocks = (List<IJStatement>) actionInfo.metaData.get("postBuildBlocks");
@@ -701,11 +710,7 @@ public class ActionsBuilder {
 
             if (content instanceof IJStatement) {
                 boolean contentReplaced = false;
-                StringWriter writer = new StringWriter();
-                JFormatter formatter = new JFormatter(writer);
-                IJStatement statement = (IJStatement) content;
-                statement.state(formatter);
-                String statementString = writer.getBuffer().toString();
+                String statementString = statementToString((IJStatement) content);
 
                 Matcher matcher = Pattern.compile(
                     "((?:(?:[a-zA-Z_$][a-zA-Z_$0-9]*\\.)*" + holder.getGeneratedClass().name() + "\\.)*super.)"
@@ -866,7 +871,7 @@ public class ActionsBuilder {
 
                                 IJExpression exp = FormatsUtils.expressionFromString(literalStringValue);
 
-                                currentParam = currentParam.replace(matched, expressionsHelper.expressionToString(exp));
+                                currentParam = currentParam.replace(matched, expressionToString(exp));
                             }
 
                             if (found) {

@@ -235,7 +235,7 @@ public class JsonModelHandler extends BaseTemplateHandler<EComponentHolder> {
 			
 			if (callSuperCreateGetGsonBuilderMethod) {
 				createBuilder = body.decl(GsonBuilder, "builder", createBuilder);
-				body.staticInvoke(Model, "getGsonBuilder").arg(createBuilder);
+				body.add(Model.staticInvoke("getGsonBuilder").arg(createBuilder));
 			} 		
 			
 			body._return(createBuilder);

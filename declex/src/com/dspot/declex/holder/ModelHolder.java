@@ -474,7 +474,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		final List<? extends AnnotationMirror> annotations = element.getAnnotationMirrors();
 		final JInvocation annotations_invocation = ARRAYS
 				                                      .staticInvoke("asList")
-				                                      .arg(dotclass(getJClass(Annotation.class)));
+				                                      .arg(getJClass(Annotation.class).dotclass());
 		final Map<Integer, AbstractJClass> annotationClasses = new TreeMap<>();
 		
 		//Insert the annotations in the order of appearance 
@@ -553,15 +553,15 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 				.arg(caughtException);
 		
 		JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
-		ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+		ifOnFailedAssigned._then().add(invoke(onFailed, "onFailed").arg(caughtException));
 		ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		
 		IJExpression assignField = beanField == null? getter : beanField;
 		if (isList) {
 			
 			JBlock forEachBody = tryBlock.body().forEach(getJClass(converted == null ? className : converted), "model", assignField).body();
-			forEachBody.invoke(converted == null ? ref("model") 
-					                               : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder)).arg(args);			
+			forEachBody.add(invoke(converted == null ? ref("model")
+					                               : cast(ModelClass, ref("model")), useModelModelInitMethod(useModelHolder)).arg(args));
 			
 			if (converted != null) {
 				assignField = cast(LIST.narrow(getJClass(converted)), cast(LIST, assignField));
@@ -577,8 +577,8 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 			syncBlock.body().add(getter.invoke("addAll").arg(assignField));
 						
 		} else {
-			assign.invoke(converted == null ? assignField 
-					                          : cast(ModelClass, assignField), useModelModelInitMethod(useModelHolder)).arg(args);
+			assign.add(invoke(converted == null ? assignField
+					                          : cast(ModelClass, assignField), useModelModelInitMethod(useModelHolder)).arg(args));
 		}
 		
 		JBlock afterGetModelBlock = assign.blockVirtual();
@@ -697,7 +697,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 		IJExpression validationException = 
 				_new(getJClass(RuntimeException.class)).arg("Put operation over field \"" + fieldName + "\" failed");
 		ifNotPut._if(onFailed.ne(_null()))._then()
-		   						 .invoke(onFailed, "onFailed").arg(validationException);
+		   						 .add(invoke(onFailed, "onFailed").arg(validationException));
 		
 		ifNotPut._return();
 		
@@ -741,7 +741,7 @@ public class ModelHolder extends PluginClassHolder<EComponentHolder> {
 					.arg(caughtException);
 			
 			JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
-			ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+			ifOnFailedAssigned._then().add(invoke(onFailed, "onFailed").arg(caughtException));
 			ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		}
 		

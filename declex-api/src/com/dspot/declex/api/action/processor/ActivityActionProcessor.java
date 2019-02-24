@@ -52,7 +52,7 @@ public class ActivityActionProcessor extends BaseActionProcessor {
 	public void process(ActionInfo actionInfo) {
 		super.process(actionInfo);
 				
-		IJExpression context = (IJExpression)getMethodInHolder("getContextRef");
+		IJExpression context = getMethodInHolder("getContextRef");
 		if (getAnnotatedElement().getAnnotation(EFragment.class) != null) {
 			context = _this();
 		}

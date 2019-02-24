@@ -15,6 +15,8 @@
  */
 package com.dspot.declex.holder;
 
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.dspot.declex.util.TypeUtils.isSubtype;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
@@ -97,6 +99,8 @@ public class ViewsHolder extends
 	private ADIHelper adiHelper;
 	private ViewsPropertiesReaderHelper propertiesHelper;
 
+	private boolean inList;
+
 	public ViewsHolder(EComponentWithViewSupportHolder holder) {
 		super(holder);
 		
@@ -112,7 +116,15 @@ public class ViewsHolder extends
 			onViewChangedHasViewsParamValues.put(defLayoutId, holder().getOnViewChangedHasViewsParam());
 		}
 	}
-	
+
+	public void setInList() {
+		this.inList = true;
+	}
+
+	public void resetInList() {
+		this.inList = false;
+	}
+
 	public ViewsHelper getViewsHelper() {
 		return viewsHelper;
 	}
@@ -241,8 +253,8 @@ public class ViewsHolder extends
 						boolean hasSetter = false;
 
 						for (TypeMirror setter : setters.get(property)) {
-							hasSetter = isSubtype(fieldType, setter.toString(), processingEnv())
-									|| isSubtype(wrapperToPrimitive(fieldType), setter.toString(), processingEnv());
+							hasSetter = isSubtype(fieldType, setter.toString(), getProcessingEnvironment())
+									|| isSubtype(wrapperToPrimitive(fieldType), setter.toString(), getProcessingEnvironment());
 							if (hasSetter) break;
 						}
 
@@ -272,6 +284,12 @@ public class ViewsHolder extends
 	}
 
 	public JInvocation checkFieldNameInInvocation(final String fieldName, final String fieldType, final JInvocation invocation) {
+
+		//Model is obtained again from the position, to permit DeclexAdapterList to do some processing
+		//on the "models.get(int)"
+		if (inList && fieldName.equals("model")) {
+			return invocation.arg(ref("models").invoke("get").arg(ref("position")));
+		}
 
 		for (String layoutId : layoutObjects.keySet()) {
 			
@@ -304,7 +322,7 @@ public class ViewsHolder extends
 					boolean callPropertyGetter = false;
 					boolean callPropertySetter = false;
 					String fieldTypeToMatch = fieldType;
-					if (isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
+					if (isSubtype(fieldType, Property.class.getCanonicalName(), getProcessingEnvironment())) {
 						
 //						final String pattern = "\\Q" + Property.class.getCanonicalName() + "\\E" 
 //								               + "<([a-zA-Z_][a-zA-Z_$0-9.]+)>";
@@ -316,12 +334,12 @@ public class ViewsHolder extends
 //							
 //							if (subClass.contains("<")) subClass = subClass.substring(0, subClass.indexOf('<'));
 //							
-//							TypeElement typeElement = processingEnv().getElementUtils().getTypeElement(subClass);
+//							TypeElement typeElement = getProcessingEnvironment().getElementUtils().getTypeElement(subClass);
 //							classTree.add(0, typeElement.asType());
 //							
-//							List<? extends TypeMirror> superTypes = processingEnv().getTypeUtils().directSupertypes(typeElement.asType());
+//							List<? extends TypeMirror> superTypes = getProcessingEnvironment().getTypeUtils().directSupertypes(typeElement.asType());
 //							for (TypeMirror type : superTypes) {
-//								if (TypeUtils.isSubtype(type, Property.class.getCanonicalName(), processingEnv())) {
+//								if (TypeUtils.isSubtype(type, Property.class.getCanonicalName(), getProcessingEnvironment())) {
 //									subClass = type.toString(); 
 //								}
 //							}
@@ -340,16 +358,16 @@ public class ViewsHolder extends
 					if (getters.containsKey(property) || (isProperty && setters.containsKey(property))) {
 												
 						boolean hasGetter = getters.containsKey(property) && 
-											(isSubtype(getters.get(property).toString(), fieldTypeToMatch, processingEnv())
-											|| isSubtype(getters.get(property).toString(), wrapperToPrimitive(fieldTypeToMatch), processingEnv()));
+											(isSubtype(getters.get(property).toString(), fieldTypeToMatch, getProcessingEnvironment())
+											|| isSubtype(getters.get(property).toString(), wrapperToPrimitive(fieldTypeToMatch), getProcessingEnvironment()));
 											
 						boolean hasGetterAsString = getters.containsKey(property) && fieldTypeToMatch.equals(String.class.getCanonicalName());
 						
 						boolean hasSetter = false;
 						if (isProperty && setters.containsKey(property)) {
 							for (TypeMirror setter : setters.get(property)) {
-								hasSetter = isSubtype(fieldTypeToMatch, setter.toString(), processingEnv())
-										|| isSubtype(wrapperToPrimitive(fieldTypeToMatch), setter.toString(), processingEnv());
+								hasSetter = isSubtype(fieldTypeToMatch, setter.toString(), getProcessingEnvironment())
+										|| isSubtype(wrapperToPrimitive(fieldTypeToMatch), setter.toString(), getProcessingEnvironment());
 								if (hasSetter) break;
 							}
 						}
@@ -402,7 +420,7 @@ public class ViewsHolder extends
 								JVar value = setMethod.param(fieldClass, "value");
 								if (hasSetter) {
 									setMethod.body()._if(view.eqNull())._then()._return();
-									setMethod.body().invoke(view, "set" + property).arg(value);
+									setMethod.body().add(invoke(view, "set" + property).arg(value));
 								}
 								
 								return invocation.arg(_new(anonymousProperty));
@@ -426,7 +444,7 @@ public class ViewsHolder extends
 		}
 
 		//Not found properties
-		if (isSubtype(fieldType, Property.class.getCanonicalName(), processingEnv())) {
+		if (isSubtype(fieldType, Property.class.getCanonicalName(), getProcessingEnvironment())) {
 			
 			Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(fieldType);
 			if (matcher.find()) {
@@ -628,19 +646,17 @@ public class ViewsHolder extends
 			layoutObjects, getter, isList
 		);
 
-		// Apply to Extensions
 		List<? extends TypeMirror> superTypes = environment().getProcessingEnvironment().getTypeUtils().directSupertypes(typeElement.asType());
 		for (TypeMirror type : superTypes) {
 			TypeElement superElement = environment().getProcessingEnvironment().getElementUtils().getTypeElement(type.toString());
 			if (superElement == null) continue;
+			if (superElement.getKind().equals(ElementKind.INTERFACE)) continue;
+			if (superElement.asType().toString().equals(Object.class.getCanonicalName())) break;
 
-			//TODO Why Only UseModel?
-			if (adiHelper.hasAnnotation(superElement, UseModel.class)) {
-				findFieldsAndMethods(
+			findFieldsAndMethods(
 					type.toString(), fieldName,
 					fields, methods, getter, isList, layoutId
-				);
-			}
+			);
 
 			break;
 		}
@@ -722,7 +738,7 @@ public class ViewsHolder extends
 
 			final String elemName = elem.getSimpleName().toString();
 			final String completeElemName = prevField == null ? elemName : prevField + "." + elemName;
-			final String idForMethod = (getter? "get" : "set") + id.substring(0, 1).toUpperCase() + id.substring(1);
+			final String expectedMethodName = (getter? fieldToGetter(id) : fieldToSetter(id));
 
 			if (elem.getKind() == ElementKind.FIELD && !elem.getModifiers().contains(Modifier.TRANSIENT)) {
 
@@ -750,12 +766,15 @@ public class ViewsHolder extends
 									layoutElementId, layoutElementIdClass, getter);
 						}
 					}
+
 				}
 
 				if (id.equals(elemName) || normalizedId.equals(elemName)) {
-					fields.put(completeElemName, 
-							new IdInfoHolder(layoutElementId, elem, layoutElementIdClass));
+
+					fields.put(completeElemName, new IdInfoHolder(layoutElementId, elem, layoutElementIdClass));
+
 				} else if (elemName.startsWith(id)) {
+
 					final Map<String, TypeMirror> getters = new HashMap<>();
 					final Map<String, Set<TypeMirror>> setters = new HashMap<>();
 					propertiesHelper.readGettersAndSetters(layoutElementIdClass, getters, setters);
@@ -763,24 +782,29 @@ public class ViewsHolder extends
 					final String property = elemName.substring(id.length());
 					
 					if (getter && setters.containsKey(property)) {
+
 						for (TypeMirror propertyType : setters.get(property)) {
-							if (isSubtype(elem.asType(), propertyType, processingEnv())
-								|| isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
+							if (isSubtype(elem.asType(), propertyType, getProcessingEnvironment())
+								|| isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), getProcessingEnvironment())) {
 								fields.put(
 									completeElemName, 
 									new IdInfoHolder(layoutElementId, elem, layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 								);
 							}							
 						}
+
 					} else if (!getter && getters.containsKey(property)) {
-						if (isSubtype(elem.asType(), getters.get(property), processingEnv())
-							|| isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), processingEnv())) {
+
+						if (isSubtype(elem.asType(), getters.get(property), getProcessingEnvironment())
+							|| isSubtype(wrapperToPrimitive(elem.asType().toString()), getters.get(property).toString(), getProcessingEnvironment())) {
 							fields.put(
 								completeElemName, 
 								new IdInfoHolder(layoutElementId, elem, layoutElementIdClass, new ArrayList<VariableElement>(0), property)
 							);								
 						}
+
 					}
+
 				}
 			}
 
@@ -789,7 +813,7 @@ public class ViewsHolder extends
 				ExecutableElement exeElem = (ExecutableElement) elem;
 				
 				if (id.equals(elemName) || normalizedId.equals(elemName) || elemName.startsWith(id)
-					|| idForMethod.equals(elemName) || elemName.startsWith(idForMethod)) {
+					|| expectedMethodName.equals(elemName) || elemName.startsWith(expectedMethodName)) {
 					
 					// Only setter methods
 					if (exeElem.getParameters().size() < (getter ? 0 : 1)) continue;
@@ -806,7 +830,7 @@ public class ViewsHolder extends
 						paramType = exeElem.getParameters().get(0).asType();
 					}
 
-					if (id.equals(elemName) || normalizedId.equals(elemName) || idForMethod.equals(elemName)) {
+					if (id.equals(elemName) || normalizedId.equals(elemName) || expectedMethodName.equals(elemName)) {
 						
 						IdInfoHolder info = new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, null);
 						
@@ -822,34 +846,42 @@ public class ViewsHolder extends
 						methods.put(completeElemName, info);
 						
 					} else { //elemName.startsWith(id)
+
 						final Map<String, TypeMirror> getters = new HashMap<>();
 						final Map<String, Set<TypeMirror>> setters = new HashMap<>();
 						propertiesHelper.readGettersAndSetters(layoutElementIdClass, getters, setters);
 						
-						final String property = elemName.startsWith(idForMethod)?
-														elemName.substring(idForMethod.length())
+						final String property = elemName.startsWith(expectedMethodName)?
+														elemName.substring(expectedMethodName.length())
 														: elemName.substring(id.length());
+
 						if (getter && setters.containsKey(property)) {
+
 							for (TypeMirror propertyType : setters.get(property)) {
-								if (isSubtype(paramType, propertyType, processingEnv())
-									|| isSubtype(wrapperToPrimitive(paramType.toString()), propertyType.toString(), processingEnv())) {
+								if (isSubtype(paramType, propertyType, getProcessingEnvironment())
+									|| isSubtype(wrapperToPrimitive(paramType.toString()), propertyType.toString(), getProcessingEnvironment())) {
 									methods.put(
 										completeElemName, 
 										new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
 									);
 								}
 							}
+
 						} else if (!getter && getters.containsKey(property)) {
-							if (isSubtype(paramType, getters.get(property), processingEnv())
-								|| isSubtype(wrapperToPrimitive(paramType.toString()), getters.get(property).toString(), processingEnv())) {
+
+							if (isSubtype(paramType, getters.get(property), getProcessingEnvironment())
+								|| isSubtype(wrapperToPrimitive(paramType.toString()), getters.get(property).toString(), getProcessingEnvironment())) {
 								methods.put(
 									completeElemName, 
 									new IdInfoHolder(layoutElementId, elem, paramType, layoutElementIdClass, extraParams, property)
 								);								
 							}
+
 						}
 					}
+
 				} else {
+
 					String elemType = codeModelHelper.elementTypeToJClass(exeElem, true).fullName();
 					if (elemType.endsWith(generationSuffix())) {
 						elemType = elemType.substring(0, elemType.length() - 1);
@@ -869,7 +901,9 @@ public class ViewsHolder extends
 									layoutElementId, layoutElementIdClass, getter);
 						}
 					}
+
 				}
+
 			}
 		}
 	}

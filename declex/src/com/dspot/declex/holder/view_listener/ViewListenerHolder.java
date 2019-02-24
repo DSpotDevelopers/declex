@@ -22,10 +22,11 @@ import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JBlock;
 
 public interface ViewListenerHolder {
-	public void addDecl(String viewFieldName, int mods, AbstractJClass cls, String name, IJExpression statement);
-	public void addStatement(String viewFieldName, IStatementCreator statementCreator);
+
+	void addDecl(String viewFieldName, int mods, AbstractJClass cls, String name, IJExpression statement);
+	void addStatement(String viewFieldName, IStatementCreator statementCreator);
 	
-	public Set<String> getViewFieldNames();
+	Set<String> getViewFieldNames();
 	
-	public JBlock createListener(String viewFieldName, JBlock block);
+	JBlock createListener(String viewFieldName, JBlock block);
 }

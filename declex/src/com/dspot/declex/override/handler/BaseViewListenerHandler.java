@@ -15,12 +15,27 @@
  */
 package com.dspot.declex.override.handler;
 
-import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
-import static com.helger.jcodemodel.JExpr.cast;
-import static com.helger.jcodemodel.JExpr.direct;
-import static com.helger.jcodemodel.JExpr.ref;
+import com.dspot.declex.annotation.Populate;
+import com.dspot.declex.annotation.UseModel;
+import com.dspot.declex.handler.RunWithHandler;
+import com.dspot.declex.holder.ViewsHolder;
+import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
+import com.dspot.declex.util.TypeUtils;
+import com.helger.jcodemodel.AbstractJClass;
+import com.helger.jcodemodel.IJExpression;
+import com.helger.jcodemodel.IJStatement;
+import com.helger.jcodemodel.JExpr;
+import com.helger.jcodemodel.JFieldRef;
+import com.helger.jcodemodel.JInvocation;
+import org.androidannotations.AndroidAnnotationsEnvironment;
+import org.androidannotations.ElementValidation;
+import org.androidannotations.helper.CanonicalNameConstants;
+import org.androidannotations.helper.IdValidatorHelper;
+import org.androidannotations.helper.ModelConstants;
+import org.androidannotations.holder.EComponentWithViewSupportHolder;
+import org.androidannotations.internal.virtual.VirtualElement;
+import org.androidannotations.rclass.IRClass.Res;
 
-import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,35 +45,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 
-import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.ElementValidation;
-import org.androidannotations.helper.CanonicalNameConstants;
-import org.androidannotations.helper.IdValidatorHelper;
-import org.androidannotations.helper.ModelConstants;
-import org.androidannotations.holder.EComponentWithViewSupportHolder;
-import org.androidannotations.rclass.IRClass.Res;
-
-import com.dspot.declex.annotation.Populate;
-import com.dspot.declex.annotation.UseModel;
-import com.dspot.declex.handler.RunWithHandler;
-import com.dspot.declex.holder.ViewsHolder;
-import com.dspot.declex.holder.ViewsHolder.IdInfoHolder;
-import com.dspot.declex.util.ParamUtils;
-import com.dspot.declex.util.TypeUtils;
-import org.androidannotations.internal.virtual.VirtualElement;
-import com.helger.jcodemodel.AbstractJClass;
-import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.IJStatement;
-import com.helger.jcodemodel.JExpr;
-import com.helger.jcodemodel.JFieldRef;
-import com.helger.jcodemodel.JFormatter;
-import com.helger.jcodemodel.JInvocation;
+import static com.dspot.declex.action.util.ExpressionsHelper.expressionToString;
+import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+import static com.dspot.declex.util.ParamUtils.injectParam;
+import static com.dspot.declex.util.TypeUtils.isSubtype;
+import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.direct;
+import static com.helger.jcodemodel.JExpr.ref;
 
 public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSupportHolder> {
 
@@ -95,7 +93,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 				if (elem.getSimpleName().toString().equals(referencedId)) {
 					
 					Populate populator = adiHelper.getAnnotation(elem, Populate.class);
-					if (populator != null && TypeUtils.isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
+					if (populator != null && isSubtype(elem, "java.util.Collection", getProcessingEnvironment())) {
 						
 						String className = elem.asType().toString();
 						
@@ -129,7 +127,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 							elem.asType().toString().equals(String.class.getCanonicalName());
 					
 					//Detect when the method is a List, in order to generate all the Adapters structures
-					boolean isList = TypeUtils.isSubtype(elem, CanonicalNameConstants.LIST, getProcessingEnvironment());		
+					boolean isList = isSubtype(elem, CanonicalNameConstants.LIST, getProcessingEnvironment());
 					if (isList) {
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
@@ -153,7 +151,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					for (String field : fields.keySet()) {
 						
 						final IdInfoHolder info = fields.get(field);
-						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
+						if (!isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
 						if (!info.idName.equals(referencedId)) continue;
 							
 						composedField = "";
@@ -169,7 +167,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 						
 						final IdInfoHolder info = methods.get(method);
 						if (!info.idName.equals(referencedId)) continue;
-						if (!TypeUtils.isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
+						if (!isSubtype(info.type.toString(), CanonicalNameConstants.COLLECTION, getProcessingEnvironment())) continue;
 						
 						composedField = "";
 						String[] methodSplit = method.split("\\.");
@@ -185,7 +183,7 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 					
 					if (composedField == null) continue;
 					
-					isList = TypeUtils.isSubtype(className, "java.util.Collection", getProcessingEnvironment());		
+					isList = isSubtype(className, "java.util.Collection", getProcessingEnvironment());
 					if (isList) {
 						Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(className);
 						if (matcher.find()) {
@@ -225,15 +223,16 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 		
 		parameters:
 		for (VariableElement param : exeElem.getParameters()) {
+
 			final String paramName = param.getSimpleName().toString();
 			final String paramType = param.asType().toString();
 			
 			//Reference for fields
-			if (paramName.equals("refs") && TypeUtils.isSubtype(paramType, CanonicalNameConstants.LIST, getProcessingEnvironment())) {
+			if (paramName.equals("refs") && isSubtype(paramType, CanonicalNameConstants.LIST, getProcessingEnvironment())) {
 				
 				Matcher matcher = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9.]+<([a-zA-Z_][a-zA-Z_0-9.]+)>").matcher(paramType);
 				if (matcher.find()) {
-					if (TypeUtils.isSubtype(matcher.group(1), CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
+					if (isSubtype(matcher.group(1), CanonicalNameConstants.VIEW, getProcessingEnvironment())) {
 												
 						String invocation = Arrays.class.getCanonicalName() + ".<" + matcher.group(1) + ">asList(";
 						List<String> names = getNames(element);
@@ -250,45 +249,49 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 				}				
 			}
 			
-			if (isList()) {				
+			if (isList()) {
+
 				List<String> names = getNames(element);
 				if (viewsHolder.layoutContainsId(methodName)) {
 					names.add(methodName);
 				}
 				
 				for (String name : names) {
+
 					//Read the Layout from the XML file
 					org.w3c.dom.Element node = viewsHolder.getDomElementFromId(name);
 					if (node != null && node.hasAttribute("tools:listitem")) {
 						final String defLayoutId = viewsHolder.getDefLayoutId();
-						
+
 						String listItem = node.getAttribute("tools:listitem");
-						String listItemId = listItem.substring(listItem.lastIndexOf('/')+1);
-						
+						String listItemId = listItem.substring(listItem.lastIndexOf('/') + 1);
+
 						viewsHolder.addLayout(listItemId);
 						viewsHolder.setDefLayoutId(listItemId);
-						
+
 						if (viewsHolder.layoutContainsId(paramName)) {
-							final JFieldRef idRef = getEnvironment().getRClass().get(Res.ID)
-				                       .getIdStaticRef(paramName, getEnvironment());
-							
+
+							final JFieldRef idRef = getEnvironment().getRClass().get(Res.ID).getIdStaticRef(paramName, getEnvironment());
+
 							final String className = viewsHolder.getClassNameFromId(paramName);
 							if (className.equals(CanonicalNameConstants.VIEW)) {
 								invoke.arg(ref("view").invoke("findViewById").arg(idRef));
 							} else {
 								invoke.arg(cast(getJClass(className), ref("view").invoke("findViewById").arg(idRef)));
 							}
-							
+
 							viewsHolder.setDefLayoutId(defLayoutId);
 							continue parameters;
-						};
-						
+						}
+
 						viewsHolder.setDefLayoutId(defLayoutId);
-					}		
-				}			
+					}
+
+				}
+
 			}
 			
-			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
+			injectParam(paramName, paramType, invoke, viewsHolder);
 		}
 		
 		return invoke;
@@ -310,17 +313,6 @@ public class BaseViewListenerHandler extends RunWithHandler<EComponentWithViewSu
 	@Override
 	protected String getClassName(Element element) {
 		return null;
-	}
-	
-	private String expressionToString(IJExpression expression) {
-	    if (expression == null) {
-	        throw new IllegalArgumentException("Generable must not be null.");
-	    }
-	    final StringWriter stringWriter = new StringWriter();
-	    final JFormatter formatter = new JFormatter(stringWriter);
-	    expression.generate(formatter);
-	    
-	    return stringWriter.toString();
 	}
 	
 }

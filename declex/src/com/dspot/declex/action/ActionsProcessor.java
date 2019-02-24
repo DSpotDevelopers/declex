@@ -30,8 +30,8 @@ import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
+import org.androidannotations.helper.ClassesHolder;
 import org.androidannotations.holder.EComponentHolder;
-import org.androidannotations.internal.process.ProcessHolder.Classes;
 import org.androidannotations.internal.virtual.VirtualElement;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -759,8 +759,8 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 					//and java will not compile in that situation (this is why conditionals and not
 					//catch statements are used).
 					JConditional ifInstance = conditions._if(e._instanceof(getJClass(variableClass)));
-					ifInstance._then().invoke(ref("catch" + className + "OnError"), "onError")
-					                  .arg(cast(getJClass(variableClass), e));
+					ifInstance._then().add(invoke(ref("catch" + className + "OnError"), "onError")
+					                  .arg(cast(getJClass(variableClass), e)));
 					
 					conditions = ifInstance._else();
 				}
@@ -1000,7 +1000,7 @@ public class ActionsProcessor extends TreePathScanner<Boolean, Trees> {
 		return env.getCodeModel();
 	}
 	
-	private Classes getClasses() {
+	private ClassesHolder.Classes getClasses() {
 		return env.getClasses();
 	}
 

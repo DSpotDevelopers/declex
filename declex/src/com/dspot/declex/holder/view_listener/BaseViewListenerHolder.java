@@ -16,6 +16,7 @@
 package com.dspot.declex.holder.view_listener;
 
 import static com.helger.jcodemodel.JExpr._new;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.ArrayList;
@@ -42,8 +43,7 @@ import com.helger.jcodemodel.JDefinedClass;
 import com.helger.jcodemodel.JFieldRef;
 import com.helger.jcodemodel.JMethod;
 
-public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithViewSupportHolder> 
-	implements ViewListenerHolder {
+public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithViewSupportHolder> implements ViewListenerHolder {
 
 	private Map<String, ListenerInfo> listenerInfos = new HashMap<>();
 	
@@ -55,6 +55,7 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 	}
 	
 	private ListenerInfo getListenerInfo(String viewFieldName) {
+
 		ListenerInfo listenerInfo = listenerInfos.get(viewFieldName);
 		if (listenerInfo == null) {
 			listenerInfo = new ListenerInfo();
@@ -149,7 +150,7 @@ public class BaseViewListenerHolder extends PluginClassHolder<EComponentWithView
 			
 			viewListenerHandler.processParameters(holder(), listenerMethod, null, new ArrayList<VariableElement>());
 			
-			block.invoke(view, viewListenerHandler.getSetterName()).arg(_new(listenerAnonymousClass));
+			block.add(invoke(view, viewListenerHandler.getSetterName()).arg(_new(listenerAnonymousClass)));
 			
 			listenerInfo.block = listenerMethodBody;
 			

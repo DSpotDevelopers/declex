@@ -17,6 +17,7 @@ package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.HashSet;
@@ -104,8 +105,8 @@ public class ExportedRecollectHandler extends ExportedHandler {
 		JVar afterRecollect = anonymousRunnableRun.param(Runnable.class, "afterRecollect");
 		JVar onFailed = anonymousRunnableRun.param(OnFailedRunnable.class, "onFailed");
 		
-		anonymousRunnableRun.body().invoke("_recollect_" + elementName)
-		                           .arg(afterRecollect).arg(onFailed);
+		anonymousRunnableRun.body().add(invoke("_recollect_" + elementName)
+		                           .arg(afterRecollect).arg(onFailed));
 		
 		
 		final Element referenceElement = ((VirtualElement) element).getReference();
@@ -120,13 +121,11 @@ public class ExportedRecollectHandler extends ExportedHandler {
 		
 		JBlock ifBlock = holder.getInitBodyAfterInjectionBlock()._if(ref(referenceElementName).neNull())._then();
 		if (converted) {
-			ifBlock.invoke(
-				cast(getJClass(referenceElementClass), ref(referenceElementName)), recollectListenerName
-			).arg(_new(listener));
+			ifBlock.add(invoke(
+				cast(getJClass(referenceElementClass), ref(referenceElementName)), recollectListenerName).arg(_new(listener)));
 		} else {
-			ifBlock.invoke(
-				ref(referenceElementName), recollectListenerName
-			).arg(_new(listener));
+			ifBlock.add(invoke(
+				ref(referenceElementName), recollectListenerName).arg(_new(listener)));
 		}
 	}
 

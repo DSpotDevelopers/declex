@@ -16,6 +16,7 @@
 package com.dspot.declex.override.handler;
 
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.reflect.Field;
@@ -99,23 +100,21 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 	
 	@Override
 	public void process(Element element, EActivityHolder holder) {
+
 		try {
-			
-			if (holder instanceof HasIntentBuilder) {
-				
-				APTCodeModelHelper helper = new DeclexAPTCodeModelHelper(getEnvironment());
-				helper.getActualType(element, holder);
-				
-			    IntentBuilder builder = ((HasIntentBuilder) holder).getIntentBuilder();
-			    
-			    Field helperField = IntentBuilder.class.getDeclaredField("codeModelHelper");
-			    helperField.setAccessible(true);
-			    helperField.set(builder, helper);
-			    
-			    helperField = InjectHelper.class.getDeclaredField("codeModelHelper");
-			    helperField.setAccessible(true);
-			    helperField.set(injectHelper, helper);
-			}
+
+			APTCodeModelHelper helper = new DeclexAPTCodeModelHelper(getEnvironment());
+			helper.getActualType(element, holder);
+
+			IntentBuilder builder = ((HasIntentBuilder) holder).getIntentBuilder();
+
+			Field helperField = IntentBuilder.class.getDeclaredField("codeModelHelper");
+			helperField.setAccessible(true);
+			helperField.set(builder, helper);
+
+			helperField = InjectHelper.class.getDeclaredField("codeModelHelper");
+			helperField.setAccessible(true);
+			helperField.set(injectHelper, helper);
 			
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
 			e.printStackTrace();
@@ -131,17 +130,16 @@ public class ExtraHandler extends org.androidannotations.internal.core.handler.E
 			
 			final Element paramElement;
 			if (element.getKind() == ElementKind.METHOD) {
-				VariableElement param = ((ExecutableElement)element).getParameters().get(0);
-				paramElement = param;
+				paramElement = ((ExecutableElement)element).getParameters().get(0);
 			} else {
 				paramElement = element;
 			}
-			
+
 			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(paramElement);
 			
 			JMethod fieldMethod = ActivityAction.method(JMod.PUBLIC, ActivityAction, fieldName);
 			JVar fieldMethodParam = fieldMethod.param(clazz, fieldName);
-			fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
+			fieldMethod.body().add(invoke(ref("builder"), fieldName).arg(fieldMethodParam));
 			fieldMethod.body()._return(_this());
 		}
 				

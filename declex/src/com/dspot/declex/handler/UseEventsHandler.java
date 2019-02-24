@@ -18,6 +18,7 @@ package com.dspot.declex.handler;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.HashMap;
@@ -93,12 +94,12 @@ public class UseEventsHandler extends BaseTemplateHandler<EBeanHolder> {
 		
 		if (fields.size() > 0) {
 			JMethod create = holder.getGeneratedClass().method(JMod.PUBLIC | JMod.STATIC, holder.getGeneratedClass(), "create");
-			JVar instance = create.body().decl(holder.getGeneratedClass(), "instance", JExpr.invoke("create"));
+			JVar instance = create.body().decl(holder.getGeneratedClass(), "instance", invoke("create"));
 			
 			for (String elemName : fields.keySet()) {
 				AbstractJClass elemClass = codeModelHelper.elementTypeToJClass(fields.get(elemName));
 				JVar param = create.param(elemClass, elemName);
-				create.body().invoke(instance, fieldToSetter(elemName)).arg(param);
+				create.body().add(invoke(instance, fieldToSetter(elemName)).arg(param));
 			}
 			
 			create.body()._return(instance);

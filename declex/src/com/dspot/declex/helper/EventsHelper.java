@@ -19,6 +19,7 @@ import static com.dspot.declex.util.ParamUtils.injectParam;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.Arrays;
@@ -298,7 +299,7 @@ public class EventsHelper {
 		JBlock ifNoSubscriber = executeMethod.body()
 				._if(EventBus.staticInvoke("getDefault").invoke("hasSubscriberForEvent").arg(EventClass_.dotclass()).not())
 				._then();
-		ifNoSubscriber._if(failed.neNull())._then().invoke(failed, "onFailed").arg(_null());
+		ifNoSubscriber._if(failed.neNull())._then().add(invoke(failed, "onFailed").arg(_null()));
 		ifNoSubscriber._return();
 		
 		{//Next Listener
@@ -309,7 +310,7 @@ public class EventsHelper {
 	
 			JBlock ifNotCalled = anonymousRunnableRun.body()._if(called.not())._then();
 			ifNotCalled.assign(called, JExpr.TRUE);
-			ifNotCalled.invoke(finished, "onEventFinished").arg(event);
+			ifNotCalled.add(invoke(finished, "onEventFinished").arg(event));
 			
 			JConditional ifFinished = executeMethod.body()._if(finished.ne(_null()));
 			ifFinished._then().add(event.invoke("setNextListener").arg(_new(nextListenerRunnable)));
@@ -323,7 +324,7 @@ public class EventsHelper {
 	
 			JBlock ifNotCalled = anonymousRunnableRun.body()._if(called.not())._then();
 			ifNotCalled.assign(called, JExpr.TRUE);
-			ifNotCalled.invoke(failed, "onFailed").arg(ref("e"));
+			ifNotCalled.add(invoke(failed, "onFailed").arg(ref("e")));
 			
 			JConditional ifFailed = executeMethod.body()._if(failed.ne(_null()));
 			ifFailed._then().add(event.invoke("setFailedListener").arg(_new(failedListenerRunnable)));
@@ -407,7 +408,7 @@ public class EventsHelper {
 			ExecutableElement executableElement = (ExecutableElement) element;								
 			List<? extends VariableElement> parameters = executableElement.getParameters();
 			
-			JInvocation invocation = eventBody.invoke(executableElement.getSimpleName().toString());
+			JInvocation invocation = invoke(executableElement.getSimpleName().toString());
 			if (parameters.size() != 0) {				
 				TypeElement OriginalEventClass = environment.getProcessingEnvironment().getElementUtils().getTypeElement(originalEventClassName);
 				
@@ -459,6 +460,8 @@ public class EventsHelper {
 					}
 				}
 			}
+
+			eventBody.add(invocation);
 		}
 		
 		return eventBody;

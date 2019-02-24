@@ -211,11 +211,11 @@ public class ActivityActionHolder extends PluginClassHolder<EActivityHolder> {
 	
 	protected boolean hasFragmentInClasspath() {
 		boolean fragmentExistsInSdk = environment().getAndroidManifest().getMinSdkVersion() >= MIN_SDK_WITH_FRAGMENT_SUPPORT;
-		return fragmentExistsInSdk && processingEnv().getElementUtils().getTypeElement(CanonicalNameConstants.FRAGMENT) != null;
+		return fragmentExistsInSdk && getProcessingEnvironment().getElementUtils().getTypeElement(CanonicalNameConstants.FRAGMENT) != null;
 	}
 	
 	private boolean hasFragmentSupportInClasspath() {
-		return processingEnv().getElementUtils().getTypeElement(CanonicalNameConstants.SUPPORT_V4_FRAGMENT) != null;
+		return getProcessingEnvironment().getElementUtils().getTypeElement(CanonicalNameConstants.SUPPORT_V4_FRAGMENT) != null;
 	}
 		
 	private void setIntent() {

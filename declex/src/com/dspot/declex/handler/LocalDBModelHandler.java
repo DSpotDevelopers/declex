@@ -224,9 +224,9 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		
 		JMethod readObjectMethod = useModelHolder.getReadObjectMethod();
 		JMethod writeObjectMethod = useModelHolder.getWriteObjectMethod();
-		writeObjectMethod.body().invoke(ref("oos"), "writeObject").arg(_this().invoke("getId"));
-		readObjectMethod.body().invoke(_this(), "setId")
-		                       .arg(cast(getJClass(Long.class), ref("ois").invoke("readObject")));
+		writeObjectMethod.body().add(invoke(ref("oos"), "writeObject").arg(_this().invoke("getId")));
+		readObjectMethod.body().add(invoke(_this(), "setId")
+		                       .arg(cast(getJClass(Long.class), ref("ois").invoke("readObject"))));
 	}
 	
 	private void createGetLocalDBModelQueryDefault(Element element, EComponentHolder holder) {
@@ -252,7 +252,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 		
 		//Write the getLocalDbModels in the generated getModelList() method inside the UseModel clause
 		JBlock block = holder.getGetModelListUseBlock();
-		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(LocalDBModel.class))))._then();
+		block = block._if(useModel.invoke("equals").arg(getJClass(LocalDBModel.class).dotclass()))._then();
 		
 		JFieldRef localDbModels = ref("models");
 		block.assign(localDbModels, 
@@ -287,7 +287,7 @@ public class LocalDBModelHandler extends BaseTemplateHandler<EComponentHolder> {
 
 		//Write the getLocalDbModel in the generated getModel() method inside the UseModel clause
 		JBlock block = holder.getGetModelUseBlock();
-		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(LocalDBModel.class))))._then();
+		block = block._if(useModel.invoke("equals").arg(getJClass(LocalDBModel.class).dotclass()))._then();
 		
 		JFieldRef localDbModel = ref("model");
 		block.assign(localDbModel, 

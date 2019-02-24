@@ -179,13 +179,13 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 				
 				JBlock block = new JBlock();
 				JConditional ifNeNull = block._if(listenerField.neNull());
-				ifNeNull._then().invoke(listenerField, "recollectModel")
+				ifNeNull._then().add(invoke(listenerField, "recollectModel")
 				           .arg(ref("putModelRunnable"))
-				           .arg(ref("onFailed"));
+				           .arg(ref("onFailed")));
 				
 				ifRecollect.add(block);
 			} else {
-				ifRecollect.invoke(recollectModelMethod).arg(ref("putModelRunnable")).arg(ref("onFailed"));
+				ifRecollect.add(invoke(recollectModelMethod).arg(ref("putModelRunnable")).arg(ref("onFailed")));
 			}
 
 		} 
@@ -221,7 +221,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 				AbstractJClass EditText = getJClass("android.widget.EditText");
 				AbstractJClass Toast = getJClass("android.widget.Toast");
 				JConditional conditional = forEach._if(view._instanceof(EditText));
-				conditional._then().invoke(cast(EditText, view), "setError").arg(message);
+				conditional._then().add(invoke(cast(EditText, view), "setError").arg(message));
 				conditional._else().add(
 						Toast.staticInvoke("makeText").arg(context)
 						     .arg(message)
@@ -234,7 +234,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			IJExpression validationException = _new(getJClass(ValidationException.class))
 					 								.arg(messages);
 			onValidationFailed.body()._if(onFailed.ne(_null()))._then()
-			   						 .invoke(onFailed, "onFailed").arg(validationException);
+			   						 .add(invoke(onFailed, "onFailed").arg(validationException));
 			                         
 			
 			JMethod onValidationSucceeded = ValidatorListenerClass.method(JMod.PUBLIC, getCodeModel().VOID, "onValidationSucceeded");
@@ -243,7 +243,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			JBlock block = recollectModelMethod.body();			
 			JVar validatorHolder = block.decl(ValidatorListenerClass, fieldName + "$validatorHolder", _new(ValidatorListenerClass));
 			JVar validator = block.decl(Validator, fieldName + "$validator", _new(Validator).arg(validatorHolder));
-			block.invoke(validator, "setValidationListener").arg(validatorHolder);
+			block.add(invoke(validator, "setValidationListener").arg(validatorHolder));
 			block.invoke(validator, "validate");
 			
 			recollectBlock = onValidationSucceeded.body();
@@ -263,7 +263,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 					.arg(caughtException);
 			
 			JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
-			ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+			ifOnFailedAssigned._then().add(invoke(onFailed, "onFailed").arg(caughtException));
 			ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		}
 		
@@ -335,7 +335,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 			     .invoke(afterRecollectParam, "run");
 			SharedRecords.priorityAdd(recollectThisMethod.body(), block, 10);
 		}
-		recollectThisMethod.body().invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed"));
+		recollectThisMethod.body().add(invoke(recollectModelMethod).arg(_null()).arg(ref("onFailed")));
 	}
 	
 	private void assignValueToField(JFieldRef field, TypeMirror typeMirror, JFieldRef view, JBlock body) {
@@ -490,7 +490,7 @@ public class RecollectHandler extends BaseAnnotationHandler<EComponentWithViewSu
 		}
 		
 		for (VariableElement param : info.extraParams) {
-			setInvocation = ((JInvocation)setInvocation).arg(ref(param.getSimpleName().toString()));
+			setInvocation = setInvocation.arg(ref(param.getSimpleName().toString()));
 		}
 		
 		changedBlock.add((JInvocation)methodsCall);

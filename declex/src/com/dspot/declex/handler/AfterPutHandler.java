@@ -17,6 +17,7 @@ package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cond;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -95,8 +96,7 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 		List<? extends VariableElement> parameters = afterPutMethod.getParameters();
 		
 		JBlock putModel = new JBlock();
-		JInvocation invocation = putModel._if(ref("result").ne(_null()))._then()
-				                         .invoke(afterPutMethod.getSimpleName().toString());
+		JInvocation invocation = invoke(afterPutMethod.getSimpleName().toString());
 		
 		JFieldRef args = ref("args");
 		for (VariableElement param : parameters) {
@@ -113,6 +113,8 @@ public class AfterPutHandler extends BaseAnnotationHandler<EBeanHolder> {
 			
 			ParamUtils.injectParam(paramName, paramType, invocation);
 		}
+
+		putModel._if(ref("result").ne(_null()))._then().add(invocation);
 		
 		SharedRecords.priorityAdd(
 				useModelHolder.getPutModelInitBlock(), 

@@ -20,6 +20,7 @@ import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 import static org.androidannotations.helper.ModelConstants.generationSuffix;
 
@@ -184,8 +185,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			JVar viewField = ViewHolderClass.field(JMod.PUBLIC, idNameClass, holderFieldName + DeclexConstant.VIEW);
 			
 			IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
-			if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+			if (!idNameClass.equals(CanonicalNameConstants.VIEW)) {
 				findViewById = cast(idNameClass, findViewById);
+			}
 			
 			createViewBody.assign(viewHolder.ref(viewField), findViewById);
 			
@@ -200,11 +202,11 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 
 			JVar viewField = ViewHolderClass.fields().get(holderFieldName + DeclexConstant.VIEW);
 			if (viewField == null) viewField = ViewHolderClass.field(JMod.PUBLIC, idNameClass, methods.get(methodName).idName + DeclexConstant.VIEW);
-			
-			
+
 			IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
-			if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+			if (!idNameClass.equals(CanonicalNameConstants.VIEW)) {
 				findViewById = cast(idNameClass, findViewById);
+			}
 			
 			createViewBody.assign(viewHolder.ref(viewField), findViewById);
 			
@@ -243,8 +245,9 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 					
 					viewField = FinalViewHolderClass.field(JMod.PUBLIC, idNameClass, viewName);
 					IJExpression findViewById = rootView.invoke("findViewById").arg(idRef);
-					if (!idNameClass.equals(CanonicalNameConstants.VIEW))
+					if (!idNameClass.equals(CanonicalNameConstants.VIEW)) {
 						findViewById = cast(idNameClass, findViewById);
+					}
 					
 					createViewBody.assign(viewHolder.ref(viewField), findViewById);
 				}
@@ -267,10 +270,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 				IdInfoHolder info = new IdInfoHolder("text", stringElement, viewClass);
 				JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 				
-				handler.putAssignInBlock(
-					info, methodBody, view, model, element, viewsHolder, 
-					null, listItemId
-				);				
+				handler.putAssignInBlock(info, methodBody, view, model, element, viewsHolder, null, listItemId);
 			} else {
 				//TODO Assume the hole view it is the object to be assigned	
 			}
@@ -296,9 +296,7 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			
 			IdInfoHolder info = fields.get(field);
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
-			handler.putAssignInBlock(
-				info, checkForNull, view, methodsCall, element, viewsHolder, 
-				null, listItemId
+			handler.putAssignInBlock(info, checkForNull, view, methodsCall, element, viewsHolder, null, listItemId
 			);
 		}
 		
@@ -316,16 +314,15 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 			
 			IdInfoHolder info = methods.get(methodName);
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
-			handler.putAssignInBlock(
-				info, checkForNull, view, methodsCall, element, viewsHolder, 
-				null, listItemId
-			);
-		}	
+			handler.putAssignInBlock(info, checkForNull, view, methodsCall, element, viewsHolder, null, listItemId);
+		}
+
+		viewsHolder.setInList();
 
 		//Process Events
 		Map<Class<?>, Object> listenerHolders = viewsHolder.holder().getPluginHolders();
 		for (Object listenerHolderObject : listenerHolders.values()) {
-			if (!ViewListenerHolder.class.isInstance(listenerHolderObject)) continue;
+			if (!(listenerHolderObject instanceof ViewListenerHolder)) continue;
 			final ViewListenerHolder listenerHolder = (ViewListenerHolder)listenerHolderObject;
 			
 			for (String viewId : listenerHolder.getViewFieldNames()) {
@@ -335,21 +332,22 @@ public class ViewAdapterPopulator extends BaseClassPlugin {
 				viewsHolder.createAndAssignView(viewId, new IWriteInBloc() {
 
 					@Override
-					public void writeInBlock(String viewName, AbstractJClass viewClass,
-							JFieldRef view, JBlock block) {						
+					public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
 						JBlock ifNeNull = eventsBlock._if(viewHolder.ref(viewName).neNull())._then();
 						listenerHolder.createListener("viewHolder." + viewName, ifNeNull);
 					}
 				});
+
 				methodBody.add(eventsBlock);
 			}
 		}
 		
 		handler.callPopulateSupportMethod(fieldName, methodBody, viewHolder, fieldNames, element, viewsHolder);
 		
-		createViewBody.invoke(rootView, "setTag").arg(viewHolder);
+		createViewBody.add(invoke(rootView, "setTag").arg(viewHolder));
 		getViewMethod.body()._return(rootView);
-		
+
+		viewsHolder.resetInList();
 		viewsHolder.setCreateViewListener(null);
 		viewsHolder.setDefLayoutId(defLayoutId);
 	}

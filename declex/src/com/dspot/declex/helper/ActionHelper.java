@@ -108,7 +108,7 @@ public class ActionHelper {
 					                 + (e.getElement() == elem? "within itself" : elem) 
 					                 + ", in order to permit this, ";
 					if (e.getElement() instanceof ExecutableElement) {
-						if (((ExecutableElement) e.getElement()).getAnnotation(Override.class) != null) {
+						if (e.getElement().getAnnotation(Override.class) != null) {
 							message = message + "please remove the @Override annotation and ";
 						}
 					}
@@ -158,8 +158,7 @@ public class ActionHelper {
 					GeneratedClassHolder holder = environment.getProcessHolder().getGeneratedClassHolder(elementDetail.element);
 					if (holder == null) {
 						//Ancestor element
-						Set<AnnotatedAndRootElements> ancestors = 
-								environment.getValidatedElements()
+						Set<AnnotatedAndRootElements> ancestors = environment.getValidatedElements()
 						                   .getAncestorAnnotatedElements(elementDetail.handler.getTarget());
 												
 						for (AnnotatedAndRootElements ancestor : ancestors) {

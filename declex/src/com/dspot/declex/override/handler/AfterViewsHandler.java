@@ -29,6 +29,8 @@ import com.dspot.declex.util.SharedRecords;
 import com.helger.jcodemodel.JBlock;
 import com.helger.jcodemodel.JInvocation;
 
+import static com.helger.jcodemodel.JExpr.invoke;
+
 public class AfterViewsHandler extends org.androidannotations.internal.core.handler.AfterViewsHandler {
 
 	private static int uniquePriorityCounter = 100;
@@ -59,7 +61,7 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 		final String methodName = element.getSimpleName().toString();
 		
 		JBlock block = new JBlock();
-		JInvocation invoke = block.invoke(methodName);
+		JInvocation invoke = invoke(methodName);
 		
 		ExecutableElement exeElem = (ExecutableElement) element;
 		for (VariableElement param : exeElem.getParameters()) {
@@ -67,7 +69,9 @@ public class AfterViewsHandler extends org.androidannotations.internal.core.hand
 			final String paramType = param.asType().toString();
 			ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
 		}
-		
+
+		block.add(invoke);
+
 		SharedRecords.priorityAdd(holder.getOnViewChangedBody(), block, uniquePriorityCounter);
 	}	
 }

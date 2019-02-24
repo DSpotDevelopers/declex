@@ -17,6 +17,7 @@ package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.cond;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
 
@@ -92,8 +93,7 @@ public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
 		
 		List<? extends VariableElement> parameters = afterLoadMethod.getParameters();
 		
-		JInvocation invocation = useModelHolder.getModelInitMethod().body()
-				                    .invoke(afterLoadMethod.getSimpleName().toString());
+		JInvocation invocation = invoke(afterLoadMethod.getSimpleName().toString());
 		
 		JFieldRef args = ref("args");
 		for (VariableElement param : parameters) {
@@ -111,5 +111,7 @@ public class AfterLoadHandler extends BaseAnnotationHandler<EBeanHolder> {
 			
 			ParamUtils.injectParam(paramName, paramType, invocation);
 		}
+
+		useModelHolder.getModelInitMethod().body().add(invocation);
 	}
 }

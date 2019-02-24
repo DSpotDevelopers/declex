@@ -72,7 +72,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 	
 	private String referencedId;
 	
-	protected EventsHelper eventsHelper;
+	private EventsHelper eventsHelper;
 	
 	public BaseEventHandler(Class<?> targetClass, AndroidAnnotationsEnvironment environment) {
 		super(targetClass, environment);
@@ -123,10 +123,9 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		
 		ViewsHolder viewsHolder = null;
 		if (holder instanceof EComponentWithViewSupportHolder) {
-			viewsHolder = holder.getPluginHolder(
-					new ViewsHolder((EComponentWithViewSupportHolder) holder)
-				);		
+			viewsHolder = holder.getPluginHolder(new ViewsHolder((EComponentWithViewSupportHolder) holder));
 		}
+
 		final Map<AbstractJClass, IJExpression> declForListener = new HashMap<>();
 		final String elementClass = getClassName(element);
 		
@@ -134,8 +133,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 			
 			referencedId = elementName;
 			
-			final ViewListenerHolder listenerHolder = 
-					getListenerHolder(elementName, elementClass, declForListener, element, viewsHolder, holder);
+			final ViewListenerHolder listenerHolder = getListenerHolder(elementName, elementClass, declForListener, element, viewsHolder, holder);
 			if (listenerHolder == null) continue;
 			
 			if (viewsHolder != null) {
@@ -144,9 +142,9 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 				}
 				
 				listenerHolder.addStatement(
-						referencedId,
-						new StatementCreator(elementClass==null ? null : getJClass(elementClass), element, viewsHolder, holder)
-					);
+					referencedId,
+					new StatementCreator(elementClass==null ? null : getJClass(elementClass), element, viewsHolder, holder)
+				);
 			
 				//If it's found the the class associated layout, then process the event here	
 				if (viewsHolder.layoutContainsId(referencedId)) {
@@ -395,8 +393,7 @@ public abstract class BaseEventHandler<T extends EComponentHolder> extends BaseA
 		return false;
 	}
 
-	protected abstract IJStatement getStatement(AbstractJClass elementClass, Element element, 
-												ViewsHolder viewsHolder, T holder);
+	protected abstract IJStatement getStatement(AbstractJClass elementClass, Element element, ViewsHolder viewsHolder, T holder);
 	
 	protected class StatementCreator implements IStatementCreator {
 		

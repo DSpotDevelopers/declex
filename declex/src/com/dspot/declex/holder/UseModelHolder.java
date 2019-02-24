@@ -19,10 +19,12 @@ import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
 import static com.dspot.declex.api.util.FormatsUtils.fieldToSetter;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.assign;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
+import static com.helger.jcodemodel.JExpr.invoke;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -216,30 +218,30 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 			//If it is primitive
 			if (!fieldClass.contains(".")) {
 				if (fieldClass.equals("boolean")) {
-					writeObjectMethod.body().invoke(oos, "writeBoolean").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeBoolean").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readBoolean"));
 				} else if (fieldClass.equals("int")) {
-					writeObjectMethod.body().invoke(oos, "writeInt").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeInt").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readInt"));
 				} else if (fieldClass.equals("short")) {
-					writeObjectMethod.body().invoke(oos, "writeShort").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeShort").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readShort"));
 				} else if (fieldClass.equals("double")) {
-					writeObjectMethod.body().invoke(oos, "writeDouble").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeDouble").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readDouble"));
 				} else if (fieldClass.equals("float")) {
-					writeObjectMethod.body().invoke(oos, "writeFloat").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeFloat").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readFloat"));
 				} else if (fieldClass.equals("byte")) {
-					writeObjectMethod.body().invoke(oos, "writeByte").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeByte").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readByte"));
 				} else if (fieldClass.equals("long")) {
-					writeObjectMethod.body().invoke(oos, "writeLong").arg(fieldRef);
+					writeObjectMethod.body().add(invoke(oos, "writeLong").arg(fieldRef));
 					readObjectMethod.body().assign(fieldRef, ois.invoke("readLong"));
 				} 
 			} else {
 				AbstractJClass fieldJClass = codeModelHelper.elementTypeToJClass(field.getValue());
-				writeObjectMethod.body().invoke(oos, "writeObject").arg(fieldRef);
+				writeObjectMethod.body().add(invoke(oos, "writeObject").arg(fieldRef));
 				readObjectMethod.body().assign(fieldRef, cast(fieldJClass, ois.invoke("readObject")));
 			}
 		}
@@ -579,7 +581,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		JVar useModel = forEach.var();
 		getModelUseBlock = forEach.body();
 		
-		getModelUseBlock._if(useModel.invoke("equals").arg(dotclass(getJClass(UseModel.class))))._then()
+		getModelUseBlock._if(useModel.invoke("equals").arg(getJClass(UseModel.class).dotclass()))._then()
 		                ._return(_new(getGeneratedClass()).arg(context));
 		
 		getModelBlock = getModelMethod.body().block();
@@ -608,7 +610,7 @@ public class UseModelHolder extends PluginClassHolder<BaseGeneratedClassHolder> 
 		JVar useModel = forEach.var();
 		getModelListUseBlock = forEach.body();
 		
-		JBlock ifUseModelBlock = getModelListUseBlock._if(useModel.invoke("equals").arg(dotclass(getJClass(UseModel.class))))._then();
+		JBlock ifUseModelBlock = getModelListUseBlock._if(useModel.invoke("equals").arg(getJClass(UseModel.class).dotclass()))._then();
 		
 		JVar result = ifUseModelBlock.decl(
 				getJClass("java.util.ArrayList").narrow(getGeneratedClass()), 

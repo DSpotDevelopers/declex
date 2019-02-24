@@ -251,8 +251,7 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		viewsHolder.setCreateViewListener(new ICreateViewListener() {
 
 			@Override
-			public JFieldRef createView(String viewId, String viewName,
-					AbstractJClass viewClass, JBlock declBlock) {
+			public JFieldRef createView(String viewId, String viewName, AbstractJClass viewClass, JBlock declBlock) {
 
 				if (!viewsHolder.layoutContainsId(viewId, listItemId)) return null;
 				
@@ -286,15 +285,12 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 		if (modelClassName.equals(String.class.getCanonicalName())) {
 			String viewClass = viewsHolder.getClassNameFromId("text");
 			if (viewClass != null) {
-				TypeElement stringElement = environment
-						.getProcessingEnvironment().getElementUtils()
-						.getTypeElement(String.class.getCanonicalName());
+				TypeElement stringElement = environment.getProcessingEnvironment().getElementUtils().getTypeElement(String.class.getCanonicalName());
 				IdInfoHolder info = new IdInfoHolder("text", stringElement, viewClass);
 				JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
 
 				handler.putAssignInBlock(info, onBindMethodBody, view, model,
-						element, viewsHolder, null,
-						listItemId);
+						element, viewsHolder, null, listItemId);
 			}
 		}
 
@@ -304,25 +300,23 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 
 			String[] fieldSplit = field.split("\\.");
 			int index = 0;
-			for (String fieldPart : fieldSplit)
+
+			for (String fieldPart : fieldSplit) {
 				if (!fieldPart.equals("")) {
 					methodsCall = methodsCall.invoke(fieldToGetter(fieldPart));
 
 					if (index < fieldSplit.length - 1) {
-						checkForNull = checkForNull
-								._if(methodsCall.ne(_null()))._then();
+						checkForNull = checkForNull._if(methodsCall.ne(_null()))._then();
 					} else if (!fields.get(field).type.getKind().isPrimitive()) {
-						checkForNull = checkForNull
-								._if(methodsCall.ne(_null()))._then();
+						checkForNull = checkForNull._if(methodsCall.ne(_null()))._then();
 					}
 					index++;
 				}
+			}
 
 			IdInfoHolder info = fields.get(field);
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
-			handler.putAssignInBlock(info, checkForNull, view, methodsCall,
-					element, viewsHolder, null,
-					listItemId);
+			handler.putAssignInBlock(info, checkForNull, view, methodsCall, element, viewsHolder, null, listItemId);
 		}
 
 		for (String methodName : methods.keySet()) {
@@ -330,56 +324,52 @@ public class RecyclerViewAdapterPopulator extends BaseClassPlugin {
 			JBlock checkForNull = onBindMethodBody;
 
 			String[] methodSplit = methodName.split("\\.");
-			for (int i = 0; i < methodSplit.length - 1; i++)
+			for (int i = 0; i < methodSplit.length - 1; i++) {
 				if (!methodSplit[i].equals("")) {
-					methodsCall = methodsCall
-							.invoke(fieldToGetter(methodSplit[i]));
-					checkForNull = checkForNull._if(methodsCall.ne(_null()))
-							._then();
+					methodsCall = methodsCall.invoke(fieldToGetter(methodSplit[i]));
+					checkForNull = checkForNull._if(methodsCall.ne(_null()))._then();
 				}
-			methodsCall = methodsCall
-					.invoke(methodSplit[methodSplit.length - 1]);
+			}
+
+			methodsCall = methodsCall.invoke(methodSplit[methodSplit.length - 1]);
 
 			IdInfoHolder info = methods.get(methodName);
 			JFieldRef view = viewHolder.ref(info.idName + DeclexConstant.VIEW);
-			handler.putAssignInBlock(info, checkForNull, view, methodsCall,
-					element, viewsHolder, null,
-					listItemId);
+			handler.putAssignInBlock(info, checkForNull, view, methodsCall, element, viewsHolder, null, listItemId);
 		}
 
+		viewsHolder.setInList();
+
 		// Process the events
-		Map<Class<?>, Object> listenerHolders = viewsHolder.holder()
-				.getPluginHolders();
+		Map<Class<?>, Object> listenerHolders = viewsHolder.holder().getPluginHolders();
 		for (Object listenerHolderObject : listenerHolders.values()) {
-			if (!ViewListenerHolder.class.isInstance(listenerHolderObject))
-				continue;
+
+			if (!(listenerHolderObject instanceof ViewListenerHolder)) continue;
 			final ViewListenerHolder listenerHolder = (ViewListenerHolder) listenerHolderObject;
 
 			for (String viewId : listenerHolder.getViewFieldNames()) {
-				if (!viewsHolder.layoutContainsId(viewId))
-					continue;
+
+				if (!viewsHolder.layoutContainsId(viewId)) continue;
 
 				final JBlock eventsBlock = new JBlock();
 				viewsHolder.createAndAssignView(viewId, new IWriteInBloc() {
 
 					@Override
-					public void writeInBlock(String viewName,
-							AbstractJClass viewClass, JFieldRef view,
-							JBlock block) {
-						
+					public void writeInBlock(String viewName, AbstractJClass viewClass, JFieldRef view, JBlock block) {
 						JBlock ifNeNull = eventsBlock._if(viewHolder.ref(viewName).neNull())._then();
 						listenerHolder.createListener("viewHolder." + viewName, ifNeNull);
+
 					}
 				});
+
 				onBindMethodBody.add(eventsBlock);
 			}
 		}
 
-		handler.callPopulateSupportMethod(fieldName, onBindMethodBody, viewHolder,
-				fieldNames, element, viewsHolder);
-
+		handler.callPopulateSupportMethod(fieldName, onBindMethodBody, viewHolder, fieldNames, element, viewsHolder);
 		onCreateViewMethodBody._return(viewHolder);
 
+		viewsHolder.resetInList();
 		viewsHolder.setCreateViewListener(null);
 		viewsHolder.setDefLayoutId(defLayoutId);
 	}

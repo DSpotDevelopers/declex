@@ -1,11 +1,7 @@
 apply plugin: 'com.android.library'
-def DECLEX_VERSION = '2.0.a.29'
+apply plugin: 'maven'
 
-ext {
-    PUBLISH_GROUP_ID = 'com.dspot'
-    PUBLISH_ARTIFACT_ID = 'declex-actions'
-    PUBLISH_VERSION = "$DECLEX_VERSION"
-}
+def DECLEX_VERSION = '2.0.a.32'
 
 android {
     compileSdkVersion 27
@@ -43,4 +39,39 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
-apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'
+group = 'com.dspot'
+version = DECLEX_VERSION
+
+configurations {
+    deployerJars
+}
+
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    destinationDir = file("../javadoc/")
+    failOnError false
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+task androidSourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+artifacts {
+    archives androidSourcesJar
+    archives javadocJar
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mavenLocal().getUrl())
+        }
+    }
+}

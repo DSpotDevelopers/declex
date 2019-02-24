@@ -16,7 +16,9 @@
 package com.dspot.declex.override.handler;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 
+import com.dspot.declex.helper.ActionHelper;
 import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
@@ -30,9 +32,13 @@ public class EActivityHandler extends org.androidannotations.internal.core.handl
 	public EActivityHandler(AndroidAnnotationsEnvironment environment) {
 		super(environment);
 	}
-	
+
 	@Override
 	public void validate(Element element, ElementValidation valid) {
+		if (element.getKind().equals(ElementKind.CLASS)) {
+			ActionHelper.getInstance(getEnvironment()).validate(element, this);
+		}
+		
 		super.validate(element, valid);
 		
 		if (!getEnvironment().getValidatedElements().isAncestor(element)) {

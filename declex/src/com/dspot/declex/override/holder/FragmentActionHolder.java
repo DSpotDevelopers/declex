@@ -271,7 +271,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	}
 
 	private boolean hasActionBarActivityInClasspath() {
-		return processingEnv().getElementUtils().getTypeElement("android.support.v7.app.ActionBarActivity") != null;
+		return getProcessingEnvironment().getElementUtils().getTypeElement("android.support.v7.app.ActionBarActivity") != null;
 	}
 	
 	private void setTransactionMethods() {
@@ -298,7 +298,7 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 	
 	private void setInit() {
 		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
-		initMethod.body().invoke(INIT_NAME).arg(_null());
+		initMethod.body().add(invoke(INIT_NAME).arg(_null()));
 		
 		initMethod = FragmentAction.method(JMod.NONE, getCodeModel().VOID, INIT_NAME);
 		JVar tagParam = initMethod.param(getClasses().STRING, "tag");
@@ -336,11 +336,11 @@ public class FragmentActionHolder extends PluginClassHolder<EFragmentHolder> {
 		JMethod addToBackStackMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
 		JVar tag = addToBackStackMethod.param(getClasses().STRING, "tag");
 		addToBackStackMethod.body()._if(transactionField.neNull())._then()
-		                           .invoke(transactionField, "addToBackStack").arg(tag);
+		                           .add(invoke(transactionField, "addToBackStack").arg(tag));
 		addToBackStackMethod.body()._return(_this());
 		
 		JMethod addToBackStackNullMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, ADD_TO_BACK_STACK_NAME);
-		addToBackStackNullMethod.body().invoke(addToBackStackMethod).arg(_null());
+		addToBackStackNullMethod.body().add(invoke(addToBackStackMethod).arg(_null()));
 		addToBackStackNullMethod.body()._return(_this());
 		
 	}

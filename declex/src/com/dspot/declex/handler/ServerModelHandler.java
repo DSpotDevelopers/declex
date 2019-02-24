@@ -20,7 +20,6 @@ import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr._this;
 import static com.helger.jcodemodel.JExpr.cast;
 import static com.helger.jcodemodel.JExpr.direct;
-import static com.helger.jcodemodel.JExpr.dotclass;
 import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.lit;
 import static com.helger.jcodemodel.JExpr.ref;
@@ -308,9 +307,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		ifBlock.assign(ref("result"), _this().invoke("putServerModel").arg(args));
 				
 		if (serverModelPut != null) {
-			ifBlock = ifBlock._if(ref("result").ne(_null()))._then();
 	
-			JInvocation invocation = ifBlock.invoke(serverModelPut.getSimpleName().toString());
+			JInvocation invocation = invoke(serverModelPut.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelPut.getParameters();
 			PARAMS: for (VariableElement param : parameters) {
@@ -330,6 +328,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				}
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
+
+				ifBlock = ifBlock._if(ref("result").ne(_null()))._then();
+				ifBlock.add(invocation);
 			}
 		}
 		
@@ -350,15 +351,14 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		//Write the getServerModelList in the generated getModelList() method inside the UseModel clause
 		JBlock block = holder.getGetModelListUseBlock();
-		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(ServerModel.class))))._then();
+		block = block._if(useModel.invoke("equals").arg(getJClass(ServerModel.class).dotclass()))._then();
 						
 		JFieldRef serverModels = ref("models");
 		block.assign(serverModels,
 				invoke("getServerModelList").arg(context).arg(args)
 			);
 		if (serverModelLoaded != null) {
-			JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
-			JInvocation invocation = notNull.invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
+			JInvocation invocation = invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			PARAMS: for (VariableElement param : parameters) {
@@ -384,6 +384,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
+
+			JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
+			notNull.add(invocation);
 		}
 		block._return(serverModels);
 		
@@ -404,7 +407,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 			);
 		JBlock notNull = block._if(serverModels.ne(_null()).cand(serverModels.invoke("isEmpty").not()))._then();
 		if (serverModelLoaded != null) {
-			JInvocation invocation = notNull.invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
+			JInvocation invocation = invoke(serverModels.invoke("get").arg(lit(0)), serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			PARAMS: for (VariableElement param : parameters) {
@@ -430,6 +433,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
+
+			notNull.add(invocation);
 		}
 		notNull._return(serverModels);
 		
@@ -444,7 +449,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		
 		//Write the getServerModel in the generated getModel() method inside the UseModel clause
 		JBlock block = holder.getGetModelUseBlock();
-		block = block._if(useModel.invoke("equals").arg(dotclass(getJClass(ServerModel.class))))._then();
+		block = block._if(useModel.invoke("equals").arg(getJClass(ServerModel.class).dotclass()))._then();
 				
 		JFieldRef serverModel = ref("model");
 		block.assign(serverModel, 
@@ -454,7 +459,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		cond._else()._return(_new(holder.getGeneratedClass()).arg(context));
 		JBlock notNull = cond._then();
 		if (serverModelLoaded != null) {
-			JInvocation invocation = notNull.invoke(serverModel, serverModelLoaded.getSimpleName().toString());
+			JInvocation invocation = invoke(serverModel, serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			PARAMS: for (VariableElement param : parameters) {
@@ -480,6 +485,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
 			}
+
+			notNull.add(invocation);
 			
 		}
 		notNull._return(serverModel);
@@ -502,7 +509,7 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		JBlock notNull = block._if(serverModel.ne(_null()))._then();
 		
 		if (serverModelLoaded != null) {
-			JInvocation invocation = notNull.invoke(serverModel, serverModelLoaded.getSimpleName().toString());
+			JInvocation invocation = invoke(serverModel, serverModelLoaded.getSimpleName().toString());
 			
 			List<? extends VariableElement> parameters = serverModelLoaded.getParameters();
 			PARAMS: for (VariableElement param : parameters) {
@@ -527,7 +534,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				}
 				
 				ParamUtils.injectParam(paramName, paramType, invocation);
-			}			
+			}
+
+			notNull.add(invocation);
 		}
 		
 		notNull._return(serverModel);
@@ -624,9 +633,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					value = value.replace(formatSyntaxMatcher.group(0), match);
 				}
 				
-				newBlock.invoke(requestBuilder, "addHeader")
+				newBlock.add(invoke(requestBuilder, "addHeader")
 				        .arg(key)
-				        .arg(FormatsUtils.expressionFromString(value));
+				        .arg(FormatsUtils.expressionFromString(value)));
 			}
 		}
 		
@@ -653,11 +662,10 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
 						newBlock.invoke(requestBuilder, method);
 					} else {
-						newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+						newBlock.add(invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
 								                                    .staticInvoke("create")
 								                                    .arg(_null())
-								                                    .arg(direct("new byte[0]"))
-								                                    );
+								                                    .arg(direct("new byte[0]"))));
 					}
 				}
 				
@@ -678,16 +686,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						createExp = createExp.arg(inst.invoke("toJson").arg(fields));
 						
 						JVar requestBody = newBlock.decl(getJClass("okhttp3.RequestBody"), "requestBody", createExp);
-						newBlock.invoke(requestBuilder, method).arg(requestBody);
+						newBlock.add(invoke(requestBuilder, method).arg(requestBody));
 					} else {
 						if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
 							newBlock.invoke(requestBuilder, method);
 						} else {
-							newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+							newBlock.add(invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
 									                                    .staticInvoke("create")
 									                                    .arg(_null())
-									                                    .arg(direct("new byte[0]"))
-									                                    );
+									                                    .arg(direct("new byte[0]"))));
 						}
 					}
 							
@@ -717,15 +724,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 							);
 						
 						hasFields.forEach(getClasses().STRING, "field", fieldsVar.invoke("keySet")).body()
-							     .invoke(url, "addQueryParameter").arg(ref("field"))
-							                                      .arg(fieldsVar.invoke("get").arg(ref("field")));
+							     .add(invoke(url, "addQueryParameter").arg(ref("field"))
+							                                      .arg(fieldsVar.invoke("get").arg(ref("field"))));
 						
-						hasFields.invoke(requestBuilder, "url").arg(url.invoke("build"));
+						hasFields.add(invoke(requestBuilder, "url").arg(url.invoke("build")));
 						
 						hasFieldsConditional._else()
-											.invoke(requestBuilder, "url")
+											.add(invoke(requestBuilder, "url")
 											.arg(ref("baseUrl")
-								            .plus(FormatsUtils.expressionFromString(action)));
+								            .plus(FormatsUtils.expressionFromString(action))));
 	
 						setUrl = null;
 					} else {
@@ -740,25 +747,23 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 					        		formBody.invoke("add").arg(ref("field"))
 					        		        .arg(fieldsVar.invoke("get").arg(ref("field")))
 				        		);
-						hasFields.invoke(requestBuilder, method).arg(formBody.invoke("build"));
+						hasFields.add(invoke(requestBuilder, method).arg(formBody.invoke("build")));
 						
 						hasFieldsConditional._else()
-						                    .invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+						                    .add(invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
 											                                .staticInvoke("create")
 											                                .arg(_null())
-											                                .arg(direct("new byte[0]"))
-											                                );
+											                                .arg(direct("new byte[0]"))));
 					}
 				} else {
 					if (!requestMethod.equals(RequestMethod.Get)) {
 						if (requestMethod.equals(RequestMethod.Head) || requestMethod.equals(RequestMethod.Delete)) {
 							newBlock.invoke(requestBuilder, method);
 						} else {
-							newBlock.invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
+							newBlock.add(invoke(requestBuilder, method).arg(getJClass("okhttp3.RequestBody")
 									                                    .staticInvoke("create")
 									                                    .arg(_null())
-									                                    .arg(direct("new byte[0]"))
-									                                    );
+									                                    .arg(direct("new byte[0]"))));
 						}
 					}
 				}
@@ -766,9 +771,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 		}
 		
 		if (setUrl != null) {
-			 setUrl.invoke(requestBuilder, "url")
+			 setUrl.add(invoke(requestBuilder, "url")
 		           .arg(ref("baseUrl")
-		           .plus(FormatsUtils.expressionFromString(action)));
+		           .plus(FormatsUtils.expressionFromString(action))));
 		}
 		
 		newBlock._return(requestBuilder.invoke("build"));
@@ -860,8 +865,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 				newBlock._if(elem.invoke("isJsonObject").not().cand(elem.invoke("isJsonNull").not()))
 				        ._then()._return(_null());
 
-				newBlock.staticInvoke(getJClass(CastUtility.class), "copy")
-		        	    .arg(invoke("fromJson").arg(ref("elem"))).arg(inst);
+				newBlock.add(getJClass(CastUtility.class).staticInvoke("copy")
+		        	    .arg(invoke("fromJson").arg(ref("elem"))).arg(inst));
 				
 			} else {
 				
@@ -895,8 +900,8 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						originalClass = TypeUtils.getGeneratedClassName(originalClass, getEnvironment());
 						
 						if (isMethod) {
-							thenBlock.invoke(inst, request.model())
-									 .arg(getJClass(originalClass).staticInvoke("listFromJson").arg(ref("elem")));
+							thenBlock.add(invoke(inst, request.model())
+									 .arg(getJClass(originalClass).staticInvoke("listFromJson").arg(ref("elem"))));
 						} else {
 							thenBlock.assign(
 									inst.ref(request.model()), 
@@ -921,10 +926,9 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						thenBlock.directStatement(dclr);
 						
 						if (isMethod) {
-							thenBlock.invoke(inst, request.model())
+							thenBlock.add(invoke(inst, request.model())
 									 .arg(gson.invoke("fromJson")
-									          .arg(ref("elem")).arg(ref("listType"))
-								     );
+									          .arg(ref("elem")).arg(ref("listType"))));
 						} else {
 							thenBlock.assign(
 									inst.ref(request.model()), 
@@ -961,11 +965,11 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						if (isMethod) {
 							if (isLoad) {
 								//Assume static method
-								newBlock.invoke(request.model())
-								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem")));
+								newBlock.add(invoke(request.model())
+								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem"))));
 							} else {
-								newBlock.invoke(inst, request.model())
-								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem")));
+								newBlock.add(invoke(inst, request.model())
+								 .arg(getJClass(originalClass).staticInvoke("fromJson").arg(ref("elem"))));
 							}
 						} else {
 							newBlock.assign(
@@ -989,17 +993,15 @@ public class ServerModelHandler extends BaseModelAndModelClassHandler<EComponent
 						if (isMethod) {
 							if (isLoad) {
 								//Assume static method
-								newBlock.invoke(request.model())
+								newBlock.add(invoke(request.model())
 								 .arg(gson.invoke("fromJson")
 									      .arg(ref("elem"))
-									      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())
-							     );
+									      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())));
 							} else {
-								newBlock.invoke(inst, request.model())
+								newBlock.add(invoke(inst, request.model())
 										 .arg(gson.invoke("fromJson")
 											      .arg(ref("elem"))
-											      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())
-									     );
+											      .arg(codeModelHelper.elementTypeToJClass(modelElement).dotclass())));
 							}
 						} else {
 							newBlock.assign(

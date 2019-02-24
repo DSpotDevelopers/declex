@@ -16,6 +16,7 @@
 package com.dspot.declex.handler;
 
 import static com.helger.jcodemodel.JExpr._new;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.List;
@@ -164,7 +165,7 @@ public class ImportHandler extends BaseAnnotationHandler<EComponentHolder> {
 		JMethod anonymousListenerCall = anonymousListener.method(JMod.PUBLIC, getCodeModel().VOID, "call");
 		anonymousListenerCall.annotate(Override.class);
 
-		JInvocation invocation = JExpr.invoke(elementName);
+		JInvocation invocation = invoke(elementName);
 		
 		ExecutableElement executableElement = (ExecutableElement) element;
 		for (VariableElement param : executableElement.getParameters()) {
@@ -179,8 +180,8 @@ public class ImportHandler extends BaseAnnotationHandler<EComponentHolder> {
 				JMod.PUBLIC, getCodeModel().VOID, 
 				"set" + rootElement.getSimpleName().toString() + mainName + "Listener" + ModelConstants.generationSuffix());
 		
-		listenerSetter.body().invoke(referenceExpression, "set" + mainName + "Listener" + ModelConstants.generationSuffix())
-					         .arg(_new(anonymousListener));
+		listenerSetter.body().add(invoke(referenceExpression, "set" + mainName + "Listener" + ModelConstants.generationSuffix())
+					         .arg(_new(anonymousListener)));
 		
 		if (rootElement.getAnnotation(ActionFor.class) == null) {
 			holder.getInitBodyAfterInjectionBlock().invoke(listenerSetter);
@@ -224,13 +225,13 @@ public class ImportHandler extends BaseAnnotationHandler<EComponentHolder> {
 		setter.body().assign(listenerField, listener);
 		
 		//Override and call the listener in the override method
-		JMethod overrideMethod = codeModelHelper.overrideAnnotatedMethod(executableElement, holder);
-		JInvocation invocation = overrideMethod.body()._if(listenerField.neNull())._then()
-							 				   .invoke(listenerField, "call");
-		
+		JInvocation invocation = invoke(listenerField, "call");
 		for (VariableElement param : executableElement.getParameters()) {
 			invocation = invocation.arg(ref(param.getSimpleName().toString()));
 		}
+
+		JMethod overrideMethod = codeModelHelper.overrideAnnotatedMethod(executableElement, holder);
+		overrideMethod.body()._if(listenerField.neNull())._then().add(invocation);
 	}
 
 }

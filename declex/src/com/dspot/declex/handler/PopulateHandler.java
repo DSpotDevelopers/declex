@@ -16,6 +16,7 @@
 package com.dspot.declex.handler;
 
 import static com.dspot.declex.api.util.FormatsUtils.fieldToGetter;
+import static com.dspot.declex.util.ParamUtils.injectParam;
 import static com.dspot.declex.util.TypeUtils.fieldInElement;
 import static com.dspot.declex.util.TypeUtils.isSubtype;
 import static com.helger.jcodemodel.JExpr._new;
@@ -275,7 +276,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		do {
 			if (layoutId != 0) {
 				viewsHolder.inflateLayoutAndUse(layoutId);
-				processEventsInViews(element, viewsHolder);
+				processEventsInViews(viewsHolder);
 			}
 			
 			IdInfoHolder info = findInfoHolder(element, viewsHolder);
@@ -490,10 +491,10 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 					JBlock notifyBlock = ifNotifBlock._else()._if(view.ne(_null()))._then();
 					
 					if (!annotation.custom()) {
-						notifyBlock.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));
+						notifyBlock.add(invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef)));
 					}
 					
-					notifyBlock.invoke(view, "setAdapter").arg(adapterGetter);
+					notifyBlock.add(invoke(view, "setAdapter").arg(adapterGetter));
 				}
 			}
 		});
@@ -508,8 +509,8 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
         				   castedList.invoke("getWrappedAdapter").ne(adapterGetter)
     				   )
 				   ))._then()
-		           .invoke(view, "setAdapter").arg(adapterGetter);
-		notifyBlock.invoke(adapterGetter, "setModels").arg(assignRef);
+		           .add(invoke(view, "setAdapter").arg(adapterGetter));
+		notifyBlock.add(invoke(adapterGetter, "setModels").arg(assignRef));
 		notifyBlock.invoke(adapterGetter, "notifyDataSetChanged");
 		
 		JDefinedClass generatedClassForGetterAndSetter = viewsHolder.getGeneratedClass();
@@ -547,7 +548,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 	                    .method(JMod.PUBLIC, getCodeModel().VOID, "set" + adapterClassName);
 				JVar adapter = adapterSetterMethod.param(AdapterClass, "adapter");
 				adapterSetterMethod.body()._if(ref(referenceName).neNull())._then()
-										  .invoke(referenceField, "set" + adapterClassName).arg(adapter);
+										  .add(invoke(referenceField, "set" + adapterClassName).arg(adapter));
 			}
 		}
 
@@ -580,12 +581,12 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			final JBlock eventBody = eventHolder.getEventBlock(eventClass);
 			
 			if (foundAdapterDeclaration && annotation.custom()) {
-				eventBody.invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef));			
-				eventBody.invoke(view, "setAdapter").arg(adapterGetter);
+				eventBody.add(invoke("set" + adapterClassName).arg(_new(AdapterClass).arg(assignRef)));
+				eventBody.add(invoke(view, "setAdapter").arg(adapterGetter));
 				return;
 			}
 			
-			eventBody.invoke(view, "setAdapter").arg(adapterGetter);
+			eventBody.add(invoke(view, "setAdapter").arg(adapterGetter));
 		}
 		
 		//AdapterView
@@ -804,7 +805,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				for (int i = startIndex; i < info.extraParams.size(); i++) {
 					VariableElement param = info.extraParams.get(i); 
 					final String viewId = param.getSimpleName().toString(); 
-					assignRef = ParamUtils.injectParam(
+					assignRef = injectParam(
 							viewId, info.type.toString(), (JInvocation) assignRef, viewsHolder);
 				}
 				
@@ -815,7 +816,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		if (assignRef instanceof JInvocation) {
 			for (VariableElement param : info.extraParams) {
-				assignRef = ParamUtils.injectParam(param.getSimpleName().toString(), info.type.toString(), (JInvocation) assignRef, viewsHolder);
+				assignRef = injectParam(param.getSimpleName().toString(), info.type.toString(), (JInvocation) assignRef, viewsHolder);
 			}
 		}
 		
@@ -833,23 +834,23 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		
 		//Support for getters and setters
 		if (info.getterOrSetter != null) {
-			block.invoke(view, "set" + info.getterOrSetter).arg(origAssignRef);
+			block.add(invoke(view, "set" + info.getterOrSetter).arg(origAssignRef));
 			return;
 		}
 		
 		//CompoundButtons, if the param is boolean, it will set the checked state
 		if (isSubtype(viewClass, "android.widget.CompoundButton", getProcessingEnvironment())) {
 			if (type.getKind().equals(TypeKind.BOOLEAN)) {
-				block.invoke(view, "setChecked").arg(origAssignRef);
+				block.add(invoke(view, "setChecked").arg(origAssignRef));
 				return;
 			}
 		}
 		
 		if (isSubtype(viewClass, "android.widget.TextView", getProcessingEnvironment())) {
 			if (isSubtype(type.toString(), "android.text.Spanned", getProcessingEnvironment())) {
-				block.invoke(view, "setText").arg(origAssignRef);	
+				block.add(invoke(view, "setText").arg(origAssignRef));
 			} else {
-				block.invoke(view, "setText").arg(assignRef);
+				block.add(invoke(view, "setText").arg(assignRef));
 			}			
 			return;
 		}
@@ -961,7 +962,7 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 			} 
 		}
 		
-		block.invoke("assignField").arg(view).arg(assignRef);
+		block.add(invoke("assignField").arg(view).arg(assignRef));
 	}
 
 	private void createViewsForPopulateMethod(String viewName, Element element, ViewsHolder viewsHolder) {
@@ -980,14 +981,14 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 		}
 	}
 	
-	public void callPopulateSupportMethod(String viewName, JBlock block, IJExpression viewHolder, List<String> fields, 
-			Element element, ViewsHolder viewsHolder) {
+	public void callPopulateSupportMethod(String viewName, JBlock block, IJExpression viewHolder, List<String> fields, Element element, ViewsHolder viewsHolder) {
+
 		Map<String, ExecutableElement> methods = populatorMethods.get(element.getEnclosingElement());
 		if (methods == null) return;
 		
 		ExecutableElement exeElem = methods.get(viewName);
 		if (exeElem != null) {
-			JInvocation invoke = block.invoke(viewName);
+			JInvocation invoke = invoke(viewName);
 			
 			for (VariableElement param : exeElem.getParameters()) {
 				final String paramName = param.getSimpleName().toString();
@@ -996,17 +997,20 @@ public class PopulateHandler extends BaseAnnotationHandler<EComponentWithViewSup
 				if (viewHolder != null && viewHolder != _this() && fields.contains(paramName)) {
 					invoke.arg(viewHolder.ref(paramName + DeclexConstant.VIEW));
 				} else {
-					ParamUtils.injectParam(paramName, paramType, invoke, viewsHolder);
+					injectParam(paramName, paramType, invoke, viewsHolder);
 				}
 			}
+
+			block.add(invoke);
 		}
+
 	}
 
-	private void processEventsInViews(Element element, final ViewsHolder viewsHolder) {
+	private void processEventsInViews(final ViewsHolder viewsHolder) {
 		
 		Map<Class<?>, Object> listenerHolders = viewsHolder.holder().getPluginHolders();
 		for (Object listenerHolderObject : listenerHolders.values()) {
-			if (!ViewListenerHolder.class.isInstance(listenerHolderObject)) continue;
+			if (!(listenerHolderObject instanceof ViewListenerHolder)) continue;
 			final ViewListenerHolder listenerHolder = (ViewListenerHolder)listenerHolderObject;
 			
 			for (String viewId : listenerHolder.getViewFieldNames()) {

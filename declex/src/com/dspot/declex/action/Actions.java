@@ -15,7 +15,12 @@
  */
 package com.dspot.declex.action;
 
-import com.dspot.declex.annotation.action.*;
+import com.dspot.declex.annotation.action.ActionFor;
+import com.dspot.declex.annotation.action.Assignable;
+import com.dspot.declex.annotation.action.Field;
+import com.dspot.declex.annotation.action.FormattedExpression;
+import com.dspot.declex.annotation.action.Literal;
+import com.dspot.declex.annotation.action.StopOn;
 import com.dspot.declex.api.action.process.ActionInfo;
 import com.dspot.declex.api.action.process.ActionMethod;
 import com.dspot.declex.api.action.process.ActionMethodParam;
@@ -29,24 +34,31 @@ import com.helger.jcodemodel.JMod;
 import org.androidannotations.Option;
 import org.androidannotations.api.view.HasViews;
 import org.androidannotations.helper.APTCodeModelHelper;
-import org.androidannotations.helper.CompilationTreeHelper;
+import org.androidannotations.helper.ClassesHolder;
 import org.androidannotations.helper.IdAnnotationHelper;
 import org.androidannotations.internal.InternalAndroidAnnotationsEnvironment;
-import org.androidannotations.internal.process.ProcessHolder;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerFactory;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 
-import javax.lang.model.element.*;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
-import javax.tools.FileObject;
-import javax.tools.JavaFileObject;
 import java.lang.annotation.Annotation;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+import javax.tools.JavaFileObject;
 
 import static com.helger.jcodemodel.JExpr._new;
 
@@ -401,9 +413,9 @@ public class Actions {
 	public void getActionsInformation() {
 				
 		//This will ensure a correct working-flow for Actions Processing	
-		if (env.getProcessHolder() == null) {
-			ProcessHolder processHolder = new ProcessHolder(env.getProcessingEnvironment());
-			env.setProcessHolder(processHolder);
+		if (env.getClassesHolder() == null) {
+			ClassesHolder classesHolder = new ClassesHolder(env.getProcessingEnvironment());
+			env.setClassesHolder(classesHolder);
 		}
 		
 		for (Entry<String, Boolean> holder: ACTION_HOLDERS.entrySet()) {

@@ -3,6 +3,7 @@ package com.dspot.declex.holder;
 import static com.helger.jcodemodel.JExpr._new;
 import static com.helger.jcodemodel.JExpr._null;
 import static com.helger.jcodemodel.JExpr.cast;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.util.HashMap;
@@ -120,7 +121,7 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 		
 		JMethod populateThisMethod = getPopulateThis();
 		if (!adiHelper.getAnnotation(element, Populate.class).independent()) {
-			populateThisMethod.body().invoke(populateMethod).arg(_null()).arg(ref("onFailed"));			
+			populateThisMethod.body().add(invoke(populateMethod).arg(_null()).arg(ref("onFailed")));
 		}
 		
 		JTryBlock tryBlock = populateMethod.body()._try();
@@ -136,7 +137,7 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 			
 			JFieldRef onFailed = ref("onFailed");
 			JConditional ifOnFailedAssigned = catchBlock.body()._if(onFailed.ne(_null()));
-			ifOnFailedAssigned._then().invoke(onFailed, "onFailed").arg(caughtException);
+			ifOnFailedAssigned._then().add(invoke(onFailed, "onFailed").arg(caughtException));
 			ifOnFailedAssigned._else().add(uncaughtExceptionCall);
 		}
 		populateMethodsBlock.put(element, tryBlock.body().blockVirtual());
@@ -146,7 +147,7 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 		
 		callPopulateAfterModelLoaded(element, populateMethod);
 	}
-	
+
 	private void callPopulateAfterModelLoaded(Element element, JMethod populateMethod) {
 		
 		final String fieldName = element.getSimpleName().toString();
@@ -185,7 +186,7 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 				
 				JVar handler = methodBody.decl(getClasses().HANDLER, "handler", 
 						_new(getClasses().HANDLER).arg(getClasses().LOOPER.staticInvoke("getMainLooper")));
-				methodBody.invoke(handler, "post").arg(_new(anonymousRunnable));
+				methodBody.add(invoke(handler, "post").arg(_new(anonymousRunnable)));
 				
 				methodBody = anonymousRunnableRun.body();
 			} 
@@ -201,13 +202,12 @@ public class PopulateHolder extends PluginClassHolder<EComponentWithViewSupportH
 				
 				JFieldRef listenerField = ref(populateListenerName);				
   			    ifPopulate._if(listenerField.neNull())._then()
-						  .invoke(listenerField, "populateModel")
-			              .arg(_null()).arg(ref("onFailed"));
+						  .add(invoke(listenerField, "populateModel").arg(_null()).arg(ref("onFailed")));
 				
   			    populateListeners.put(element, listenerField);
   			    
 			} else {
-				ifPopulate.invoke(populateMethod).arg(_null()).arg(ref("onFailed"));
+				ifPopulate.add(invoke(populateMethod).arg(_null()).arg(ref("onFailed")));
 			}
 			
 		}

@@ -19,7 +19,11 @@ import com.dspot.declex.action.builder.ActionsBuilder;
 import com.dspot.declex.api.action.ActionsTools;
 import com.dspot.declex.holder.EnsureImportsHolder;
 import com.helger.jcodemodel.IJExpression;
-import com.helger.jcodemodel.JFormatter;
+import com.helger.jcodemodel.IJFormatter;
+import com.helger.jcodemodel.IJStatement;
+import com.helger.jcodemodel.SourcePrintWriter;
+import com.helger.jcodemodel.writer.JCMWriter;
+import com.helger.jcodemodel.writer.JFormatter;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.util.TreePath;
 import org.androidannotations.holder.EComponentHolder;
@@ -100,17 +104,6 @@ public class ExpressionsHelper {
         return direct(parseForSpecials(code, false));
     }
 
-    public String expressionToString(IJExpression expression) {
-        if (expression == null) {
-            throw new IllegalArgumentException("Generable must not be null.");
-        }
-        final StringWriter stringWriter = new StringWriter();
-        final JFormatter formatter = new JFormatter(stringWriter);
-        expression.generate(formatter);
-
-        return stringWriter.toString();
-    }
-
     public String parseForSpecials(String expression, boolean ignoreThis) {
 
         if (isValidating) return expression;
@@ -172,6 +165,33 @@ public class ExpressionsHelper {
         }
 
         return expression;
+    }
+
+    public static String expressionToString(IJExpression expression) {
+        if (expression == null) {
+            throw new IllegalArgumentException("Generable must not be null.");
+        }
+        final StringWriter stringWriter = new StringWriter();
+        final IJFormatter formatter = createFormatter(stringWriter);
+        expression.generate(formatter);
+
+        return stringWriter.toString();
+    }
+
+    public static String statementToString(IJStatement expression) {
+        if (expression == null) {
+            throw new IllegalArgumentException("Generable must not be null.");
+        }
+        final StringWriter stringWriter = new StringWriter();
+        final IJFormatter formatter = createFormatter(stringWriter);
+        expression.state(formatter);
+
+        return stringWriter.toString();
+    }
+
+    private static IJFormatter createFormatter(StringWriter writer) {
+        SourcePrintWriter sourcePrintWriter = new SourcePrintWriter(writer, JCMWriter.getDefaultNewLine());
+        return new JFormatter(sourcePrintWriter, JCMWriter.DEFAULT_INDENT_STRING);
     }
 
 }

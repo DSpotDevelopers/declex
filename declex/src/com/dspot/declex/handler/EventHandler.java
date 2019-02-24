@@ -42,6 +42,7 @@ import javax.lang.model.type.TypeKind;
 import java.util.*;
 import java.util.Map.Entry;
 
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {	
@@ -269,7 +270,7 @@ public class EventHandler extends BaseAnnotationHandler<EComponentHolder> {
 					}
 
 					initMethod.param(fieldClass, fieldName);
-					initMethod.body().invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName));
+					initMethod.body().add(invoke(ref("event"), FormatsUtils.fieldToSetter(fieldName)).arg(ref(fieldName)));
 				}							
 			}
 		}

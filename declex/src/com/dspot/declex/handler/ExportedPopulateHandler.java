@@ -149,7 +149,7 @@ public class ExportedPopulateHandler extends ExportedHandler {
 		PopulateHolder populateHolder = holder.getPluginHolder(new PopulateHolder((EComponentWithViewSupportHolder)holder));
 		JMethod populateMethod = elementName.equals("this")? populateHolder.getPopulateThis() : populateHolder.getPopulateMethod(element);
 		
-		anonymousRunnableRun.body().invoke(populateMethod).arg(afterPopulate).arg(onFailed);
+		anonymousRunnableRun.body().add(invoke(populateMethod).arg(afterPopulate).arg(onFailed));
 		
 		
 		final Element referenceElement = ((VirtualElement) element).getReference();
@@ -164,13 +164,11 @@ public class ExportedPopulateHandler extends ExportedHandler {
 		
 		JBlock ifBlock = holder.getInitBodyAfterInjectionBlock()._if(ref(referenceElementName).neNull())._then();
 		if (converted) {
-			ifBlock.invoke(
-				cast(getJClass(referenceElementClass), ref(referenceElementName)), populateListenerName
-			).arg(_new(listener));
+			ifBlock.add(invoke(
+				cast(getJClass(referenceElementClass), ref(referenceElementName)), populateListenerName).arg(_new(listener)));
 		} else {
-			ifBlock.invoke(
-				ref(referenceElementName), populateListenerName
-			).arg(_new(listener));
+			ifBlock.add(invoke(
+				ref(referenceElementName), populateListenerName).arg(_new(listener)));
 		}
 	}
 	

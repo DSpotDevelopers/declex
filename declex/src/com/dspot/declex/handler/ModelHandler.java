@@ -156,10 +156,10 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 				//In the init(), set the field to null
 				if (adiHelper.hasAnnotation(element.getEnclosingElement(), UseModel.class)) { 
 					block._if(useModelHolder.getFullInitVar())._then()
-					     .invoke(modelHolder.getSetterMethod(element)).arg(_null());
+					     .add(invoke(modelHolder.getSetterMethod(element)).arg(_null()));
 				} else {
 					if (element.getAnnotation(Extra.class)==null && element.getAnnotation(FragmentArg.class)==null) {
-						block.invoke(modelHolder.getSetterMethod(element)).arg(_null());
+						block.add(invoke(modelHolder.getSetterMethod(element)).arg(_null()));
 					}	
 				}
 								
@@ -343,14 +343,14 @@ public class ModelHandler extends BaseAnnotationHandler<EComponentHolder> {
 		
 		if (hasEvent) {
 			
-			callBlock.invoke(putModelMethod).arg(args)
+			callBlock.add(invoke(putModelMethod).arg(args)
                     .arg(ref("event").invoke("getNextListener"))
-                    .arg(ref("event").invoke("getFailedListener"));
+                    .arg(ref("event").invoke("getFailedListener")));
 			
 		} else {
-			callBlock.invoke(putModelMethod).arg(args)
+			callBlock.add(invoke(putModelMethod).arg(args)
 							            .arg(_null())
-							            .arg(_null());
+							            .arg(_null()));
 		}
 		
 		block.add(callBlock);

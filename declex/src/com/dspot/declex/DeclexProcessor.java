@@ -27,6 +27,7 @@ import com.dspot.declex.util.SharedRecords;
 import com.dspot.declex.util.TypeUtils;
 import com.dspot.declex.wrapper.RoundEnvironmentByCache;
 import com.dspot.declex.wrapper.generate.DeclexCodeModelGenerator;
+import com.dspot.declex.wrapper.generate.DeclexModelValidator;
 import com.helger.jcodemodel.IJExpression;
 import com.helger.jcodemodel.JExpr;
 import com.helger.jcodemodel.JFieldRef;
@@ -48,6 +49,7 @@ import org.androidannotations.internal.model.AnnotationElements;
 import org.androidannotations.internal.model.AnnotationElementsHolder;
 import org.androidannotations.internal.model.ModelExtractor;
 import org.androidannotations.internal.process.ModelProcessor.ProcessResult;
+import org.androidannotations.internal.process.ModelValidator;
 import org.androidannotations.internal.virtual.VirtualElement;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerContext;
@@ -441,11 +443,12 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 	}
 	
 	@Override
-	protected AnnotationElements validateAnnotations(
-			AnnotationElements extractedModel,
-			AnnotationElementsHolder validatingHolder) {
-		
-		AnnotationElements annotationElements = super.validateAnnotations(extractedModel, validatingHolder);
+	protected AnnotationElements validateAnnotations(AnnotationElements extractedModel, AnnotationElementsHolder validatingHolder) {
+
+		timeStats.start("Validate Annotations");
+		DeclexModelValidator modelValidator = new DeclexModelValidator(androidAnnotationsEnv);
+		AnnotationElements validatedAnnotations = modelValidator.validate(extractedModel, validatingHolder);
+		timeStats.stop("Validate Annotations");
 		
 		//Run validations for Actions (it should be run after all the normal validations)
 		timeStats.start("Validate Actions");
@@ -453,12 +456,11 @@ public class DeclexProcessor extends org.androidannotations.internal.AndroidAnno
 		ActionHelper.getInstance(androidAnnotationsEnv).validate();
 		timeStats.stop("Validate Actions");
 		
-		return annotationElements;
+		return validatedAnnotations;
 	}
 	
 	@Override
-	protected ProcessResult processAnnotations(AnnotationElements validatedModel)
-			throws Exception {
+	protected ProcessResult processAnnotations(AnnotationElements validatedModel) throws Exception {
 		
 		ProcessResult result = super.processAnnotations(validatedModel);
 		

@@ -16,6 +16,7 @@
 package com.dspot.declex.override.handler;
 
 import static com.helger.jcodemodel.JExpr._this;
+import static com.helger.jcodemodel.JExpr.invoke;
 import static com.helger.jcodemodel.JExpr.ref;
 
 import java.lang.reflect.AnnotatedElement;
@@ -136,7 +137,7 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 			
 			JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, fieldName);
 			JVar fieldMethodParam = fieldMethod.param(clazz, paramName);
-			fieldMethod.body().invoke(ref("builder"), fieldName).arg(fieldMethodParam);
+			fieldMethod.body().add(invoke(ref("builder"), fieldName).arg(fieldMethodParam));
 			fieldMethod.body()._return(_this());			
 		}
 	}
@@ -151,13 +152,15 @@ public class FragmentArgHandler extends org.androidannotations.internal.core.han
 		final String methodName = method.getSimpleName().toString();	
 		JMethod fieldMethod = FragmentAction.method(JMod.PUBLIC, FragmentAction, methodName);
 		
-		JInvocation invocation = fieldMethod.body().invoke(ref("builder"), methodName);
+		JInvocation invocation = invoke(ref("builder"), methodName);
 		for (ParamHelper paramHelper : parameterList) {
 			final AbstractJClass clazz = codeModelHelper.elementTypeToJClass(paramHelper.getParameterElement());
 			JVar fieldMethodParam = fieldMethod.param(clazz, paramHelper.getParameterElement().getSimpleName().toString());
 			invocation = invocation.arg(fieldMethodParam);
 			
 		}
+
+		fieldMethod.body().add(invocation);
 		fieldMethod.body()._return(_this());
 		
 		super.afterAllParametersInjected(holder, method, parameterList);

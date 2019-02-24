@@ -19,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.androidannotations.AndroidAnnotationsEnvironment;
-import org.androidannotations.internal.process.ProcessHolder.Classes;
 
 import com.helger.jcodemodel.AbstractJClass;
 import com.helger.jcodemodel.JCodeModel;
+import org.androidannotations.helper.ClassesHolder;
 
 public abstract class BaseClassCreator implements JClassCreator {
 
@@ -43,7 +43,7 @@ public abstract class BaseClassCreator implements JClassCreator {
 		return environment.getJClass(clazz);
 	}
 	
-	protected Classes getClasses() {
+	protected ClassesHolder.Classes getClasses() {
 		return environment.getClasses();
 	}
 	

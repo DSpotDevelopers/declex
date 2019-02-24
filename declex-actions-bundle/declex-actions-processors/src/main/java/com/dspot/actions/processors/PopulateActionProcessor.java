@@ -73,13 +73,13 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 					
 					JBlock block = new JBlock();
 					JConditional ifNeNull = block._if(listenerField.neNull());
-					ifNeNull._then().invoke(listenerField, "populateModel")
+					ifNeNull._then().add(invoke(listenerField, "populateModel")
 					           .arg(getAction().invoke("getDone"))
-					           .arg(getAction().invoke("getFailed"));
+					           .arg(getAction().invoke("getFailed")));
 					
 					ifNeNull._else()._if(getAction().invoke("getDone").neNull())._then()
-					                                .invoke(getAction(), "getDone")
-					                                .invoke("run");
+					                                .add(invoke(getAction(), "getDone")
+					                                .invoke("run"));
 					
 					addPostBuildBlock(block);	
 					
@@ -100,13 +100,13 @@ public class PopulateActionProcessor extends BaseActionProcessor {
 					
 					JBlock block = new JBlock();
 					JConditional ifNeNull = block._if(listenerField.neNull());
-					ifNeNull._then().invoke(listenerField, "populateModel")
+					ifNeNull._then().add(invoke(listenerField, "populateModel")
 					           .arg(getAction().invoke("getDone"))
-					           .arg(getAction().invoke("getFailed"));
+					           .arg(getAction().invoke("getFailed")));
 					
 					ifNeNull._else()._if(getAction().invoke("getDone").neNull())._then()
-					                                .invoke(getAction(), "getDone")
-					                                .invoke("run");
+					                                .add(invoke(getAction(), "getDone")
+					                                .invoke("run"));
 					
 					addPostBuildBlock(block);					
 				} else {

@@ -4,14 +4,14 @@ import com.dspot.declex.helper.ActionHelper;
 import com.dspot.declex.holder.EventHolder;
 import org.androidannotations.AndroidAnnotationsEnvironment;
 import org.androidannotations.ElementValidation;
-import org.androidannotations.holder.EIntentServiceHolder;
+import org.androidannotations.holder.EProviderHolder;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 
-public class EIntentServiceHandler extends org.androidannotations.internal.core.handler.EIntentServiceHandler {
+public class EProviderHandler extends org.androidannotations.internal.core.handler.EProviderHandler {
 
-    public EIntentServiceHandler(AndroidAnnotationsEnvironment environment) {
+    public EProviderHandler(AndroidAnnotationsEnvironment environment) {
         super(environment);
     }
 
@@ -25,11 +25,11 @@ public class EIntentServiceHandler extends org.androidannotations.internal.core.
     }
 
     @Override
-    public void process(Element element, EIntentServiceHolder holder) {
+    public void process(Element element, EProviderHolder holder) {
         super.process(element, holder);
 
         EventHolder eventHolder = holder.getPluginHolder(new EventHolder(holder));
-        eventHolder.setEventRegisteringBlock(holder.getStartLifecycleAfterSuperBlock());
+        eventHolder.setEventRegisteringBlock(holder.getInitBodyBeforeInjectionBlock());
     }
 
 }
