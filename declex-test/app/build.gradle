@@ -35,8 +35,8 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-    annotationProcessor 'com.dspot:declex:2.0.a.32'
-    implementation 'com.dspot:declex-api:2.0.a.32'
+    annotationProcessor 'com.dspot:declex:2.0.a.35'
+    implementation 'com.dspot:declex-api:2.0.a.35'
     implementation 'com.dspot:declex-actions:2.0.a.21'
 
     implementation 'com.android.support:appcompat-v7:27.1.1'

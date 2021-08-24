@@ -30,39 +30,25 @@ import javax.annotation.processing.ProcessingEnvironment;
 import org.androidannotations.internal.helper.FileHelper;
 
 public class FileUtils {
-
-	public static File getPersistenceConfigFile(String subPath) {
-		String folderPath = new File(".declex").getAbsolutePath();		
-		
-		File file = new File(folderPath);
-		if (!file.exists()) file.mkdir();
-		
-		if (subPath != null) {
-			folderPath = folderPath + File.separator + subPath;
-			file = new File(folderPath);
-			if (!file.exists()) file.mkdir();
-		}
-		
-		return file;		
-	}
 	
 	public static File getConfigFile(String subPath, ProcessingEnvironment processingEnv) {
-		
-		String folderPath = "";
+
+		String folderPath;
 		try {
 			File rootProject = FileHelper.findRootProject(processingEnv);
 			folderPath = rootProject.getAbsolutePath();
-		} catch (FileNotFoundException e) {
-			//Try with gradle
-			File gradle = new File("app" + File.separator + "build" + File.separator + "generated" + File.separator + "source" + File.separator + "apt");
-			
-			if (gradle.exists()) {
-				folderPath = gradle.getAbsolutePath();
-			} else {
-				//Use Ant
-				File ant = new File(".");
-				folderPath = ant.getAbsolutePath();				
+
+			//Gradle Structure
+			int index = folderPath.lastIndexOf(File.separator + "build" + File.separator);
+			if (index == -1) {
+				throw new IllegalStateException("Cannot Find Project Root File");
 			}
+
+			folderPath = folderPath.substring(0, index);
+
+		} catch (FileNotFoundException e) {
+			File ant = new File(".");
+			folderPath = ant.getAbsolutePath();
 		}
 		
 		String filePath = folderPath + File.separator + ".declex";
@@ -80,38 +66,32 @@ public class FileUtils {
 	}
 	
 	public static File getResFolder(ProcessingEnvironment processingEnv) {
-		
-		String folderPath = "";
+
+		String folderPath;
 		try {
 			File rootProject = FileHelper.findRootProject(processingEnv);
 			folderPath = rootProject.getAbsolutePath();
 		} catch (FileNotFoundException e) {
-			
-			//Try with gradle
-			File gradle = new File("app" + File.separator + "build" + File.separator + "generated" + File.separator + "source" + File.separator + "apt");
-			
-			if (gradle.exists()) {
-				folderPath = gradle.getAbsolutePath();
-			} else {
-				//Use Ant
-				File ant = new File(".");
-				folderPath = ant.getAbsolutePath();				
-			}
+			File ant = new File(".");
+			folderPath = ant.getAbsolutePath();
 		}
-		
+
 		//Ant Structure
 		String resFolder = folderPath + File.separator + "res";
 		File resFolderFile = new File(resFolder);
-		
 		if (resFolderFile.exists()) return resFolderFile;
-		
-		//Graddle Structure
-		resFolder = folderPath
-				                .replace("\\build\\generated\\source\\apt", "")		//Windows
-				                .replace("/build/generated/source/apt", "") +  		//Linux + Mac
-				File.separator + "src" + File.separator + "main" + File.separator + "res";
-		
-		return new File(resFolder);
+
+		//Gradle Structure
+		int index = folderPath.lastIndexOf(File.separator + "build" + File.separator);
+		if (index == -1) {
+			throw new IllegalStateException("Cannot Find Project Root File");
+		}
+
+		resFolder = folderPath.substring(0, index) + File.separator + "src" + File.separator + "main" + File.separator + "res";
+		resFolderFile = new File(resFolder);
+		if (resFolderFile.exists()) return resFolderFile;
+
+		throw new IllegalStateException("Cannot Find Project Root File");
 	}
 	
 	
